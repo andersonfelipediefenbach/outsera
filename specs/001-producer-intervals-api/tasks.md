@@ -58,21 +58,21 @@ implementação.
 
 **Purpose**: gerar o projeto do zero, sem nenhuma dependência além do JDK 25.
 
-- [ ] T001 Remover o diretório vazio `src/main/java/org/example` (pacote padrão da IDE, substituído por `com.outsera.awards`; research R12)
-- [ ] T002 Criar `pom.xml` com:
+- [X] T001 Remover o diretório vazio `src/main/java/org/example` (pacote padrão da IDE, substituído por `com.outsera.awards`; research R12)
+- [X] T002 Criar `pom.xml` com:
   - **parent:** `org.springframework.boot:spring-boot-starter-parent:4.1.2`, `groupId` `com.outsera`, `artifactId` `awards` e `<java.version>25</java.version>`;
   - **dependências:** `spring-boot-starter-webmvc`, `spring-boot-starter-data-jpa`, `spring-boot-starter-flyway`, `com.h2database:h2` (runtime) e `org.apache.commons:commons-csv:1.14.1`;
   - **teste:** `spring-boot-starter-test` e o módulo de teste do Boot 4.1 que fornece `RestTestClient`/`@AutoConfigureRestTestClient` (confirmar o artifact no guia de migração do Boot 4);
   - **plugins:** `spring-boot-maven-plugin` e `maven-failsafe-plugin` com goals `integration-test` e `verify`, incluindo `**/*IT.java`.
-- [ ] T003 Gerar o Maven Wrapper 3.3.4 no modo `only-script`. Extrair `mvnw` e `mvnw.cmd` de `org/apache/maven/wrapper/maven-wrapper-distribution/3.3.4` (classifier `only-script`) no Maven Central e criar `.mvn/wrapper/maven-wrapper.properties` com `distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.9.16/apache-maven-3.9.16-bin.zip`. Marcar o `mvnw` como executável no git (`git update-index --chmod=+x mvnw`)
-- [ ] T004 [P] Criar `.gitattributes` com `mvnw text eol=lf`, `*.cmd text eol=crlf` e `*.csv text eol=lf -diff`, para o wrapper funcionar no Windows e no Linux
-- [ ] T005 [P] Criar `src/main/resources/application.yml` com:
+- [X] T003 Gerar o Maven Wrapper 3.3.4 no modo `only-script`. Extrair `mvnw` e `mvnw.cmd` de `org/apache/maven/wrapper/maven-wrapper-distribution/3.3.4` (classifier `only-script`) no Maven Central e criar `.mvn/wrapper/maven-wrapper.properties` com `distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.9.16/apache-maven-3.9.16-bin.zip`. Marcar o `mvnw` como executável no git (`git update-index --chmod=+x mvnw`)
+- [X] T004 [P] Criar `.gitattributes` com `mvnw text eol=lf`, `*.cmd text eol=crlf` e `*.csv text eol=lf -diff`, para o wrapper funcionar no Windows e no Linux
+- [X] T005 [P] Criar `src/main/resources/application.yml` com:
   - `spring.application.name: awards` e `server.port: ${PORT:8080}`;
   - `spring.mvc.problemdetails.enabled: true`;
   - `spring.jpa.hibernate.ddl-auto: validate` e `spring.jpa.open-in-view: false`;
   - `spring.h2.console.enabled: false`;
   - `movies.csv.path: ${MOVIES_CSV_PATH:classpath:movielist.csv}`.
-- [ ] T006 [P] Adicionar o arquivo do enunciado em `src/main/resources/movielist.csv`, sem alterar nenhum byte (fornecido pelo responsável)
+- [X] T006 [P] Adicionar o arquivo do enunciado em `src/main/resources/movielist.csv`, sem alterar nenhum byte (fornecido pelo responsável)
 
 ---
 
@@ -82,18 +82,18 @@ implementação.
 
 **⚠️ CRITICAL**: nenhum bolt seguinte começa antes deste estar mergeado.
 
-- [ ] T007 [P] Criar a base de cenário `src/test/java/com/outsera/awards/support/ScenarioIT.java`. É uma classe abstrata com:
+- [X] T007 [P] Criar a base de cenário `src/test/java/com/outsera/awards/support/ScenarioIT.java`. É uma classe abstrata com:
   - `@SpringBootTest(webEnvironment = RANDOM_PORT)`, `@AutoConfigureRestTestClient` e `@ExtendWith(OutputCaptureExtension.class)`;
   - um `RestTestClient` injetado, para as verificações por HTTP;
   - um `JdbcTemplate` injetado, para as verificações de banco do bolt 2, permitidas pelo Princípio I enquanto não há endpoint. O `JdbcTemplate` é temporário e sai no T067. As consultas usam só SQL sobre as tabelas do `data-model.md`, sem depender das classes de produção, para que o teste compile antes da implementação.
 
   Cada subclasse define o seu CSV via `properties`
-- [ ] T008 [P] Criar `src/test/java/com/outsera/awards/support/ApplicationStarter.java`, um utilitário de teste que executa a `AwardsApplication` real com `SpringApplication`, `--server.port=0` e `--movies.csv.path=<valor>`, e devolve a exceção lançada na inicialização e a saída capturada, para os testes de falha de inicialização
-- [ ] T009 Escrever `src/test/java/com/outsera/awards/SmokeIT.java` (deve falhar antes do T010):
+- [X] T008 [P] Criar `src/test/java/com/outsera/awards/support/ApplicationStarter.java`, um utilitário de teste que executa a `AwardsApplication` real com `SpringApplication`, `--server.port=0` e `--movies.csv.path=<valor>`, e devolve a exceção lançada na inicialização e a saída capturada, para os testes de falha de inicialização
+- [X] T009 Escrever `src/test/java/com/outsera/awards/SmokeIT.java` (deve falhar antes do T010):
   - `"FR-026 a aplicação sobe só com o wrapper"`: o contexto sobe em porta aleatória;
   - `GET /rota-inexistente` responde 404 com `Content-Type: application/problem+json`.
-- [ ] T010 Criar `src/main/java/com/outsera/awards/AwardsApplication.java` (`@SpringBootApplication` + `@ConfigurationPropertiesScan`)
-- [ ] T011 Rodar `./mvnw verify` (e `mvnw.cmd verify` no Windows) e confirmar `BUILD SUCCESS` com o `SmokeIT` executado pelo Failsafe e nenhum teste no Surefire
+- [X] T010 Criar `src/main/java/com/outsera/awards/AwardsApplication.java` (`@SpringBootApplication` + `@ConfigurationPropertiesScan`)
+- [X] T011 Rodar `./mvnw verify` (e `mvnw.cmd verify` no Windows) e confirmar `BUILD SUCCESS` com o `SmokeIT` executado pelo Failsafe e nenhum teste no Surefire
 
 **Checkpoint (PR do bolt 1)**: o projeto compila, sobe e testa só com o wrapper.
 
