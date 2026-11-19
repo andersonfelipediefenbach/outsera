@@ -1,50 +1,194 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report
+- Version change: 1.1.0 → 1.2.0 (nesta sessão também 1.0.0 → 1.1.0, observabilidade a partir do Marco 2)
+  Justificativa: MINOR. O Princípio I foi reescrito de forma compatível:
+  - todo teste que cumpria a versão anterior continua cumprindo;
+  - passa a ser explícito o uso de `@SpringBootTest` com o contexto completo, sem mocks;
+  - a verificação por log ou banco fica permitida só enquanto o comportamento não tem endpoint;
+  - os testes de falha de inicialização ganham uma cláusula própria.
+
+  Nenhum princípio foi removido, e nenhuma regra antes permitida ficou proibida para um teste
+  existente.
+- Modified principles: I. Somente testes de integração no back-end (o título não mudou; o texto foi
+  reescrito)
+- Modified sections (1.1.0): "Restrições técnicas e de segurança" > Observabilidade
+- Added sections: nenhuma
+- Removed sections: nenhuma
+- Impacto:
+  - specs/001-producer-intervals-api ✅ a FR-027 deixou de ter exceções próprias e só referencia o
+    Princípio I; o plano, as tarefas e a research foram alinhados;
+  - AGENTS.md ✅ atualizado (regras invioláveis, testes e stack);
+  - docs/ai/decisoes.md ✅ as duas emendas foram registradas.
+- Templates requiring updates: nenhum (os templates leem este arquivo em tempo de execução)
+- Follow-up TODOs: nenhum
+-->
+
+# Constituição da API Golden Raspberry Awards (Teste Outsera)
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+Os sete princípios abaixo são **inegociáveis**. Uma violação bloqueia o merge.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### I. Somente testes de integração no back-end
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+- Todo teste do back-end MUST ser de integração:
+  - usa `@SpringBootTest` com o contexto completo da aplicação;
+  - não usa mocks nem dublês de serviços, repositórios ou banco (por exemplo, `@MockitoBean`).
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+  Testes unitários MUST NOT existir na API (item 4.2 do enunciado).
+- O resultado MUST ser verificado preferencialmente por HTTP, chamando os endpoints expostos.
+  - A verificação por log ou banco só é permitida enquanto o comportamento ainda não tem endpoint
+    exposto.
+  - Quando o endpoint passar a existir, o teste MUST ganhar a verificação por HTTP.
+- **Testes de falha de inicialização:** um contexto que não sobe não pode ser verificado por
+  `@SpringBootTest`. Por isso, esses testes executam a aplicação real com `SpringApplication`, sem
+  mocks, e verificam a exceção e o log.
+- Todo comportamento novo ou alterado MUST chegar com o seu teste de integração, no mesmo bolt.
+- O resultado de referência com o arquivo fornecido MUST ser testado: Joel Silver em `min`
+  (1990–1991) e Matthew Vaughn em `max` (2002–2015).
+- Toda falha encontrada pelo testador adversário MUST virar teste de integração permanente.
+- Testes unitários são permitidos apenas no front-end, que está fora do escopo do enunciado.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+**Motivo:**
+- É uma exigência explícita do enunciado, e os testes de ponta a ponta são os que provam o contrato.
+- A verificação por log ou banco existe para que um comportamento seja testado no mesmo bolt em que
+  nasce, mesmo antes de ter endpoint (por exemplo, a carga do arquivo), sem recorrer a teste
+  unitário.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### II. Execução só com ./mvnw
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+- A aplicação MUST subir com `./mvnw spring-boot:run`, e todos os testes do enunciado e dos extras
+  da API MUST passar com `./mvnw verify`, sem Docker e sem nenhuma instalação além do JDK
+  (item 4.3 do enunciado).
+- O modo padrão MUST usar H2 em memória e carregar o CSV fornecido como padrão.
+- Os testes de Kafka MUST usar o broker embutido do Spring, e não Testcontainers. Os testes que
+  dependem de PostgreSQL ficam em um perfil Maven separado, fora do `./mvnw verify` padrão.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+**Motivo:** o avaliador executa só o modo padrão. Se ele falha, a entrega inteira falha.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### III. Contrato de intervalos idêntico ao enunciado
+
+- `GET /api/producers/intervals` MUST devolver exatamente o formato da página 2 do PDF:
+  `{ "min": [...], "max": [...] }`, com itens `producer`, `interval`, `previousWin` e
+  `followingWin`. Nenhum campo pode ser adicionado, renomeado ou removido.
+- `min` e `max` MUST conter todos os empatados, ordenados por `previousWin` crescente e depois
+  pelo nome. Sem produtor com duas vitórias, as duas listas MUST vir vazias, com status 200.
+- Os intervalos MUST ser calculados só entre vitórias vizinhas de um mesmo produtor, depois de
+  ordenar os anos. Duas vitórias no mesmo ano resultam em intervalo 0.
+- Os nomes de produtores MUST ser separados por vírgula e por ` and ` (inclusive `, and`) e
+  comparados exatamente como escritos, sem normalizar a grafia.
+- O contrato OpenAPI MUST descrever esse formato e MUST validar as respostas nos testes.
+
+**Motivo:** a correção usará outros conjuntos de dados, provavelmente de forma automatizada.
+Qualquer desvio reprova a entrega.
+
+### IV. Spec-anchored: a spec é a fonte da verdade
+
+- O trabalho MUST seguir Spec-Driven Development com o GitHub Spec Kit. A spec em `specs/` é a
+  fonte da verdade do comportamento.
+- Quando um comportamento muda, a spec MUST ser atualizada antes do código e dos testes. Código
+  que diverge da spec é defeito, mesmo que os testes passem.
+- A spec evolui a cada ciclo (bolt). Não se escreve a especificação inteira de uma vez.
+- Uma ambiguidade sem decisão registrada MUST NOT ser resolvida por um agente sozinho. Ela é
+  levada ao responsável e registrada na spec ou em `docs/ai/decisoes.md`.
+
+**Motivo:** uma única fonte da verdade, que evolui a cada ciclo, mantém código, testes e
+documentação coerentes e evita o modelo cascata.
+
+### V. Extras opcionais e isolados por perfil
+
+- Todo extra (PostgreSQL, Kafka, Prometheus, Grafana, autenticação, ETag, front-end, deploy) é
+  opcional e MUST ser ativado só pelo seu perfil ou pela sua configuração.
+- Nenhum extra pode quebrar a subida ou os testes do modo padrão. Kafka e PostgreSQL MUST NOT ser
+  configurados nem exigidos sem o perfil ativo.
+- A regra de registrar um filme MUST existir em um único serviço. O perfil muda só a origem dos
+  dados (carga direta ou consumidor Kafka).
+- Um extra só entra na entrega se estiver completo. O marco 1 nunca é reduzido.
+- Complexidade sem necessidade comprovada MUST NOT ser adicionada (por exemplo, imagem nativa,
+  tracing distribuído ou Kubernetes). Toda exceção MUST ser justificada em um ADR.
+
+**Motivo:** os extras mostram o perfil full stack sem pôr em risco o que o enunciado avalia.
+
+### VI. Rastreabilidade requisito → teste
+
+- Cada requisito da spec MUST apontar para o teste de integração que o comprova, e cada teste MUST
+  indicar o requisito que cobre.
+- Requisito sem teste não é considerado entregue.
+- O README MUST trazer a tabela de requisitos do enunciado, com o teste que comprova cada um.
+
+**Motivo:** o avaliador consegue conferir cada exigência do enunciado sem ler o código.
+
+### VII. Sem segredos; configuração por variável de ambiente
+
+- Tokens, senhas e credenciais reais MUST NOT aparecer no código, nos commits, na evidência de IA
+  nem nas mensagens aos agentes. Só o token de demonstração documentado no README é permitido.
+- Toda configuração MUST vir de variáveis de ambiente, inclusive a porta (`PORT`), o caminho do
+  CSV, o token e o CORS, com padrões que fazem o modo padrão funcionar sem nada definido.
+- A autenticação MUST ficar desligada por padrão: sem a variável do token, os endpoints de negócio
+  ficam públicos.
+
+**Motivo:** o repositório e toda a evidência de IA serão públicos.
+
+## Restrições técnicas e de segurança
+
+- **Stack:** Java 25 (LTS), Spring Boot (versão estável atual), Maven com wrapper versionado, JPA
+  e Apache Commons CSV.
+- **Esquema:** versionado por Flyway, comum a H2 e a PostgreSQL. O SQL MUST ser portável.
+- **CSV:** separador `;` e cabeçalho `year;title;studios;producers;winner`. A coluna `winner` com
+  `yes` marca vencedor, sem diferenciar maiúsculas e ignorando espaços. Arquivo ausente ou com
+  cabeçalho inválido MUST interromper a inicialização com mensagem clara.
+- **Erros:** a API MUST responder em Problem Details (RFC 9457). Parâmetro inválido devolve 400,
+  e token ausente ou errado, com a autenticação ligada, devolve 401.
+- **Observabilidade:** valem **a partir do marco de observabilidade (Marco 2)** os logs estruturados
+  em JSON e os probes de liveness e readiness, com a readiness positiva só depois do fim da carga dos
+  dados. Até lá, vale o log padrão do framework, em texto.
+  - **Motivo:**
+    - O Marco 1 se limita ao que o enunciado avalia, e o enunciado não pede nenhum dos dois itens.
+    - Antecipá-los exigiria dependências e configuração novas no modo padrão, que é o que o
+      avaliador executa.
+    - A garantia que a readiness daria já existe no Marco 1: a carga termina antes de o servidor
+      aceitar conexões (FR-001 da spec 001).
+  - Quando o Marco 2 ligar os logs em JSON, os testes que verificam mensagens de log MUST continuar
+    passando.
+- **Cadeia de entrega:** as actions do pipeline MUST ser fixadas por hash de commit, nunca por
+  tag. A imagem MUST ser multi-stage e rodar com usuário não root.
+
+## Fluxo de desenvolvimento e portões de qualidade
+
+- Cada unidade de trabalho é um bolt, feito em um branch próprio. Commits diretos na `main` MUST
+  NOT acontecer.
+- O bolt segue esta ordem:
+  1. O implementador escreve o teste de integração e o código.
+  2. O responsável abre o pull request.
+  3. O revisor (Codex) comenta.
+  4. O implementador corrige só o que o responsável aceitar.
+  5. O merge acontece com o pipeline verde, e a sessão é exportada.
+- Pull request, merge e tags são feitos só pelo responsável, nunca por um agente.
+- No máximo três agentes trabalham ao mesmo tempo, cada um na sua cópia de trabalho. Cada arquivo
+  compartilhado tem um único dono por rodada.
+- O testador adversário MUST criar os casos a partir da spec, sem ler o código de produção.
+- **Evidência de IA (item 5.2):**
+  - As mensagens aos agentes são gravadas com data e hora em `docs/ai/prompts.md`, pelo hook, sem
+    edição manual.
+  - As sessões são exportadas para `docs/ai/sessoes/`.
+  - As sugestões aceitas ou rejeitadas são registradas, com o motivo, em `docs/ai/decisoes.md`.
+  - Dados pessoais MUST NOT entrar nessa evidência.
+- **Portão de merge:** os princípios I a VII estão atendidos, `./mvnw verify` está verde sem
+  Docker e as decisões estão registradas.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+- Esta constituição prevalece sobre as demais práticas do projeto. Só o enunciado da Outsera tem
+  precedência sobre ela. O `AGENTS.md` é o guia de execução para os agentes e MUST permanecer
+  coerente com ela.
+- Uma emenda MUST ser feita por pull request, aprovada pelo responsável e registrada em
+  `docs/ai/decisoes.md`, com o impacto em specs, planos e tarefas existentes.
+- O versionamento segue SemVer:
+  - MAJOR: remoção ou redefinição incompatível de um princípio.
+  - MINOR: princípio ou seção nova, ou orientação ampliada de forma material.
+  - PATCH: esclarecimento ou ajuste de redação.
+- Todo plano MUST passar pelo "Constitution Check". Toda revisão de pull request MUST verificar a
+  conformidade com os princípios I a VII. Os sete princípios são inegociáveis e não admitem
+  exceção em "Complexity Tracking". Qualquer outra divergência MUST ser justificada no plano.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.2.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-19
