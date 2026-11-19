@@ -174,7 +174,7 @@ Para os erros estruturais, verificar a falha de inicialização com `Application
   Registrar o analyzer em `src/main/resources/META-INF/spring.factories` (chave `org.springframework.boot.diagnostics.FailureAnalyzer`)
 - [ ] T029 [P] [US2] Criar `src/main/java/com/outsera/awards/ingestion/Rejection.java` (record `lineNumber`, `reason`, `detail`), o enum `RejectionReason` (`COLUMN_COUNT`, `YEAR_MISSING`, `YEAR_NOT_NUMERIC`, `TITLE_MISSING`, `PRODUCERS_MISSING`, `WINNER_INVALID` e `DUPLICATE`, cada um com uma mensagem legível em português) e `src/main/java/com/outsera/awards/ingestion/LoadReport.java` (`linesRead`, `accepted`, `rejected` e a lista de `Rejection`)
 - [ ] T030 [P] [US2] Criar `src/main/java/com/outsera/awards/ingestion/ProducerNameParser.java` (research R4):
-  - dividir pela regex `\s*,\s*(?:and\s+)?|\s+and\s+`;
+  - dividir pela regex `\s*,\s*(?:and(?=\s|$)\s*)?|(?:^|\s+)and(?=\s|$)\s*`. O `and` é separador só como palavra inteira, inclusive no início e no fim do campo; os casos estão em R4;
   - aplicar `trim` em cada parte e descartar as vazias;
   - remover as repetidas com um `LinkedHashSet`;
   - devolver uma lista vazia quando nenhum nome resultar.
@@ -194,7 +194,7 @@ Para os erros estruturais, verificar a falha de inicialização com `Application
   2. `YEAR_MISSING`: ano vazio;
   3. `YEAR_NOT_NUMERIC`: ano que não casa com `\d{1,9}`;
   4. `TITLE_MISSING`: título vazio;
-  5. `PRODUCERS_MISSING`: produtores vazios ou sem nenhum nome depois do parser;
+  5. `PRODUCERS_MISSING`: produtores vazios ou sem nenhum nome depois do parser. O parser recebe o campo já com `trim` (por exemplo, ` , and ` chega como `, and`) e não pode depender dos espaços em volta;
   6. `WINNER_INVALID`: `winner` não vazio e diferente de `yes`, sem diferenciar maiúsculas;
   7. `DUPLICATE`: ano + título (após `trim`) já aceitos. O detalhe cita a linha original.
 
@@ -235,6 +235,7 @@ Todos os cenários usam nomes fictícios (`Producer A`, `Producer B`...) e anos 
   - `Gayle Dickie, Kenn Viselman`;
   - `Brian Robbinsand Sharla Sumpter Bridgett`;
   - `Sid and Marty Krofft`;
+  - `Producer A and`, com o `and` no fim do campo (research R4);
   - `A, , B`;
   - `Steven Perry` e `Steve Perry`;
   - espaços extras em volta dos nomes;
@@ -245,6 +246,7 @@ Todos os cenários usam nomes fictícios (`Producer A`, `Producer B`...) e anos 
   - nomes separados corretamente;
   - `Brian Robbinsand Sharla Sumpter Bridgett` como um único produtor;
   - `Sid` e `Marty Krofft` como dois produtores;
+  - `"FR-007 and no fim do campo"`: `Producer A and` resulta em 1 produtor, `Producer A`. Os intervalos trazem `Producer A`, e nenhum item tem o produtor `and` nem `Producer A and`;
   - `Steven Perry` e `Steve Perry` como produtores distintos;
   - `"FR-010 nome repetido no mesmo filme conta uma vez"`: `Producer R` não gera intervalo 0;
   - `"Edge UTF-8 preservado"`: `José Núñez` aparece na resposta exatamente com os acentos.

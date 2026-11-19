@@ -134,3 +134,19 @@ Aplique as correções do analyze: C1 (tarefa de README no fechamento), C2 (ITs 
 ```text
 Resolva o crítico emendando a constituição, não a spec. Reescreva o princípio de testes assim: todo teste é de integração, com @SpringBootTest e o contexto completo da aplicação, sem mocks; o resultado é verificado preferencialmente por HTTP, e por log ou banco somente quando o comportamento ainda não tem endpoint exposto. Registre a emenda com versão e motivo. Depois, retire a exceção da FR-027 e faça a spec apenas referenciar o princípio. Rode o analyze de novo.
 ```
+
+## 2026-11-19 16:21:16 -03:00
+
+- Sessao: `9758a314-ea7b-4e67-ad6f-3c0b7ac28236`
+
+```text
+O Codex apontou no PR que a regex de separação de produtores (research R4, tarefa T031) não trata "and" no fim do campo depois do trim: o campo " , and " vira ", and" e sobra "and" como produtor, fazendo o T017 falhar. Corrija a regra para reconhecer "and" como palavra inteira também no fim do campo, sem cortar nomes como "Anderson" ou "Robbinsand". Atualize R4 (incluindo os casos verificados com ", and" isolado), a T031 e a FR de separação na spec. Registre a decisão em docs/ai/decisoes.md citando a revisão do Codex.
+```
+
+## 2026-11-19 16:24:18 -03:00
+
+- Sessao: `9758a314-ea7b-4e67-ad6f-3c0b7ac28236`
+
+```text
+Briefing fica como está: é registro do planejamento, e a spec é a fonte da verdade. Inclua o caso "Producer A and" no CSV de cenário da separação de nomes, esperando 1 produtor.
+```

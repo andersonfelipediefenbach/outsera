@@ -269,10 +269,13 @@ máquina e conferir se os dois endpoints estão descritos. Validar as respostas 
 **Separação de produtores**
 
 - **FR-007**: A coluna de produtores MUST ser dividida em nomes usando como separadores a vírgula, a
-  palavra `and` cercada de espaços e a combinação `, and`.
+  palavra `and` e a combinação `, and`. O `and` só separa quando é uma palavra inteira: antes dele vem
+  espaço, vírgula ou o início do campo, e depois dele vem espaço ou o fim do campo. Por exemplo,
+  `Producer A and` e `Producer A, and` dão só `Producer A`, e `, and` não dá nenhum nome.
 - **FR-008**: Cada nome MUST ter os espaços em volta removidos e ser comparado exatamente como escrito,
   sem corrigir grafia, abreviação ou maiúsculas.
-- **FR-009**: Um `and` sem espaço dos dois lados (por exemplo, `Robbinsand`) MUST NOT separar nomes.
+- **FR-009**: Um `and` que faz parte de uma palavra (por exemplo, `Robbinsand`, `Anderson` ou
+  `andrew`) MUST NOT separar nomes.
 - **FR-010**: Nomes vazios resultantes da separação MUST ser descartados, e um mesmo nome repetido no
   mesmo filme MUST contar uma única vez.
 

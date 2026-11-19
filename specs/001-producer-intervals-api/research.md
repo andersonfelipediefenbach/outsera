@@ -61,16 +61,31 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
 
 ## R4. Separação de produtores (FR-007 a FR-010)
 
-- **Decision**: a expressão regular `\s*,\s*(?:and\s+)?|\s+and\s+` divide a coluna. Em seguida, cada
-  parte recebe `trim`, as vazias são descartadas e as repetidas no mesmo filme são removidas
-  (`LinkedHashSet`, que preserva a ordem). O `and` é comparado em minúsculas, como no enunciado.
-- **Casos verificados**:
+- **Decision**: a expressão regular `\s*,\s*(?:and(?=\s|$)\s*)?|(?:^|\s+)and(?=\s|$)\s*` divide a
+  coluna. O `and` só é separador como palavra inteira:
+  - antes dele vem uma vírgula, espaço ou o início do campo;
+  - depois dele vem espaço ou o fim do campo (lookahead `(?=\s|$)`).
+
+  Em seguida, cada parte recebe `trim`, as vazias são descartadas e as repetidas no mesmo filme são
+  removidas (`LinkedHashSet`, que preserva a ordem). O `and` é comparado em minúsculas, como no
+  enunciado.
+- **Por que o fim do campo importa:** o leitor de CSV aplica `trim` antes do parser (T031). Assim, o
+  campo ` , and ` chega como `, and`, sem espaço depois do `and`. A regex anterior,
+  `\s*,\s*(?:and\s+)?|\s+and\s+`, exigia espaço depois do `and` e deixava `and` como produtor
+  (revisão do Codex no PR do bolt 2; ver `docs/ai/decisoes.md`).
+- **Casos verificados** (a regex foi executada contra cada um):
   - `Eric Fellner, and Tom Hooper` dá 2 nomes;
   - `Gayle Dickie, Kenn Viselman` dá 2 nomes;
-  - `Brian Robbinsand Sharla Sumpter Bridgett` dá 1 nome (não há `\s` antes de `and`);
+  - `Brian Robbinsand Sharla Sumpter Bridgett` dá 1 nome (não há espaço antes de `and`);
   - `Sid and Marty Krofft` dá 2 nomes;
   - `A, , B` dá `A` e `B`;
-  - ` , and ` dá nenhum nome, então a linha é rejeitada.
+  - `, and` (o campo ` , and ` depois do `trim`) e `and` isolado dão nenhum nome, então a linha é
+    rejeitada com `PRODUCERS_MISSING`;
+  - `Producer A and` e `Producer A, and` dão só `Producer A`;
+  - `and Producer B` dá só `Producer B`;
+  - `Anderson Silva` dá 1 nome, e `Joel Silver and Anderson` dá `Joel Silver` e `Anderson` (`And`
+    maiúsculo não é separador);
+  - `A, andrew B` dá `A` e `andrew B` (o `and` seguido de letra não é palavra inteira).
 - **Alternatives considered**: tokenização manual (mais código, sem ganho) e `and` sem diferenciar
   maiúsculas (não pedido, e aumentaria o risco de separar nomes por engano).
 

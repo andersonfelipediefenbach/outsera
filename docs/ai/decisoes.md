@@ -47,6 +47,26 @@ decisões de arquitetura ficam em ADRs, em `docs/adr/`.
   - a FR-027 deixou de ter exceções e só referencia o Princípio I;
   - o plano, as tarefas, a research e o `AGENTS.md` foram alinhados.
 
+## 2026-11-19 — `and` no fim do campo de produtores (revisão do Codex)
+
+- **Origem:** comentário do Codex, como revisor, no pull request do bolt 2. O leitor de CSV aplica
+  `trim` no campo antes do parser de nomes (T031), então ` , and ` chega como `, and`. A regex da
+  research R4, `\s*,\s*(?:and\s+)?|\s+and\s+`, exigia espaço depois do `and` e deixava `and` como
+  nome de produtor. Com isso, a linha deixava de ser rejeitada e o caso `PRODUCERS_MISSING`
+  (` , and `) do T017 falhava. O mesmo acontecia com `Producer A and`, que virava um único nome.
+- **Decisão (responsável):** aceitar. O `and` passa a ser separador como palavra inteira, também no
+  início e no fim do campo, com a regex `\s*,\s*(?:and(?=\s|$)\s*)?|(?:^|\s+)and(?=\s|$)\s*`. Nomes
+  que contêm `and`, como `Anderson`, `Robbinsand` e `andrew`, continuam inteiros.
+- **Motivo:** o parser não pode depender dos espaços em volta do campo, porque o `trim` do leitor os
+  remove. A regex nova foi executada contra os casos antigos e os novos, que estão listados na R4.
+- **Alternativa rejeitada:** tirar o `trim` do leitor de CSV. A regra continuaria frágil, e os outros
+  campos (ano, título, `winner`) dependem do `trim`.
+- **Impacto:** a R4, a T030 (regex), a T031 (nota sobre o `trim`) e as FR-007 e FR-009 da spec foram
+  atualizadas. O T017 continua com o caso ` , and ` e passa a ser atendido. O T043 ganhou o caso
+  `Producer A and`, que deve resultar em 1 produtor.
+- **Briefing:** continua dizendo "`and` cercada de espaços" e não foi alterado. Ele é o registro do
+  planejamento, e a fonte da verdade é a spec (FR-007).
+
 ## 2026-11-19 — Testes de carga antes dos endpoints (substituída pela emenda 1.2.0)
 
 - **Origem:** achado C2 do `/speckit-analyze`. O Princípio I e a FR-027 falam em testes que "chamam
