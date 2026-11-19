@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: awards
+  mvc:
+    problemdetails:
+      enabled: true
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  h2:
+    console:
+      enabled: false
+
+server:
+  port: ${PORT:8080}
+
+movies:
+  csv:
+    path: ${MOVIES_CSV_PATH:classpath:movielist.csv}

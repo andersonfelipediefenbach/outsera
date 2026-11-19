@@ -150,3 +150,27 @@ O Codex apontou no PR que a regex de separação de produtores (research R4, tar
 ```text
 Briefing fica como está: é registro do planejamento, e a spec é a fonte da verdade. Inclua o caso "Producer A and" no CSV de cenário da separação de nomes, esperando 1 produtor.
 ```
+
+## 2026-11-19 16:35:12 -03:00
+
+- Sessao: `c96ce30a-bab6-4bf4-a954-503232b71372`
+
+```text
+/speckit-implement Execute somente o bolt 1 (Phase 1 e Phase 2 do tasks.md). Pare ao final do bolt 1.
+```
+
+## 2026-11-19 16:47:29 -03:00
+
+- Sessao: `c96ce30a-bab6-4bf4-a954-503232b71372`
+
+```text
+Decisão para o bolt 2: T014 e T015 verificam apenas WARN emitidos pelo carregador do CSV, não o log inteiro. Excluir o Mockito do spring-boot-starter-test, reforçando o Princípio I. O aviso de versão do H2 no Flyway fica. Registre em docs/ai/decisoes.md e aplique no tasks.md no início do bolt 2.
+```
+
+## 2026-11-19 16:51:29 -03:00
+
+- Sessao: `c96ce30a-bab6-4bf4-a954-503232b71372`
+
+```text
+renomeie o arquivo 01-bolt-1-projeto.md. para 01-bolt-1-projeto.md que está dnetro de docs\ai\sessoes
+```
