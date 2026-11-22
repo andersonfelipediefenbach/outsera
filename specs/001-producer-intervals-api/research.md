@@ -180,7 +180,9 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
   (`/swagger-ui.html`) apontando para ele (`springdoc.swagger-ui.url=/openapi.yaml`), com a geração
   automática desligada (`springdoc.api-docs.enabled=false`). Os testes validam as respostas reais
   contra esse mesmo arquivo com `swagger-request-validator-core` 3.0.0 (Atlassian), só no escopo de
-  teste.
+  teste. Na versão 3.0.0 o artifact foi relocado pelo projeto para
+  `com.atlassian.oai:openapi-request-validator-core`, que é a coordenada declarada no `pom.xml`
+  (mesmos pacotes Java; decisão de 2026-11-22 em `docs/ai/decisoes.md`).
 - **Rationale**: o briefing exige que "o contrato OpenAPI seja a fonte do Swagger UI e do teste que
   valida as respostas". Com geração por anotações, haveria dois contratos, o desenhado e o gerado,
   que poderiam divergir.
