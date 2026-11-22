@@ -96,11 +96,27 @@ public class MovieCsvReader {
         return new Result(rows, new LoadReport(linesRead, rows.size(), rejections.size(), rejections));
     }
 
+    /**
+     * Abre o arquivo em UTF-8 estrito e descarta o BOM, se houver, antes de o Commons CSV ler qualquer
+     * caractere. Com o BOM na frente, o Commons CSV não reconheceria a aspa de um cabeçalho entre aspas,
+     * e uma linha só com o BOM deixaria de ser uma linha em branco (research R3; revisão do Codex no PR
+     * do bolt 2).
+     */
     private static Reader utf8Reader(Resource resource) throws IOException {
         CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
                 .onMalformedInput(CodingErrorAction.REPORT)
                 .onUnmappableCharacter(CodingErrorAction.REPORT);
-        return new BufferedReader(new InputStreamReader(resource.getInputStream(), decoder));
+        BufferedReader reader = new BufferedReader(new InputStreamReader(resource.getInputStream(), decoder));
+        try {
+            reader.mark(1);
+            if (reader.read() != BOM) {
+                reader.reset();
+            }
+        } catch (IOException ex) {
+            reader.close();
+            throw ex;
+        }
+        return reader;
     }
 
     private static CSVRecord nextNonBlank(Iterator<CSVRecord> records, String path) {
@@ -114,8 +130,7 @@ public class MovieCsvReader {
     }
 
     private static void validateHeader(CSVRecord header, String path) {
-        List<String> columns = new ArrayList<>(header.toList());
-        columns.set(0, stripBom(columns.getFirst()).trim());
+        List<String> columns = header.toList();
         String found = String.join(";", columns);
 
         if (columns.size() == 1 && columns.getFirst().contains(",")) {
@@ -177,10 +192,6 @@ public class MovieCsvReader {
      */
     private static boolean isBlank(CSVRecord record) {
         return record.size() == 1 && record.get(0).isBlank();
-    }
-
-    private static String stripBom(String value) {
-        return !value.isEmpty() && value.charAt(0) == BOM ? value.substring(1) : value;
     }
 
     private static MovieFileException unreadable(String path, Throwable cause) {

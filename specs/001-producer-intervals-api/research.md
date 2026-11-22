@@ -39,8 +39,13 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
   - delimitador `;` e aspas `"` (campos entre aspas podem conter `;`);
   - `ignoreEmptyLines=true`, `trim=true` e `ignoreSurroundingSpaces=true`.
 
+  O BOM (`U+FEFF`) é removido do `Reader` **antes** de o Commons CSV ler qualquer caractere: o leitor
+  lê o primeiro caractere com `mark`/`reset` e o descarta se for o BOM. Remover o BOM só do primeiro
+  campo é tarde demais (revisão do Codex no PR do bolt 2): com o BOM na frente, o Commons CSV não
+  reconhece a aspa de um cabeçalho entre aspas (`"year";...`), e uma linha só com o BOM deixa de ser
+  uma linha em branco e vira o cabeçalho.
+
   O cabeçalho é lido como um registro comum e validado à mão:
-  - remove o BOM (`﻿`) do primeiro campo;
   - aplica `trim` e compara os nomes sem diferenciar maiúsculas (`equalsIgnoreCase`), na ordem exata;
   - exige exatamente 5 colunas.
 
@@ -65,7 +70,10 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
 - **Alternatives considered**:
   - `setHeader().setSkipHeaderRecord()` com nomes: o Commons CSV compara os nomes diferenciando
     maiúsculas e não detecta ordem errada com uma mensagem clara.
-  - `BOMInputStream`: adiciona uma dependência direta só para um caractere.
+  - `BOMInputStream` (Commons IO): o Commons IO só chega como dependência transitiva do Commons CSV, e
+    usá-lo direto exigiria declará-lo no `pom.xml`, uma dependência nova só para um caractere.
+  - Remover o BOM do primeiro campo, depois da leitura: não trata o cabeçalho entre aspas nem o BOM
+    seguido de linha em branco (abordagem original, substituída após a revisão do Codex).
   - `String.split`: não trata aspas.
 
 ## R4. Separação de produtores (FR-007 a FR-010)

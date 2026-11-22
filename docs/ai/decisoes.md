@@ -3,6 +3,28 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-22 — BOM removido do `Reader`, antes do Commons CSV (revisão do Codex)
+
+- **Origem:** comentário do Codex, como revisor, no pull request do bolt 2. O leitor removia o BOM só
+  do primeiro campo, depois de o Commons CSV já ter analisado a linha. Isso é tarde demais em dois
+  casos:
+  - BOM seguido de cabeçalho entre aspas (`"year";...`): com o BOM na frente, o Commons CSV não
+    reconhece a aspa, o campo vira `"year"` literal e a inicialização falha com `INVALID_HEADER`;
+  - BOM seguido de linha em branco: a linha contém só o BOM, deixa de ser uma linha em branco e vira
+    o cabeçalho, o que também dá `INVALID_HEADER`.
+
+  Os dois cenários foram reproduzidos com testes antes da correção.
+- **Decisão (responsável):** aceitar. O BOM é removido do `Reader` antes de ele ser entregue ao Commons
+  CSV, lendo o primeiro caractere com `mark`/`reset`. O tratamento no primeiro campo foi retirado.
+- **Motivo:** a FR-005a manda aceitar o BOM sem aviso, qualquer que seja o resto do arquivo. Tirar o BOM
+  antes da análise faz o Commons CSV ver o arquivo exatamente como ele seria sem o BOM.
+- **Alternativa rejeitada:** `BOMInputStream`, do Commons IO. O Commons IO só chega como dependência
+  transitiva do Commons CSV, e usá-lo direto exigiria declará-lo no `pom.xml`: uma dependência nova só
+  para um caractere.
+- **Impacto:** research R3, tarefa T031 (a remoção do BOM sai da validação do cabeçalho e vai para a
+  leitura) e nova tarefa T022a, com o `BomVariationsIT` e os cenários `bom-quoted-header.csv` e
+  `bom-blank-line.csv`. A matriz do `plan.md` (FR-005a e FR-006c) foi atualizada.
+
 ## 2026-11-22 — Linha só com espaços e arquivo que não pode ser analisado (R3, T031)
 
 - **Origem:** sonda do implementador com o Commons CSV 1.14.1, no início do bolt 2. O

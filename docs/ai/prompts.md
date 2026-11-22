@@ -206,3 +206,11 @@ Antes de implementar o bolt 2: aplique no tasks.md que T014 e T015 verificam ape
 ```text
 ./mvnw verify execute para mim
 ```
+
+## 2026-11-22 17:44:19 -03:00
+
+- Sessao: `62d0d2d6-3afc-4c30-bf3d-d88d47de2497`
+
+```text
+O Codex apontou no PR que o BOM é removido tarde demais: com BOM e cabeçalho entre aspas, o Commons CSV não reconhece a aspa e a inicialização falha com INVALID_HEADER; com BOM seguido de linha em branco, a linha em branco vira cabeçalho. Remova o BOM do Reader antes de entregá-lo ao Commons CSV, sem adicionar dependência nova, e retire o tratamento no primeiro campo. Crie dois cenários de teste: BOM com cabeçalho entre aspas e BOM seguido de linha em branco, ambos devendo carregar normalmente. Atualize a research e registre a decisão em docs/ai/decisoes.md citando a revisão do Codex.
+```

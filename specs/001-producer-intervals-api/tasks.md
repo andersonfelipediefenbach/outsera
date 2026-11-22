@@ -163,6 +163,9 @@ Para os erros estruturais, verificar a falha de inicialização com `Application
   - `"FR-001 FR-002 carrega o arquivo padrão"`: o resumo cita `classpath:movielist.csv` e mostra `0 rejeitadas`, e `select count(*) from movie` é igual ao número de aceitas lido do próprio resumo;
   - `"FR-001 a carga termina antes de o servidor aceitar conexões"`: no log, a linha `Carga do arquivo ... concluída` aparece antes da linha de início do servidor web (`Tomcat started on port`).
 
+- [X] T022a [P] [US2] Criar `src/test/resources/scenarios/bom-quoted-header.csv` (BOM seguido do cabeçalho entre aspas, `"year";"title";"studios";"producers";"winner"`, e 2 linhas válidas) e `src/test/resources/scenarios/bom-blank-line.csv` (BOM seguido de uma linha em branco, depois o cabeçalho e 2 linhas válidas), e escrever `src/test/java/com/outsera/awards/ingestion/BomVariationsIT.java` com uma classe `@Nested` por CSV (revisão do Codex no PR do bolt 2):
+  - `"FR-005a BOM com cabeçalho entre aspas"` e `"FR-005a BOM seguido de linha em branco"`: a aplicação sobe, o resumo mostra `2 linhas lidas, 2 aceitas, 0 rejeitadas`, o carregador não emite `WARN` e `select count(*) from movie` é 2.
+
 ### Implementação do bolt 2
 
 - [X] T023 [US2] Criar `src/main/resources/db/migration/V1__create_schema.sql` (SQL portável entre H2 e PostgreSQL, sem funções específicas):
@@ -190,12 +193,12 @@ Para os erros estruturais, verificar a falha de inicialização com `Application
 - [X] T031 [US2] Criar `src/main/java/com/outsera/awards/ingestion/MovieCsvReader.java` (depende de T028 a T030; research R3). Leitura:
   - Commons CSV com delimitador `;`, aspas `"`, `ignoreEmptyLines`, `trim` e `ignoreSurroundingSpaces`;
   - leitura em UTF-8;
+  - o BOM é removido do `Reader` antes de o Commons CSV ler o arquivo (`mark`/`reset` no primeiro caractere, sem dependência nova; research R3);
   - número da linha física com `getCurrentLineNumber()`;
   - um registro de uma coluna vazia (linha só com espaços) é tratado como linha em branco: não conta como lido e não gera aviso (research R3);
   - aspas sem fechamento ou bytes que não são UTF-8 válido dão `UNREADABLE` (research R3).
 
   Validação do cabeçalho:
-  - remover o BOM `﻿` do primeiro campo;
   - 1 coluna contendo `,` dá `INVALID_SEPARATOR`;
   - nomes diferentes de `year;title;studios;producers;winner` (sem diferenciar maiúsculas, na ordem exata, 5 colunas) dão `INVALID_HEADER`;
   - arquivo sem cabeçalho dá `UNREADABLE`.
@@ -215,7 +218,7 @@ Para os erros estruturais, verificar a falha de inicialização com `Application
   - resolve o recurso e lança `MovieFileException(NOT_FOUND)` se ele não existir;
   - lê o arquivo, grava os filmes e registra cada `Rejection` como `WARN Linha {n} rejeitada: {motivo legível}`;
   - no fim, registra `INFO Carga do arquivo {caminho} concluída: {lidas} linhas lidas, {aceitas} aceitas, {rejeitadas} rejeitadas`.
-- [X] T034 [US2] Rodar `./mvnw verify`: todos os testes T013 a T022 e o `SmokeIT` passam
+- [X] T034 [US2] Rodar `./mvnw verify`: todos os testes T013 a T022a e o `SmokeIT` passam
 
 **Checkpoint (PR do bolt 2)**: a carga está completa e verificável pelo log e pelo banco. Ainda não há endpoint de negócio, e a verificação por HTTP desses cenários entra nos bolts 3 e 5 (Princípio I).
 
