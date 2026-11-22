@@ -14,9 +14,10 @@ import org.springframework.test.web.servlet.client.RestTestClient;
  * (Princípio I da constituição).
  *
  * <p>Cada subclasse escolhe o seu CSV com
- * {@code @SpringBootTest(properties = "movies.csv.path=classpath:scenarios/<arquivo>.csv")}. As
- * propriedades das subclasses se somam às desta base, e cada CSV gera um contexto próprio, guardado no
- * cache de contextos do Spring.
+ * {@code @TestPropertySource(properties = "movies.csv.path=classpath:scenarios/<arquivo>.csv")}, e cada
+ * CSV gera um contexto próprio, guardado no cache de contextos do Spring. A subclasse não deve
+ * redeclarar {@code @SpringBootTest}: a anotação dela substituiria a desta base, e o
+ * {@code webEnvironment} voltaria a {@code MOCK}.
  */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @AutoConfigureRestTestClient

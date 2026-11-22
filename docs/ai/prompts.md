@@ -174,3 +174,35 @@ Decisão para o bolt 2: T014 e T015 verificam apenas WARN emitidos pelo carregad
 ```text
 renomeie o arquivo 01-bolt-1-projeto.md. para 01-bolt-1-projeto.md que está dnetro de docs\ai\sessoes
 ```
+
+## 2026-11-22 17:01:44 -03:00
+
+- Sessao: `62d0d2d6-3afc-4c30-bf3d-d88d47de2497`
+
+```text
+Antes de implementar o bolt 2: aplique no tasks.md que T014 e T015 verificam apenas WARN emitidos pelo carregador do CSV, não o log inteiro, e exclua o Mockito do spring-boot-starter-test. Registre as duas decisões em docs/ai/decisoes.md.
+```
+
+## 2026-11-22 17:08:58 -03:00
+
+- Sessao: `62d0d2d6-3afc-4c30-bf3d-d88d47de2497`
+
+```text
+/speckit-implement Execute somente o bolt 2 (Phase 3 do tasks.md). Pare ao final do bolt 2.
+```
+
+## 2026-11-22 17:27:39 -03:00
+
+- Sessao: `62d0d2d6-3afc-4c30-bf3d-d88d47de2497`
+
+```text
+/speckit-analyze
+```
+
+## 2026-11-22 17:31:37 -03:00
+
+- Sessao: `62d0d2d6-3afc-4c30-bf3d-d88d47de2497`
+
+```text
+./mvnw verify execute para mim
+```

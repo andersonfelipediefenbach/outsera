@@ -1,0 +1,13 @@
+year;title;studios;producers;winner
+1990;Filme Válido 1;Estúdio;Producer A;yes
+1991;Filme Válido 2;Estúdio;Producer B;
+1992;Quatro Colunas;Estúdio;Producer C
+1993;Seis Colunas;Estúdio;Producer D;;extra
+;Sem Ano;Estúdio;Producer E;
+
+19x0;Ano Com Letra;Estúdio;Producer F;
+-1990;Ano Negativo;Estúdio;Producer G;
+1994;;Estúdio;Producer H;
+1995;Sem Produtores;Estúdio;;
+1996;Produtores Sem Nome;Estúdio; , and ;
+1997;Winner Inválido;Estúdio;Producer I;no

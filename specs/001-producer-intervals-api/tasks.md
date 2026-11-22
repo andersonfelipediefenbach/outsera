@@ -112,24 +112,31 @@ implementação.
 
 Para os erros estruturais, verificar a falha de inicialização com `ApplicationStarter`. As verificações por HTTP desses mesmos cenários entram nos bolts 3 (T049, T050) e 5 (T067).
 
+### Preparação do bolt 2
+
+- [X] T011a [US2] No `pom.xml`, excluir `org.mockito:mockito-core` e `org.mockito:mockito-junit-jupiter` do `spring-boot-starter-test`. Reforça o Princípio I (sem mocks) e elimina o aviso de agente dinâmico que o Mockito emite ao se acoplar à JVM. Rodar `./mvnw verify` e confirmar que o `SmokeIT` continua passando (decisão de 2026-11-22 em `docs/ai/decisoes.md`)
+
 ### Testes do bolt 2 (escrever primeiro e ver falhar) ⚠️
 
-- [ ] T012 [P] [US2] Criar os CSVs de erro estrutural em `src/test/resources/scenarios/`:
+- [X] T012 [P] [US2] Criar os CSVs de erro estrutural em `src/test/resources/scenarios/`:
   - `comma-separated.csv`: cabeçalho `year,title,studios,producers,winner` e uma linha separada por vírgula;
   - `header-wrong-order.csv`: `title;year;studios;producers;winner`;
   - `header-missing-column.csv`: `year;title;studios;producers`;
   - `header-extra-column.csv`: `year;title;studios;producers;winner;extra`;
-  - `empty-file.csv`: 0 bytes.
-- [ ] T013 [P] [US2] Escrever `src/test/java/com/outsera/awards/ingestion/StartupFailureIT.java`. Um método por motivo, cada um verificando que a inicialização falha:
+  - `empty-file.csv`: 0 bytes;
+  - `unterminated-quote.csv`: cabeçalho válido e uma linha com aspas abertas e não fechadas;
+  - `invalid-encoding.csv`: cabeçalho válido e uma linha com um byte que não é UTF-8 válido (`é` em ISO-8859-1).
+- [X] T013 [P] [US2] Escrever `src/test/java/com/outsera/awards/ingestion/StartupFailureIT.java`. Um método por motivo, cada um verificando que a inicialização falha:
   - `"FR-005 SC-006 arquivo inexistente"`: caminho `file:./nao-existe.csv`, motivo `NOT_FOUND`, a mensagem cita o caminho;
   - `"FR-005 arquivo vazio"`: `UNREADABLE`;
+  - `"FR-005 aspas sem fechamento"` e `"FR-005 arquivo fora de UTF-8"`: `UNREADABLE`, a mensagem cita o caminho (research R3);
   - `"FR-005 separador inválido"`: `INVALID_SEPARATOR`, a mensagem cita o separador `;`;
   - `"FR-003 FR-005 ordem errada"`, `"... coluna faltando"` e `"... coluna a mais"`: `INVALID_HEADER`, a mensagem mostra o cabeçalho esperado `year;title;studios;producers;winner` e o encontrado;
   - em todos: a saída contém `APPLICATION FAILED TO START`, gerado pelo `FailureAnalyzer`.
-- [ ] T014 [P] [US2] Criar `src/test/resources/scenarios/header-case.csv` (cabeçalho `Year;Title;Studios;Producers;Winner`, 3 linhas válidas) e escrever `src/test/java/com/outsera/awards/ingestion/HeaderCaseIT.java`: `"FR-003 FR-005a cabeçalho com maiúsculas diferentes"`. A aplicação sobe, o resumo mostra `3 linhas lidas, 3 aceitas, 0 rejeitadas`, não há `WARN` e `select count(*) from movie` é 3
-- [ ] T015 [P] [US2] Criar `src/test/resources/scenarios/harmless-variations.csv`, com 4 linhas válidas:
+- [X] T014 [P] [US2] Criar `src/test/resources/scenarios/header-case.csv` (cabeçalho `Year;Title;Studios;Producers;Winner`, 3 linhas válidas) e escrever `src/test/java/com/outsera/awards/ingestion/HeaderCaseIT.java`: `"FR-003 FR-005a cabeçalho com maiúsculas diferentes"`. A aplicação sobe, o resumo mostra `3 linhas lidas, 3 aceitas, 0 rejeitadas`, o carregador não emite `WARN` (ver nota abaixo do T015) e `select count(*) from movie` é 3
+- [X] T015 [P] [US2] Criar `src/test/resources/scenarios/harmless-variations.csv`, com 4 linhas válidas:
   - BOM UTF-8 no início;
-  - linhas em branco no meio e no fim;
+  - linhas em branco no meio e no fim, uma delas só com espaços (research R3);
   - espaços em volta de campos e do cabeçalho;
   - `winner` em `YES` e ` Yes `.
 
@@ -139,49 +146,53 @@ Para os erros estruturais, verificar a falha de inicialização com `Application
   - `"... espaços em volta dos campos e do cabeçalho"`: no banco, títulos e produtores estão sem espaços em volta;
   - `"... yes em qualquer caixa"`: `select count(*) from movie where winner` é igual ao número de linhas com `YES` e ` Yes `.
 
-  Em todos, o log não contém `WARN`
-- [ ] T016 [P] [US2] Criar `src/test/resources/scenarios/invalid-lines.csv`, com cabeçalho válido, 2 linhas válidas e uma linha inválida por motivo, nesta ordem: `COLUMN_COUNT` (4 colunas), `COLUMN_COUNT` (6 colunas), `YEAR_MISSING`, `YEAR_NOT_NUMERIC` (`19x0`), `YEAR_NOT_NUMERIC` (`-1990`), `TITLE_MISSING`, `PRODUCERS_MISSING` (vazio), `PRODUCERS_MISSING` (` , and `) e `WINNER_INVALID` (`no`). Inserir uma linha em branco antes de uma das inválidas, para provar que a numeração é a da linha física
-- [ ] T017 [US2] Escrever `src/test/java/com/outsera/awards/ingestion/InvalidLinesIT.java` (depende do T016):
+  Em todos, o carregador não emite `WARN`.
+
+  **Nota (T014 e T015):** a verificação de "sem `WARN`" olha só as linhas de nível `WARN` emitidas pelo carregador do CSV (logger `MovieFileLoader`, do pacote `com.outsera.awards.ingestion`), e não o log inteiro. Avisos de outras bibliotecas, como o do Flyway sobre a versão do H2, não fazem o teste falhar (decisão de 2026-11-22 em `docs/ai/decisoes.md`)
+- [X] T016 [P] [US2] Criar `src/test/resources/scenarios/invalid-lines.csv`, com cabeçalho válido, 2 linhas válidas e uma linha inválida por motivo, nesta ordem: `COLUMN_COUNT` (4 colunas), `COLUMN_COUNT` (6 colunas), `YEAR_MISSING`, `YEAR_NOT_NUMERIC` (`19x0`), `YEAR_NOT_NUMERIC` (`-1990`), `TITLE_MISSING`, `PRODUCERS_MISSING` (vazio), `PRODUCERS_MISSING` (` , and `) e `WINNER_INVALID` (`no`). Inserir uma linha em branco antes de uma das inválidas, para provar que a numeração é a da linha física
+- [X] T017 [US2] Escrever `src/test/java/com/outsera/awards/ingestion/InvalidLinesIT.java` (depende do T016):
   - `@ParameterizedTest` com um caso por linha inválida do T016 (FR-006c), no formato `(linha física, motivo legível)`, com nome `"FR-006 FR-006a linha {0} rejeitada: {1}"`. O log contém `WARN` com `Linha {n} rejeitada:` e o motivo, com `n` igual à linha física (cabeçalho = 1);
   - `"FR-006 a carga continua"`: o resumo mostra 2 aceitas e 9 rejeitadas, e `select count(*) from movie` é 2.
-- [ ] T018 [P] [US2] Criar `src/test/resources/scenarios/load-summary.csv` (10 linhas de dados, das quais 2 inválidas) e escrever `src/test/java/com/outsera/awards/ingestion/LoadSummaryIT.java`: `"FR-006b SC-006a resumo"`. O log contém `10 linhas lidas, 8 aceitas, 2 rejeitadas` e o caminho do arquivo, e o banco tem 8 filmes
-- [ ] T019 [P] [US2] Criar `src/test/resources/scenarios/optional-studios.csv` (uma linha com `studios` vazio) e escrever `src/test/java/com/outsera/awards/ingestion/OptionalStudiosIT.java`: `"FR-006e estúdios é opcional"`. A linha é aceita, sem `WARN`, e no banco o filme tem `studios` nulo
-- [ ] T020 [P] [US2] Criar `src/test/resources/scenarios/duplicate-lines.csv` (a mesma `1990;Filme X;Estúdio;Producer A;yes` nas linhas 2 e 4, e `1990;Filme X ;Outro;Producer B;` na linha 5, que repete ano e título depois do `trim`) e escrever `src/test/java/com/outsera/awards/ingestion/DuplicateLinesIT.java`: `"FR-006d duplicata ano+título"`. As linhas 4 e 5 geram `WARN` citando a linha original 2, o resumo mostra 1 aceita e 2 rejeitadas, e o banco tem um único `Filme X`, com `studios` = `Estúdio`
-- [ ] T021 [P] [US2] Criar `src/test/resources/scenarios/header-only.csv` e `src/test/resources/scenarios/all-invalid.csv`, e escrever `src/test/java/com/outsera/awards/ingestion/EmptyLoadIT.java` com duas classes `@Nested`, uma por CSV:
+- [X] T018 [P] [US2] Criar `src/test/resources/scenarios/load-summary.csv` (10 linhas de dados, das quais 2 inválidas) e escrever `src/test/java/com/outsera/awards/ingestion/LoadSummaryIT.java`: `"FR-006b SC-006a resumo"`. O log contém `10 linhas lidas, 8 aceitas, 2 rejeitadas` e o caminho do arquivo, e o banco tem 8 filmes
+- [X] T019 [P] [US2] Criar `src/test/resources/scenarios/optional-studios.csv` (uma linha com `studios` vazio) e escrever `src/test/java/com/outsera/awards/ingestion/OptionalStudiosIT.java`: `"FR-006e estúdios é opcional"`. A linha é aceita, sem `WARN`, e no banco o filme tem `studios` nulo
+- [X] T020 [P] [US2] Criar `src/test/resources/scenarios/duplicate-lines.csv` (a mesma `1990;Filme X;Estúdio;Producer A;yes` nas linhas 2 e 4, e `1990;Filme X ;Outro;Producer B;` na linha 5, que repete ano e título depois do `trim`) e escrever `src/test/java/com/outsera/awards/ingestion/DuplicateLinesIT.java`: `"FR-006d duplicata ano+título"`. As linhas 4 e 5 geram `WARN` citando a linha original 2, o resumo mostra 1 aceita e 2 rejeitadas, e o banco tem um único `Filme X`, com `studios` = `Estúdio`
+- [X] T021 [P] [US2] Criar `src/test/resources/scenarios/header-only.csv` e `src/test/resources/scenarios/all-invalid.csv`, e escrever `src/test/java/com/outsera/awards/ingestion/EmptyLoadIT.java` com duas classes `@Nested`, uma por CSV:
   - `"Edge só cabeçalho"`: a aplicação sobe, o resumo mostra `0 linhas lidas` e a tabela `movie` está vazia;
   - `"Edge todas inválidas"`: a aplicação sobe, o resumo mostra `0 aceitas` e a tabela `movie` está vazia.
-- [ ] T022 [P] [US2] Escrever `src/test/java/com/outsera/awards/ingestion/DefaultFileIT.java`, sem a propriedade `movies.csv.path`:
+- [X] T022 [P] [US2] Escrever `src/test/java/com/outsera/awards/ingestion/DefaultFileIT.java`, sem a propriedade `movies.csv.path`:
   - `"FR-001 FR-002 carrega o arquivo padrão"`: o resumo cita `classpath:movielist.csv` e mostra `0 rejeitadas`, e `select count(*) from movie` é igual ao número de aceitas lido do próprio resumo;
   - `"FR-001 a carga termina antes de o servidor aceitar conexões"`: no log, a linha `Carga do arquivo ... concluída` aparece antes da linha de início do servidor web (`Tomcat started on port`).
 
 ### Implementação do bolt 2
 
-- [ ] T023 [US2] Criar `src/main/resources/db/migration/V1__create_schema.sql` (SQL portável entre H2 e PostgreSQL, sem funções específicas):
+- [X] T023 [US2] Criar `src/main/resources/db/migration/V1__create_schema.sql` (SQL portável entre H2 e PostgreSQL, sem funções específicas):
   - **`movie`:** `id` BIGINT identity PK; `release_year` INTEGER not null; `title` VARCHAR(500) not null; `studios` VARCHAR(1000) null; `producers` VARCHAR(1000) not null; `winner` BOOLEAN not null; `CONSTRAINT uk_movie_year_title UNIQUE (release_year, title)`.
   - **`producer`:** `id` BIGINT identity PK; `name` VARCHAR(500) not null; `CONSTRAINT uk_producer_name UNIQUE (name)`.
   - **`movie_producer`:** `movie_id` BIGINT FK → movie.id; `producer_id` BIGINT FK → producer.id; PK composta (`movie_id`, `producer_id`).
-- [ ] T024 [P] [US2] Criar a entidade `src/main/java/com/outsera/awards/movie/Movie.java`:
+- [X] T024 [P] [US2] Criar a entidade `src/main/java/com/outsera/awards/movie/Movie.java`:
   - campos `id`, `year` (coluna `release_year`), `title`, `studios` (nullable), `producersRaw` (coluna `producers`) e `winner`;
   - `@ManyToMany` com `Producer` via `movie_producer`, em um `Set` para não duplicar o vínculo (FR-010);
   - construtor protegido para o JPA.
-- [ ] T025 [P] [US2] Criar a entidade `src/main/java/com/outsera/awards/producer/Producer.java` (`id`, `name` único, comparado exatamente, diferenciando maiúsculas; FR-008)
-- [ ] T026 [P] [US2] Criar `src/main/java/com/outsera/awards/movie/MovieRepository.java` e `src/main/java/com/outsera/awards/producer/ProducerRepository.java` (`JpaRepository`; `ProducerRepository.findByName(String)`)
-- [ ] T027 [P] [US2] Criar `src/main/java/com/outsera/awards/ingestion/MovieFileProperties.java` (`@ConfigurationProperties("movies.csv")`, campo `path`). Regra de resolução (research R10): os prefixos `classpath:` e `file:` são respeitados; um valor sem prefixo vira `FileSystemResource`
-- [ ] T028 [P] [US2] Criar `src/main/java/com/outsera/awards/ingestion/MovieFileException.java` (com o enum `Reason` = `NOT_FOUND`, `UNREADABLE`, `INVALID_SEPARATOR` e `INVALID_HEADER`, mais os campos caminho, cabeçalho encontrado e mensagem) e `src/main/java/com/outsera/awards/ingestion/MovieFileFailureAnalyzer.java`:
+- [X] T025 [P] [US2] Criar a entidade `src/main/java/com/outsera/awards/producer/Producer.java` (`id`, `name` único, comparado exatamente, diferenciando maiúsculas; FR-008)
+- [X] T026 [P] [US2] Criar `src/main/java/com/outsera/awards/movie/MovieRepository.java` e `src/main/java/com/outsera/awards/producer/ProducerRepository.java` (`JpaRepository`; `ProducerRepository.findByName(String)`)
+- [X] T027 [P] [US2] Criar `src/main/java/com/outsera/awards/ingestion/MovieFileProperties.java` (`@ConfigurationProperties("movies.csv")`, campo `path`). Regra de resolução (research R10): os prefixos `classpath:` e `file:` são respeitados; um valor sem prefixo vira `FileSystemResource`
+- [X] T028 [P] [US2] Criar `src/main/java/com/outsera/awards/ingestion/MovieFileException.java` (com o enum `Reason` = `NOT_FOUND`, `UNREADABLE`, `INVALID_SEPARATOR` e `INVALID_HEADER`, mais os campos caminho, cabeçalho encontrado e mensagem) e `src/main/java/com/outsera/awards/ingestion/MovieFileFailureAnalyzer.java`:
   - a **Description** traz o caminho, o motivo e o cabeçalho encontrado;
   - a **Action** traz o cabeçalho esperado `year;title;studios;producers;winner`, o separador `;` e a variável `MOVIES_CSV_PATH`.
 
   Registrar o analyzer em `src/main/resources/META-INF/spring.factories` (chave `org.springframework.boot.diagnostics.FailureAnalyzer`)
-- [ ] T029 [P] [US2] Criar `src/main/java/com/outsera/awards/ingestion/Rejection.java` (record `lineNumber`, `reason`, `detail`), o enum `RejectionReason` (`COLUMN_COUNT`, `YEAR_MISSING`, `YEAR_NOT_NUMERIC`, `TITLE_MISSING`, `PRODUCERS_MISSING`, `WINNER_INVALID` e `DUPLICATE`, cada um com uma mensagem legível em português) e `src/main/java/com/outsera/awards/ingestion/LoadReport.java` (`linesRead`, `accepted`, `rejected` e a lista de `Rejection`)
-- [ ] T030 [P] [US2] Criar `src/main/java/com/outsera/awards/ingestion/ProducerNameParser.java` (research R4):
+- [X] T029 [P] [US2] Criar `src/main/java/com/outsera/awards/ingestion/Rejection.java` (record `lineNumber`, `reason`, `detail`), o enum `RejectionReason` (`COLUMN_COUNT`, `YEAR_MISSING`, `YEAR_NOT_NUMERIC`, `TITLE_MISSING`, `PRODUCERS_MISSING`, `WINNER_INVALID` e `DUPLICATE`, cada um com uma mensagem legível em português) e `src/main/java/com/outsera/awards/ingestion/LoadReport.java` (`linesRead`, `accepted`, `rejected` e a lista de `Rejection`)
+- [X] T030 [P] [US2] Criar `src/main/java/com/outsera/awards/ingestion/ProducerNameParser.java` (research R4):
   - dividir pela regex `\s*,\s*(?:and(?=\s|$)\s*)?|(?:^|\s+)and(?=\s|$)\s*`. O `and` é separador só como palavra inteira, inclusive no início e no fim do campo; os casos estão em R4;
   - aplicar `trim` em cada parte e descartar as vazias;
   - remover as repetidas com um `LinkedHashSet`;
   - devolver uma lista vazia quando nenhum nome resultar.
-- [ ] T031 [US2] Criar `src/main/java/com/outsera/awards/ingestion/MovieCsvReader.java` (depende de T028 a T030; research R3). Leitura:
+- [X] T031 [US2] Criar `src/main/java/com/outsera/awards/ingestion/MovieCsvReader.java` (depende de T028 a T030; research R3). Leitura:
   - Commons CSV com delimitador `;`, aspas `"`, `ignoreEmptyLines`, `trim` e `ignoreSurroundingSpaces`;
   - leitura em UTF-8;
-  - número da linha física com `getCurrentLineNumber()`.
+  - número da linha física com `getCurrentLineNumber()`;
+  - um registro de uma coluna vazia (linha só com espaços) é tratado como linha em branco: não conta como lido e não gera aviso (research R3);
+  - aspas sem fechamento ou bytes que não são UTF-8 válido dão `UNREADABLE` (research R3).
 
   Validação do cabeçalho:
   - remover o BOM `﻿` do primeiro campo;
@@ -199,12 +210,12 @@ Para os erros estruturais, verificar a falha de inicialização com `Application
   7. `DUPLICATE`: ano + título (após `trim`) já aceitos. O detalhe cita a linha original.
 
   Saída: as linhas válidas (como registros) e o `LoadReport`.
-- [ ] T032 [US2] Criar `src/main/java/com/outsera/awards/ingestion/MovieImportService.java`. É o **serviço único de gravação** (Princípio V): `@Transactional`, obtém ou cria cada `Producer` por nome (com cache local dentro da carga) e grava os `Movie` com os vínculos
-- [ ] T033 [US2] Criar `src/main/java/com/outsera/awards/ingestion/MovieFileLoader.java` (depende de T027, T031 e T032), um `SmartInitializingSingleton` que roda **antes** de o servidor aceitar conexões (research R2):
+- [X] T032 [US2] Criar `src/main/java/com/outsera/awards/ingestion/MovieImportService.java`. É o **serviço único de gravação** (Princípio V): `@Transactional`, obtém ou cria cada `Producer` por nome (com cache local dentro da carga) e grava os `Movie` com os vínculos
+- [X] T033 [US2] Criar `src/main/java/com/outsera/awards/ingestion/MovieFileLoader.java` (depende de T027, T031 e T032), um `SmartInitializingSingleton` que roda **antes** de o servidor aceitar conexões (research R2):
   - resolve o recurso e lança `MovieFileException(NOT_FOUND)` se ele não existir;
   - lê o arquivo, grava os filmes e registra cada `Rejection` como `WARN Linha {n} rejeitada: {motivo legível}`;
   - no fim, registra `INFO Carga do arquivo {caminho} concluída: {lidas} linhas lidas, {aceitas} aceitas, {rejeitadas} rejeitadas`.
-- [ ] T034 [US2] Rodar `./mvnw verify`: todos os testes T013 a T022 e o `SmokeIT` passam
+- [X] T034 [US2] Rodar `./mvnw verify`: todos os testes T013 a T022 e o `SmokeIT` passam
 
 **Checkpoint (PR do bolt 2)**: a carga está completa e verificável pelo log e pelo banco. Ainda não há endpoint de negócio, e a verificação por HTTP desses cenários entra nos bolts 3 e 5 (Princípio I).
 

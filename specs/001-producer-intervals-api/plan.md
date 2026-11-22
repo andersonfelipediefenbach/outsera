@@ -110,7 +110,7 @@ src/main/java/com/outsera/awards/
 │   ├── MovieImportService.java       # serviço único de gravação (Princípio V)
 │   ├── MovieFileLoader.java          # SmartInitializingSingleton: carga antes do servidor
 │   ├── MovieFileException.java, MovieFileFailureAnalyzer.java
-│   └── LoadReport.java, Rejection.java
+│   └── LoadReport.java, Rejection.java, RejectionReason.java, MovieRow.java
 └── web/
     ├── ApiExceptionHandler.java      # ProblemDetail (RFC 9457)
     └── InvalidParameterException.java
@@ -122,7 +122,7 @@ src/main/resources/
 └── META-INF/spring.factories         # FailureAnalyzer
 src/test/java/com/outsera/awards/     # somente *IT (Failsafe)
 ├── SmokeIT
-├── support/     ScenarioIT (base), ApplicationStarter, ContractValidator, IntervalOracle
+├── support/     ScenarioIT (base), ApplicationStarter, LoaderLog, ContractValidator, IntervalOracle
 ├── ingestion/   StartupFailureIT, HeaderCaseIT, HarmlessVariationsIT, InvalidLinesIT,
 │                LoadSummaryIT, OptionalStudiosIT, DuplicateLinesIT, EmptyLoadIT, DefaultFileIT
 ├── intervals/   ReferenceFileIT, IntervalsShapeIT, TiesMinIT, TiesMaxIT, ThreeOrMoreWinsIT,

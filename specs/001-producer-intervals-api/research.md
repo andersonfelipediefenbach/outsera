@@ -48,7 +48,16 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
   Os demais registros são validados por linha (seção "Validação de linha" de `data-model.md`).
 - **Número da linha**: é a linha física no arquivo (o cabeçalho é a linha 1), obtida com
   `CSVParser.getCurrentLineNumber()` depois de ler o registro. Assim, as linhas em branco puladas
-  continuam contando, e o aviso aponta para a linha certa no editor.
+  continuam contando, e o aviso aponta para a linha certa no editor. Conferido com o Commons CSV
+  1.14.1 em 2026-11-22: o número é correto também na última linha sem quebra final e com CRLF. Num
+  registro com quebra de linha dentro de aspas, o número é o da última linha física do registro.
+- **Linha só com espaços**: o `ignoreEmptyLines` só pula linhas totalmente vazias. Uma linha só com
+  espaços chega como um registro de uma coluna vazia e seria rejeitada por `COLUMN_COUNT`. O leitor
+  trata esse registro como linha em branco (não conta como lida e não gera aviso), como pede a
+  FR-005a.
+- **Arquivo que não pode ser analisado** (aspas sem fechamento ou bytes que não são UTF-8 válido): é
+  erro estrutural `UNREADABLE`, porque o leitor não consegue separar as linhas com segurança. A
+  mensagem cita a linha onde a leitura parou, quando o Commons CSV a informa.
 - **Ano**: aceita só dígitos (`\d{1,9}`), sem sinal nem decimal. Ano vazio ou fora desse padrão
   invalida a linha. Isso resolve o ponto "faixa válida de ano", que ficou em aberto na clarificação,
   de forma conservadora e coerente com o FR-006 ("não numérico").
@@ -160,8 +169,10 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
 
 - **Decision**:
   - **Só testes de integração**, com nomes `*IT` e executados pelo **maven-failsafe-plugin** na fase
-    `verify`. O Surefire não tem testes. Cada classe é um cenário com `@SpringBootTest(webEnvironment =
-    RANDOM_PORT, properties = "movies.csv.path=classpath:scenarios/<cenario>.csv")`, ou seja, um CSV
+    `verify`. O Surefire não tem testes. Cada classe é um cenário que estende a base `ScenarioIT`
+    (`@SpringBootTest(webEnvironment = RANDOM_PORT)`) e escolhe o CSV com
+    `@TestPropertySource(properties = "movies.csv.path=classpath:scenarios/<cenario>.csv")`. A subclasse
+    não redeclara `@SpringBootTest`, porque a anotação dela substituiria a da base. Ou seja, um CSV
     por cenário e um contexto por CSV, guardado no cache de contextos do Spring. As chamadas HTTP são
     reais, feitas com `RestTestClient` (Spring Framework 7, via `@AutoConfigureRestTestClient`).
   - **Falhas de inicialização**: o teste executa `SpringApplication` de verdade, com o CSV inválido e

@@ -3,6 +3,53 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-22 — Linha só com espaços e arquivo que não pode ser analisado (R3, T031)
+
+- **Origem:** sonda do implementador com o Commons CSV 1.14.1, no início do bolt 2. O
+  `ignoreEmptyLines` só pula linhas totalmente vazias. Uma linha só com espaços vira um registro de
+  uma coluna vazia, que seria rejeitado por `COLUMN_COUNT`, contrariando a FR-005a ("linhas em branco
+  em qualquer posição" são aceitas sem aviso). A spec também não dizia o que fazer com aspas sem
+  fechamento ou com bytes fora de UTF-8.
+- **Decisão (implementador, a confirmar pelo responsável no PR):**
+  - um registro de uma coluna vazia é tratado como linha em branco;
+  - aspas sem fechamento e bytes que não são UTF-8 válido dão erro estrutural `UNREADABLE`.
+- **Motivo:** a linha só com espaços é uma linha em branco para quem edita o arquivo. No segundo caso,
+  o leitor não consegue separar as linhas com segurança, e decodificar com substituição gravaria nomes
+  corrompidos sem aviso.
+- **Alternativa rejeitada:** rejeitar só a linha com aspas abertas. O Commons CSV lê até o fim do
+  arquivo procurando o fechamento, então não há como saber onde a linha termina.
+- **Impacto:** research R3 e tarefas T012, T013, T015 e T031, com dois cenários novos de falha de
+  inicialização (`unterminated-quote.csv` e `invalid-encoding.csv`) e uma linha só com espaços no
+  `harmless-variations.csv`.
+
+## 2026-11-22 — Critério "sem `WARN`" restrito ao carregador do CSV (T014 e T015)
+
+- **Origem:** observação do implementador ao fim do bolt 1. A saída do `./mvnw verify` já trazia
+  `WARN` e `WARNING` que não vêm da aplicação: o aviso do Flyway sobre a versão do H2 (2.4.240, mais
+  nova que a testada) e o aviso de agente dinâmico do Mockito. Com o critério "o log não contém
+  `WARN`", o T014 e o T015 falhariam por causa de bibliotecas, e não do carregador.
+- **Decisão (responsável):** o T014 e o T015 verificam apenas as linhas `WARN` emitidas pelo
+  carregador do CSV (logger `MovieFileLoader`, pacote `com.outsera.awards.ingestion`), e não o log
+  inteiro. O aviso do Flyway sobre a versão do H2 é mantido, sem supressão.
+- **Motivo:** o que os testes precisam provar é que o carregador não rejeitou nem reclamou de
+  nenhuma linha. Avisos de terceiros não dizem nada sobre isso e podem mudar a cada versão.
+- **Alternativa rejeitada:** suprimir os avisos de terceiros na configuração de log. Esconderia
+  informação útil e acoplaria o teste a uma lista de avisos externos.
+- **Impacto:** texto do T014 e do T015 em `specs/001-producer-intervals-api/tasks.md`, com uma nota
+  explicando o critério.
+
+## 2026-11-22 — Mockito excluído do `spring-boot-starter-test`
+
+- **Origem:** a mesma observação acima. O Mockito vem junto com o `spring-boot-starter-test` e emite
+  um aviso de agente dinâmico ao se acoplar à JVM.
+- **Decisão (responsável):** excluir `mockito-core` e `mockito-junit-jupiter` do
+  `spring-boot-starter-test` no `pom.xml` (nova tarefa T011a, no início do bolt 2).
+- **Motivo:** o Princípio I proíbe mocks, então o Mockito não tem uso no projeto. Tirá-lo do
+  classpath transforma a regra em erro de compilação e elimina o aviso.
+- **Alternativa rejeitada:** manter o Mockito e configurar o agente (`-javaagent`) no Failsafe para
+  silenciar o aviso. Manteria disponível uma ferramenta que o projeto proíbe.
+- **Impacto:** `pom.xml` e `tasks.md` (T011a). Nenhuma mudança na spec nem no contrato.
+
 ## 2026-11-19 — Emenda 1.1.0 da constituição: observabilidade a partir do Marco 2
 
 - **Origem:** achado H1 do `/speckit-analyze` da spec 001. A constituição pedia logs em JSON e
