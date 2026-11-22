@@ -248,12 +248,14 @@ da [constituição](.specify/memory/constitution.md) proíbe testes unitários e
 
 ## 6. Requisitos do enunciado
 
-Cada item exigido pelo enunciado e o teste de integração que o comprova. A matriz completa, requisito
-por requisito da spec, está em
+Cada item exigido pelo enunciado e como ele é comprovado: pelo teste de integração ou, nos itens de
+entrega (4.4, 4.5, 5.1 e 5.2), pelo artefato correspondente. A matriz completa, requisito por
+requisito da spec, está em
 [`specs/001-producer-intervals-api/plan.md`](specs/001-producer-intervals-api/plan.md#rastreabilidade-requisito--teste).
 
-| Item do enunciado | Requisitos da spec | Teste(s) de integração |
+| Item do enunciado | Requisitos da spec | Como é comprovado |
 | --- | --- | --- |
+| API RESTful no nível 2 de Richardson: recursos nomeados (`/api/producers/intervals`, `/api/movies`), verbo GET e códigos HTTP adequados (item 4.1) | FR-017, FR-018, FR-019, FR-023 | **200:** `ReferenceFileIT`, `IntervalsShapeIT`, `MoviesListingIT`. **400** em Problem Details: `MoviesInvalidParamsIT`, `MoviesContractIT`. **404** em Problem Details para rota inexistente: `SmokeIT` |
 | Carga do CSV na inicialização, antes de o servidor aceitar conexões | FR-001, FR-002 | `DefaultFileIT` |
 | Formato de `min` e `max` (`producer`, `interval`, `previousWin`, `followingWin`), página 2 | FR-017, FR-025 | `IntervalsShapeIT`, `IntervalsContractIT` |
 | Intervalo só entre vitórias consecutivas do mesmo produtor | FR-011, FR-012, FR-013, FR-016 | `ThreeOrMoreWinsIT`, `UnorderedLinesIT`, `SameYearWinsIT`, `WinnerVariantsIT` |
@@ -263,7 +265,11 @@ por requisito da spec, está em
 | Correto com outros arquivos, sem dados fixos no código | FR-016a, FR-016b, SC-004a | `DisjointProducersIT`, `RandomizedOracleIT` |
 | Leitura da lista de indicados e vencedores (seção 1) | FR-019 a FR-023 | `MoviesListingIT`, `MoviesInvalidParamsIT`, `MoviesContractIT` |
 | Somente testes de integração (item 4.2) | FR-027, Princípio I | Todos os testes são `*IT` com `@SpringBootTest` e sem mocks, executados pelo Failsafe. A exceção é o `StartupFailureIT`, que sobe a aplicação real com `SpringApplication` |
-| Execução só com o wrapper, sem Docker (item 4.3) | FR-026 | `SmokeIT`, mais `./mvnw verify` e `./mvnw spring-boot:run` em clone limpo, no Linux e no Windows |
+| Execução só com o wrapper, sem Docker e sem instalar banco: SGBD **H2 em memória**, embarcado na aplicação (item 4.3) | FR-026 | O H2 é dependência do `pom.xml`, e nenhuma URL de banco é configurada, então o Spring Boot cria um H2 em memória a cada execução. Todos os testes sobem a aplicação assim, e o `SmokeIT` confirma que ela sobe com o arquivo padrão. Além disso, `./mvnw verify` e `./mvnw spring-boot:run` foram executados em clone limpo, no Linux e no Windows |
+| Documentação de como executar e testar (item 4.4) | — | Este README: [seção 2](#2-avalie-em-2-minutos) (avaliação rápida), [seção 3](#3-como-executar) (execução) e [seção 5](#5-testes) (testes) |
+| Código em repositório git (item 4.5) | — | Este repositório, com um ou mais commits por bolt e a estrutura descrita na [seção 11](#11-estrutura-do-repositório) |
+| Uso de IA no desenvolvimento (item 5.1) | — | Spec Kit, Claude Code e Codex, com o fluxo por bolts e os papéis descritos na [seção 10](#10-uso-de-ia) |
+| Registro das interações com a IA (item 5.2) | — | [`docs/ai/README.md`](docs/ai/README.md): prompts com data e hora, sessões exportadas e decisões aceitas ou rejeitadas |
 
 Cada método de teste tem um `@DisplayName` que começa pelos IDs dos requisitos que comprova (por
 exemplo, `"FR-014 FR-015 empate no mínimo"`, no `TiesMinIT`).
