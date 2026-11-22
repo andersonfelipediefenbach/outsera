@@ -3,6 +3,35 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-22 — Anos do `disjoint-producers.csv` fora do `movielist.csv` (T041)
+
+- **Origem:** conflito encontrado pelo implementador no bolt 3. A T041 pedia que o `Producer B`
+  vencesse em 1960 e 2010, mas o SC-004a exige um arquivo sem nenhum ano em comum com o arquivo
+  fornecido, que cobre 1980 a 2019.
+- **Decisão (responsável):** seguir a spec, que tem prioridade sobre a task. O `Producer B` vence em
+  1925 e 1975, e o intervalo continua 50. O texto da T041 foi corrigido.
+- **Alternativa rejeitada:** manter 1960–2010. O cenário deixaria de cumprir o SC-004a.
+
+## 2026-11-22 — Uma vitória a mais no `harmless-variations.csv` (T048)
+
+- **Origem:** a T048 pede que as 4 linhas do `harmless-variations.csv` gerem ao menos um intervalo, e o
+  arquivo do bolt 2 não tinha nenhum produtor com duas vitórias.
+- **Decisão (implementador):** o filme de 1991 (`winner` igual a ` Yes `) passa a ser do
+  `Producer A`, o mesmo do filme de 1990 (`YES`, com espaços em volta do nome). O intervalo
+  `Producer A` 1990→1991 só aparece se o BOM, os espaços e as duas variações de `yes` forem tratados
+  corretamente. Os testes do bolt 2 sobre esse arquivo continuam valendo sem alteração.
+
+## 2026-11-22 — `ProducerNamesIT` absorvido pelo `ProducerSeparatorsIT` (T043)
+
+- **Decisão (planejada no T022b):** os casos de separação de nomes passam a ser verificados por HTTP no
+  `ProducerSeparatorsIT`, e o `ProducerNamesIT` e o `producer-names.csv`, que verificavam pelo banco,
+  foram removidos (Princípio I).
+- **Como os nomes aparecem nos intervalos:** cada forma está em duas vitórias de anos seguidos, e os
+  nomes que se repetem entre formas estão em anos também seguidos. Todo intervalo correto vale 1, e
+  `min` e `max` trazem a lista completa de nomes. Um nome separado errado vira um item a mais ou a
+  menos, e dois nomes unidos por engano, ou um nome contado duas vezes no mesmo filme, geram um
+  intervalo diferente de 1.
+
 ## 2026-11-22 — Separação de produtores em etapas, no lugar da regex (segunda revisão do Codex)
 
 - **Origem:** segundo comentário do Codex, como revisor, no pull request do bolt 2, sobre a mesma regex

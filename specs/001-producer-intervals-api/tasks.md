@@ -240,17 +240,17 @@ Para os erros estruturais, verificar a falha de inicialização com `Application
 
 Todos os cenários usam nomes fictícios (`Producer A`, `Producer B`...) e anos sem relação com o `movielist.csv` (FR-016a).
 
-- [ ] T035 [P] [US1] Criar `src/test/resources/scenarios/ties-min.csv` (dois produtores com intervalo mínimo 1; o que tem o `previousWin` maior aparece primeiro no arquivo, e há um par com o mesmo `previousWin` para desempatar pelo nome) e escrever `src/test/java/com/outsera/awards/intervals/TiesMinIT.java`: `"FR-014 FR-015 empate no mínimo"`. Todos os empatados aparecem em `min`, ordenados por `previousWin` e depois pelo nome
-- [ ] T036 [P] [US1] Criar `src/test/resources/scenarios/ties-max.csv` e escrever `src/test/java/com/outsera/awards/intervals/TiesMaxIT.java`: `"FR-014 FR-015 empate no máximo"`
-- [ ] T037 [P] [US1] Criar `src/test/resources/scenarios/three-or-more-wins.csv` (`Producer A` vence em 2000, 2005 e 2020; `Producer B` em 2001 e 2003) e escrever `src/test/java/com/outsera/awards/intervals/ThreeOrMoreWinsIT.java`: `"FR-012 só pares vizinhos"`. `max` é `Producer A` 2005→2020 (15) e nunca 2000→2020; `min` é `Producer B` (2)
-- [ ] T038 [P] [US1] Criar `src/test/resources/scenarios/unordered-lines.csv` e `src/test/resources/scenarios/ordered-lines.csv` (as mesmas linhas, em ordem embaralhada e em ordem cronológica) e escrever `src/test/java/com/outsera/awards/intervals/UnorderedLinesIT.java`, com uma classe `@Nested` por CSV e o mesmo resultado esperado: `"FR-016 independe da ordem das linhas"`
-- [ ] T039 [P] [US1] Criar `src/test/resources/scenarios/same-year-wins.csv` (`Producer A` vence dois filmes **diferentes** em 1995 e outro em 2000) e escrever `src/test/java/com/outsera/awards/intervals/SameYearWinsIT.java`: `"FR-013 duas vitórias no mesmo ano = intervalo 0"`. `min` é `Producer A` (0, 1995, 1995)
-- [ ] T040 [P] [US1] Criar `src/test/resources/scenarios/no-repeat-winners.csv` e escrever `src/test/java/com/outsera/awards/intervals/NoRepeatWinnersIT.java`: `"FR-018 nenhum produtor com duas vitórias"`. A resposta é 200 com `{"min":[],"max":[]}`
-- [ ] T041 [P] [US1] Criar `src/test/resources/scenarios/disjoint-producers.csv` (`Producer A` vence em 1950 e 1952; `Producer B` em 1960 e 2010; mais alguns indicados não vencedores) e escrever `src/test/java/com/outsera/awards/intervals/DisjointProducersIT.java`: `"FR-002 FR-016a FR-016b SC-004a arquivo sem relação com o fornecido"`.
+- [X] T035 [P] [US1] Criar `src/test/resources/scenarios/ties-min.csv` (dois produtores com intervalo mínimo 1; o que tem o `previousWin` maior aparece primeiro no arquivo, e há um par com o mesmo `previousWin` para desempatar pelo nome) e escrever `src/test/java/com/outsera/awards/intervals/TiesMinIT.java`: `"FR-014 FR-015 empate no mínimo"`. Todos os empatados aparecem em `min`, ordenados por `previousWin` e depois pelo nome
+- [X] T036 [P] [US1] Criar `src/test/resources/scenarios/ties-max.csv` e escrever `src/test/java/com/outsera/awards/intervals/TiesMaxIT.java`: `"FR-014 FR-015 empate no máximo"`
+- [X] T037 [P] [US1] Criar `src/test/resources/scenarios/three-or-more-wins.csv` (`Producer A` vence em 2000, 2005 e 2020; `Producer B` em 2001 e 2003) e escrever `src/test/java/com/outsera/awards/intervals/ThreeOrMoreWinsIT.java`: `"FR-012 só pares vizinhos"`. `max` é `Producer A` 2005→2020 (15) e nunca 2000→2020; `min` é `Producer B` (2)
+- [X] T038 [P] [US1] Criar `src/test/resources/scenarios/unordered-lines.csv` e `src/test/resources/scenarios/ordered-lines.csv` (as mesmas linhas, em ordem embaralhada e em ordem cronológica) e escrever `src/test/java/com/outsera/awards/intervals/UnorderedLinesIT.java`, com uma classe `@Nested` por CSV e o mesmo resultado esperado: `"FR-016 independe da ordem das linhas"`
+- [X] T039 [P] [US1] Criar `src/test/resources/scenarios/same-year-wins.csv` (`Producer A` vence dois filmes **diferentes** em 1995 e outro em 2000) e escrever `src/test/java/com/outsera/awards/intervals/SameYearWinsIT.java`: `"FR-013 duas vitórias no mesmo ano = intervalo 0"`. `min` é `Producer A` (0, 1995, 1995)
+- [X] T040 [P] [US1] Criar `src/test/resources/scenarios/no-repeat-winners.csv` e escrever `src/test/java/com/outsera/awards/intervals/NoRepeatWinnersIT.java`: `"FR-018 nenhum produtor com duas vitórias"`. A resposta é 200 com `{"min":[],"max":[]}`
+- [X] T041 [P] [US1] Criar `src/test/resources/scenarios/disjoint-producers.csv` (`Producer A` vence em 1950 e 1952; `Producer B` em 1925 e 1975, fora dos anos 1980 a 2019 do `movielist.csv`, como pede o SC-004a; mais alguns indicados não vencedores) e escrever `src/test/java/com/outsera/awards/intervals/DisjointProducersIT.java`: `"FR-002 FR-016a FR-016b SC-004a arquivo sem relação com o fornecido"`.
   - O caminho é passado pela chave **`MOVIES_CSV_PATH`** (`properties = "MOVIES_CSV_PATH=classpath:scenarios/disjoint-producers.csv"`), e não por `movies.csv.path`. Isso prova o mapeamento da variável de ambiente no `application.yml`, porque o Spring resolve variáveis de ambiente e propriedades pela mesma chave.
-  - `min` é só `Producer A` (2, 1950, 1952) e `max` é só `Producer B` (50, 1960, 2010).
-- [ ] T042 [P] [US1] Criar `src/test/resources/scenarios/duplicate-winner.csv` (`1990;Filme X;Estúdio;Producer A;yes` duas vezes, e `Producer A` também vence em 1995) e escrever `src/test/java/com/outsera/awards/intervals/DuplicateWinnerIT.java`: `"FR-006d duplicata não gera intervalo 0"`. `min` e `max` são `Producer A` (5, 1990, 1995)
-- [ ] T043 [P] [US1] Criar `src/test/resources/scenarios/producer-separators.csv` e escrever `src/test/java/com/outsera/awards/intervals/ProducerSeparatorsIT.java`. O CSV cobre:
+  - `min` é só `Producer A` (2, 1950, 1952) e `max` é só `Producer B` (50, 1925, 1975). Os anos 1960 e 2010, da primeira versão desta tarefa, foram trocados porque 2010 está no `movielist.csv` (decisão de 2026-11-22 em `docs/ai/decisoes.md`).
+- [X] T042 [P] [US1] Criar `src/test/resources/scenarios/duplicate-winner.csv` (`1990;Filme X;Estúdio;Producer A;yes` duas vezes, e `Producer A` também vence em 1995) e escrever `src/test/java/com/outsera/awards/intervals/DuplicateWinnerIT.java`: `"FR-006d duplicata não gera intervalo 0"`. `min` e `max` são `Producer A` (5, 1990, 1995)
+- [X] T043 [P] [US1] Criar `src/test/resources/scenarios/producer-separators.csv` e escrever `src/test/java/com/outsera/awards/intervals/ProducerSeparatorsIT.java`. O CSV cobre:
   - `Eric Fellner, and Tom Hooper`;
   - `Gayle Dickie, Kenn Viselman`;
   - `Brian Robbinsand Sharla Sumpter Bridgett`;
@@ -272,12 +272,12 @@ Todos os cenários usam nomes fictícios (`Producer A`, `Producer B`...) e anos 
   - `Steven Perry` e `Steve Perry` como produtores distintos;
   - `"FR-010 nome repetido no mesmo filme conta uma vez"`: `Producer R` não gera intervalo 0;
   - `"Edge UTF-8 preservado"`: `José Núñez` aparece na resposta exatamente com os acentos.
-- [ ] T044 [P] [US1] Criar `src/test/resources/scenarios/winner-variants.csv` (vitórias com `yes`, `YES`, ` Yes ` e uma linha com `winner` vazio, que não pode contar) e escrever `src/test/java/com/outsera/awards/intervals/WinnerVariantsIT.java`: `"FR-004 FR-011 variações de yes; vazio não conta"`
-- [ ] T045 [P] [US1] Criar `src/test/resources/scenarios/invalid-line-in-calc.csv` (uma linha inválida, com `winner=no` ou ano `19x0`, que criaria o menor intervalo se fosse aceita) e escrever `src/test/java/com/outsera/awards/intervals/InvalidLineIgnoredIT.java`: `"FR-006 linha inválida não influencia o resultado"`
-- [ ] T046 [P] [US1] Criar `src/test/resources/scenarios/single-interval.csv` e `src/test/resources/scenarios/all-equal-intervals.csv` e escrever `src/test/java/com/outsera/awards/intervals/IntervalEdgeCasesIT.java`, com uma classe `@Nested` por CSV:
+- [X] T044 [P] [US1] Criar `src/test/resources/scenarios/winner-variants.csv` (vitórias com `yes`, `YES`, ` Yes ` e uma linha com `winner` vazio, que não pode contar) e escrever `src/test/java/com/outsera/awards/intervals/WinnerVariantsIT.java`: `"FR-004 FR-011 variações de yes; vazio não conta"`
+- [X] T045 [P] [US1] Criar `src/test/resources/scenarios/invalid-line-in-calc.csv` (uma linha inválida, com `winner=no` ou ano `19x0`, que criaria o menor intervalo se fosse aceita) e escrever `src/test/java/com/outsera/awards/intervals/InvalidLineIgnoredIT.java`: `"FR-006 linha inválida não influencia o resultado"`
+- [X] T046 [P] [US1] Criar `src/test/resources/scenarios/single-interval.csv` e `src/test/resources/scenarios/all-equal-intervals.csv` e escrever `src/test/java/com/outsera/awards/intervals/IntervalEdgeCasesIT.java`, com uma classe `@Nested` por CSV:
   - `"Edge intervalo único aparece em min e max"`;
   - `"Edge todos iguais aparecem em min e max"`.
-- [ ] T047 [P] [US1] Criar o oráculo de teste `src/test/java/com/outsera/awards/support/IntervalOracle.java` e escrever `src/test/java/com/outsera/awards/intervals/RandomizedOracleIT.java` (`"SC-004 FR-016b arquivo gerado confere com o cálculo independente"`).
+- [X] T047 [P] [US1] Criar o oráculo de teste `src/test/java/com/outsera/awards/support/IntervalOracle.java` e escrever `src/test/java/com/outsera/awards/intervals/RandomizedOracleIT.java` (`"SC-004 FR-016b arquivo gerado confere com o cálculo independente"`).
   - **Gerador:** para 3 sementes fixas, o `IntervalOracle` gera um CSV válido em diretório temporário, com dezenas de produtores fictícios (`Producer 001`...) e anos aleatórios entre 1900 e 2100:
     - várias vitórias por produtor, inclusive no mesmo ano;
     - linhas embaralhadas;
@@ -290,22 +290,22 @@ Todos os cenários usam nomes fictícios (`Producer A`, `Producer B`...) e anos 
   - **Restrições do gerador:** títulos únicos por ano, para não gerar duplicatas da FR-006d, e nomes sem a palavra `and` nem vírgula.
   - **Comparação:** cada semente é uma classe `@Nested`, com `@DynamicPropertySource` apontando `movies.csv.path` para o arquivo `file:` gerado. O teste compara a resposta de `GET /api/producers/intervals` com o oráculo, como JSON estrito.
   - **Reprodução:** as sementes ficam visíveis no `@DisplayName`.
-- [ ] T048 [P] [US1] Criar `src/test/resources/scenarios/harmless-clean.csv`, com as mesmas 4 linhas de `harmless-variations.csv` sem BOM, sem linhas em branco, sem espaços extras e com `yes` minúsculo. Estender `src/test/java/com/outsera/awards/ingestion/HarmlessVariationsIT.java` com duas classes `@Nested`, uma por CSV, e o mesmo resultado esperado de `GET /api/producers/intervals`: `"FR-005a US2-9 variações não mudam o resultado"`. Garantir que as 4 linhas geram ao menos um intervalo
-- [ ] T049 [P] [US1] Estender `src/test/java/com/outsera/awards/ingestion/EmptyLoadIT.java` com a verificação por HTTP (Princípio I). Nas duas classes `@Nested`, `GET /api/producers/intervals` responde 200 com `{"min":[],"max":[]}`: `"FR-018 Edge arquivo sem linhas válidas"`
+- [X] T048 [P] [US1] Criar `src/test/resources/scenarios/harmless-clean.csv`, com as mesmas 4 linhas de `harmless-variations.csv` sem BOM, sem linhas em branco, sem espaços extras e com `yes` minúsculo. Estender `src/test/java/com/outsera/awards/ingestion/HarmlessVariationsIT.java` com duas classes `@Nested`, uma por CSV, e o mesmo resultado esperado de `GET /api/producers/intervals`: `"FR-005a US2-9 variações não mudam o resultado"`. Garantir que as 4 linhas geram ao menos um intervalo: o filme de 1991 do `harmless-variations.csv` passa a ser do `Producer A`, o mesmo de 1990 (decisão de 2026-11-22 em `docs/ai/decisoes.md`)
+- [X] T049 [P] [US1] Estender `src/test/java/com/outsera/awards/ingestion/EmptyLoadIT.java` com a verificação por HTTP (Princípio I). Nas duas classes `@Nested`, `GET /api/producers/intervals` responde 200 com `{"min":[],"max":[]}`: `"FR-018 Edge arquivo sem linhas válidas"`
 
 ### Implementação do bolt 3
 
-- [ ] T050 [P] [US1] Criar os records `src/main/java/com/outsera/awards/producer/ProducerInterval.java` (`producer` String, `interval` int, `previousWin` int e `followingWin` int, **só esses 4 campos**; Princípio III) e `src/main/java/com/outsera/awards/producer/ProducerIntervalsResponse.java` (`min` e `max`, nunca nulos)
-- [ ] T051 [US1] Adicionar a `src/main/java/com/outsera/awards/producer/ProducerRepository.java` a consulta JPQL portável `select p.name, m.year from Movie m join m.producers p where m.winner = true`, devolvendo uma projeção (nome, ano)
-- [ ] T052 [US1] Criar `src/main/java/com/outsera/awards/producer/ProducerIntervalService.java` (depende de T050 e T051; research R6):
+- [X] T050 [P] [US1] Criar os records `src/main/java/com/outsera/awards/producer/ProducerInterval.java` (`producer` String, `interval` int, `previousWin` int e `followingWin` int, **só esses 4 campos**; Princípio III) e `src/main/java/com/outsera/awards/producer/ProducerIntervalsResponse.java` (`min` e `max`, nunca nulos)
+- [X] T051 [US1] Adicionar a `src/main/java/com/outsera/awards/producer/ProducerRepository.java` a consulta JPQL portável `select p.name, m.year from Movie m join m.producers p where m.winner = true`, devolvendo uma projeção (nome, ano)
+- [X] T052 [US1] Criar `src/main/java/com/outsera/awards/producer/ProducerIntervalService.java` (depende de T050 e T051; research R6):
   - agrupar os anos por produtor e ordená-los;
   - gerar um intervalo por par vizinho, com `followingWin - previousWin` (o mesmo ano dá 0);
   - `min` e `max` recebem todos os intervalos com o menor e o maior valor;
   - ordenar por `previousWin` crescente e depois por nome (`String.compareTo`);
   - sem intervalos, as duas listas vêm vazias;
   - **nenhum valor fixo** (FR-016a).
-- [ ] T053 [US1] Criar `src/main/java/com/outsera/awards/producer/ProducerIntervalController.java` com `GET /api/producers/intervals` (`produces = application/json`), delegando ao serviço
-- [ ] T054 [US1] Rodar `./mvnw verify`: todos os testes T035 a T049 e os anteriores passam
+- [X] T053 [US1] Criar `src/main/java/com/outsera/awards/producer/ProducerIntervalController.java` com `GET /api/producers/intervals` (`produces = application/json`), delegando ao serviço
+- [X] T054 [US1] Rodar `./mvnw verify`: todos os testes T035 a T049 e os anteriores passam
 
 **Checkpoint (PR do bolt 3)**: as regras de cálculo estão comprovadas para arquivos arbitrários, inclusive gerados.
 
