@@ -18,6 +18,6 @@ class LoadSummaryIT extends ScenarioIT {
         assertThat(output.getAll()).contains(
                 "Carga do arquivo classpath:scenarios/load-summary.csv concluída: "
                         + "10 linhas lidas, 8 aceitas, 2 rejeitadas");
-        assertThat(jdbc.queryForObject("select count(*) from movie", Integer.class)).isEqualTo(8);
+        assertThat(movies("").totalElements()).isEqualTo(8);
     }
 }

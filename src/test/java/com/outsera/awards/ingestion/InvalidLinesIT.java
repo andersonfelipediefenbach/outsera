@@ -45,6 +45,6 @@ class InvalidLinesIT extends ScenarioIT {
         assertThat(summary.accepted()).isEqualTo(2);
         assertThat(summary.rejected()).isEqualTo(9);
         assertThat(LoaderLog.loaderWarnings(output.getAll())).hasSize(9);
-        assertThat(jdbc.queryForObject("select count(*) from movie", Integer.class)).isEqualTo(2);
+        assertThat(allMovies().titles()).containsExactly("Filme Válido 1", "Filme Válido 2");
     }
 }

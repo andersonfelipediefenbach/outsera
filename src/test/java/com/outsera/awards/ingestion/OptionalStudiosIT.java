@@ -3,8 +3,9 @@ package com.outsera.awards.ingestion;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.outsera.awards.support.LoaderLog;
+import com.outsera.awards.support.MovieJson;
+import com.outsera.awards.support.MoviesBody;
 import com.outsera.awards.support.ScenarioIT;
-import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -18,8 +19,10 @@ class OptionalStudiosIT extends ScenarioIT {
     @DisplayName("FR-006e estúdios é opcional")
     void emptyStudiosIsAccepted(CapturedOutput output) {
         assertThat(LoaderLog.loaderWarnings(output.getAll())).isEmpty();
-        Map<String, Object> movie = jdbc.queryForMap("select title, studios from movie");
-        assertThat(movie).containsEntry("TITLE", "Filme Sem Estúdio");
-        assertThat(movie.get("STUDIOS")).isNull();
+        MoviesBody movies = movies("");
+        assertThat(movies.totalElements()).isEqualTo(1);
+        MovieJson movie = movies.content().getFirst();
+        assertThat(movie.title()).isEqualTo("Filme Sem Estúdio");
+        assertThat(movie.studios()).isNull();
     }
 }

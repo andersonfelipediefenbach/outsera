@@ -278,3 +278,11 @@ Os bolts 5 e 6 serão entregues juntos, em um único branch e pull request, com 
 ```text
 Sim, utilize o mesmo padrão de commits dos outros.
 ```
+
+## 2026-11-22 19:19:07 -03:00
+
+- Sessao: `8397c722-e4c8-416f-8e88-4adb94b64943`
+
+```text
+/speckit-implement Execute os bolts 5 e 6 (Phases 6, 7 e 8 do tasks.md), nesta ordem: listagem, Swagger e fechamento. Ao fim de cada fase, rode ./mvnw verify e faça um commit da fase. Não faça push. Pare ao final do bolt 6.
+```

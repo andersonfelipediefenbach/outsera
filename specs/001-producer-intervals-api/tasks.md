@@ -351,13 +351,14 @@ Todos os cenários usam nomes fictícios (`Producer A`, `Producer B`...) e anos 
 
 ### Testes do bolt 5 (escrever primeiro e ver falhar) ⚠️
 
-- [ ] T062 [P] [US3] Criar `src/test/resources/scenarios/listing-sample.csv`: 25 filmes entre 1981 e 1985, 5 por ano, sendo 1 vencedor por ano. Incluir:
+- [X] T062 [P] [US3] Criar `src/test/resources/scenarios/listing-sample.csv`: 25 filmes entre 1981 e 1985, 5 por ano, sendo 1 vencedor por ano. Incluir:
   - dois filmes do mesmo ano com títulos fora de ordem alfabética no arquivo;
   - um filme com `studios` vazio;
   - um filme com título acentuado em UTF-8, `Zé Ninguém`, o único que começa com `Z` no seu ano, para que a ordenação não dependa de collation.
-- [ ] T063 [US3] Escrever `src/test/java/com/outsera/awards/movies/MoviesListingIT.java` (depende do T062). Métodos:
+- [X] T063 [US3] Escrever `src/test/java/com/outsera/awards/movies/MoviesListingIT.java` (depende do T062). Métodos:
   - `"FR-019 FR-021 página padrão"`: 20 itens, `page`=0, `size`=20, `totalElements`=25, `totalPages`=2;
   - `"FR-021 segunda página"`: `page=1` traz 5 itens;
+  - `"FR-021 Edge página além da última"`: `page=2` e `page=2147483647` respondem 200 com `content` vazio e `totalElements` 25 (caso de borda da spec);
   - `"FR-020 filtro por ano"`: `year=1983` traz 5 itens;
   - `"FR-020 filtro por vencedor"`: `winner=true` traz 5 e `winner=false` traz 20;
   - `"FR-020 filtros combinados"`: `year=1983&winner=true` traz 1;
@@ -366,10 +367,10 @@ Todos os cenários usam nomes fictícios (`Producer A`, `Producer B`...) e anos 
   - `"FR-006e estúdios vazio vira null"`;
   - `"FR-019 produtores e estúdios como texto do arquivo"`;
   - `"Edge UTF-8 preservado"`: o título `Zé Ninguém` volta exatamente com os acentos.
-- [ ] T064 [P] [US3] Escrever `src/test/java/com/outsera/awards/movies/MoviesInvalidParamsIT.java`, com `listing-sample.csv`. Para cada valor inválido, a resposta é 400, `Content-Type: application/problem+json`, e `invalidParams[0].name` é o parâmetro: `year=abc`, `year=-1`, `winner=yes`, `winner=1`, `page=-1`, `page=x`, `size=0` e `size=101`. `@DisplayName` `"FR-023 ..."`
-- [ ] T065 [P] [US3] Escrever `src/test/java/com/outsera/awards/docs/MoviesContractIT.java`: `"FR-025 respostas da listagem compatíveis com o contrato"`, validando com o `ContractValidator` uma resposta 200 e uma 400
-- [ ] T066 [P] [US3] Escrever `src/test/java/com/outsera/awards/movies/ResponseTimeIT.java`, sem `movies.csv.path` (arquivo padrão): `"SC-005 respostas abaixo de 1 segundo"`. Medir com `System.nanoTime()` a **primeira** chamada a `GET /api/producers/intervals` e a `GET /api/movies`, sem aquecimento, e exigir menos de 1 s em cada uma
-- [ ] T067 [US3] Nos ITs do bolt 2, **substituir** as verificações de banco (`JdbcTemplate`) pela verificação por `GET /api/movies`, porque os filmes carregados passam a ter endpoint (Princípio I).
+- [X] T064 [P] [US3] Escrever `src/test/java/com/outsera/awards/movies/MoviesInvalidParamsIT.java`, com `listing-sample.csv`. Para cada valor inválido, a resposta é 400, `Content-Type: application/problem+json`, e `invalidParams[0].name` é o parâmetro: `year=abc`, `year=-1`, `winner=yes`, `winner=1`, `page=-1`, `page=x`, `size=0` e `size=101`. `@DisplayName` `"FR-023 ..."`
+- [X] T065 [P] [US3] Escrever `src/test/java/com/outsera/awards/docs/MoviesContractIT.java`: `"FR-025 respostas da listagem compatíveis com o contrato"`, validando com o `ContractValidator` uma resposta 200 e uma 400
+- [X] T066 [P] [US3] Escrever `src/test/java/com/outsera/awards/movies/ResponseTimeIT.java`, sem `movies.csv.path` (arquivo padrão): `"SC-005 respostas abaixo de 1 segundo"`. Medir com `System.nanoTime()` a **primeira** chamada a `GET /api/producers/intervals` e a `GET /api/movies`, sem aquecimento, e exigir menos de 1 s em cada uma
+- [X] T067 [US3] Nos ITs do bolt 2, **substituir** as verificações de banco (`JdbcTemplate`) pela verificação por `GET /api/movies`, porque os filmes carregados passam a ter endpoint (Princípio I).
   - As verificações de log continuam, porque os avisos e o resumo não têm endpoint.
   - Ao final, remover o `JdbcTemplate` da `ScenarioIT`.
 
@@ -385,18 +386,18 @@ Todos os cenários usam nomes fictícios (`Producer A`, `Producer B`...) e anos 
 
 ### Implementação do bolt 5
 
-- [ ] T068 [P] [US3] Criar `src/main/java/com/outsera/awards/web/InvalidParameterException.java` (nome e motivo do parâmetro) e `src/main/java/com/outsera/awards/web/ApiExceptionHandler.java` (`@RestControllerAdvice`), que gera um `ProblemDetail` com status 400, título `Bad Request`, `detail` `Parâmetro inválido na consulta` e a propriedade `invalidParams` = `[{name, reason}]`, com `Content-Type` `application/problem+json`
-- [ ] T069 [P] [US3] Criar os records `src/main/java/com/outsera/awards/movie/MovieItem.java` (`year`, `title`, `studios` nullable, `producers` texto e `winner`) e `src/main/java/com/outsera/awards/movie/MoviePage.java` (`content`, `page`, `size`, `totalElements` e `totalPages`). Não serializar o `Page` do Spring
-- [ ] T070 [US3] Adicionar a `src/main/java/com/outsera/awards/movie/MovieRepository.java` uma consulta JPQL portável com filtros opcionais, `where (:year is null or m.year = :year) and (:winner is null or m.winner = :winner) order by m.year, m.title`, paginada e com `countQuery`
-- [ ] T071 [US3] Criar `src/main/java/com/outsera/awards/movie/MovieQueryService.java` (research R7). Os parâmetros chegam como `String` e são validados assim:
+- [X] T068 [P] [US3] Criar `src/main/java/com/outsera/awards/web/InvalidParameterException.java` (nome e motivo do parâmetro) e `src/main/java/com/outsera/awards/web/ApiExceptionHandler.java` (`@RestControllerAdvice`), que gera um `ProblemDetail` com status 400, título `Bad Request`, `detail` `Parâmetro inválido na consulta` e a propriedade `invalidParams` = `[{name, reason}]`, com `Content-Type` `application/problem+json`
+- [X] T069 [P] [US3] Criar os records `src/main/java/com/outsera/awards/movie/MovieItem.java` (`year`, `title`, `studios` nullable, `producers` texto e `winner`) e `src/main/java/com/outsera/awards/movie/MoviePage.java` (`content`, `page`, `size`, `totalElements` e `totalPages`). Não serializar o `Page` do Spring
+- [X] T070 [US3] Adicionar a `src/main/java/com/outsera/awards/movie/MovieRepository.java` uma consulta JPQL portável com filtros opcionais, `where (:year is null or m.year = :year) and (:winner is null or m.winner = :winner) order by m.year, m.title`, paginada e com `countQuery`
+- [X] T071 [US3] Criar `src/main/java/com/outsera/awards/movie/MovieQueryService.java` (research R7). Os parâmetros chegam como `String` e são validados assim:
   - `year`: `\d{1,9}`;
   - `winner`: `true` ou `false`, sem diferenciar maiúsculas;
-  - `page`: inteiro maior ou igual a 0, padrão 0;
+  - `page`: inteiro de 32 bits maior ou igual a 0, padrão 0;
   - `size`: inteiro de 1 a 100, padrão 20.
 
-  Um valor inválido lança `InvalidParameterException`.
-- [ ] T072 [US3] Criar `src/main/java/com/outsera/awards/movie/MovieController.java` com `GET /api/movies` e os parâmetros `year`, `winner`, `page` e `size` como `String` opcionais. Parâmetros desconhecidos são ignorados
-- [ ] T073 [US3] Rodar `./mvnw verify`: tudo verde
+  Um valor inválido lança `InvalidParameterException`, com todos os parâmetros inválidos da consulta. Quando o deslocamento (`page` × `size`) passa de `Integer.MAX_VALUE`, a página fica além da última com qualquer arquivo realista: o serviço devolve `content` vazio com os totais da contagem, sem pedir a página ao banco (o Spring Data recusaria o deslocamento).
+- [X] T072 [US3] Criar `src/main/java/com/outsera/awards/movie/MovieController.java` com `GET /api/movies` e os parâmetros `year`, `winner`, `page` e `size` como `String` opcionais. Parâmetros desconhecidos são ignorados
+- [X] T073 [US3] Rodar `./mvnw verify`: tudo verde
 
 **Checkpoint (commit da fase 6, no PR dos bolts 5 e 6)**: a listagem está completa e não altera o contrato de intervalos. Todos os ITs de carga do bolt 2 já verificam o resultado por HTTP.
 

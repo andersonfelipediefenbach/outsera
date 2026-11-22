@@ -167,6 +167,13 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
   (`[{name, reason}]`). A resposta usa um DTO próprio (`content`, `page`, `size`, `totalElements`,
   `totalPages`), e não a serialização do `Page` do Spring. A ordenação fixa é por ano e depois por
   título. Parâmetros desconhecidos são ignorados.
+
+  Detalhes definidos no bolt 5 (ver `docs/ai/decisoes.md`):
+  - todos os parâmetros inválidos da consulta aparecem em `invalidParams`, na ordem `year`, `winner`,
+    `page` e `size`;
+  - `page` é um inteiro de 32 bits. Uma página além da última responde 200 com `content` vazio e os
+    totais reais. Quando `page` × `size` passa de `Integer.MAX_VALUE`, o serviço consulta só a contagem,
+    porque o Spring Data recusa esse deslocamento e responderia 500.
 - **Rationale**: o conversor padrão do Spring aceita `yes`, `on` e `1` como booleanos, e a spec pede
   400 para valores não booleanos. A serialização direta do `PageImpl` é instável e o próprio Spring
   Data desaconselha.

@@ -8,7 +8,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
@@ -31,16 +30,30 @@ public abstract class ScenarioIT {
     @Autowired
     protected RestTestClient http;
 
-    /**
-     * Verificação pelo banco, permitida pelo Princípio I só enquanto o comportamento não tem endpoint
-     * (testes de carga do bolt 2). Usa apenas SQL sobre as tabelas do {@code data-model.md}, sem
-     * depender das classes de produção. Temporário: sai no T067, quando a listagem existir.
-     */
-    @Autowired
-    protected JdbcTemplate jdbc;
-
     /** Endpoint de intervalos (FR-017). */
     protected static final String INTERVALS = "/api/producers/intervals";
+
+    /** Endpoint da listagem de filmes (FR-019). */
+    protected static final String MOVIES = "/api/movies";
+
+    /**
+     * Corpo de {@code GET /api/movies?<query>}, exigindo status 200. A {@code query} vai sem o {@code ?}
+     * e pode ser vazia.
+     */
+    protected MoviesBody movies(String query) {
+        String uri = query.isEmpty() ? MOVIES : MOVIES + "?" + query;
+        return http.get().uri(uri).exchange()
+                .expectStatus().isOk()
+                .expectHeader().contentTypeCompatibleWith(MediaType.APPLICATION_JSON)
+                .expectBody(MoviesBody.class)
+                .returnResult()
+                .getResponseBody();
+    }
+
+    /** Todos os filmes carregados, numa única página do maior tamanho aceito. */
+    protected MoviesBody allMovies() {
+        return movies("size=100");
+    }
 
     /**
      * Compara a resposta de {@code GET /api/producers/intervals} com {@code min} e {@code max} inteiros,

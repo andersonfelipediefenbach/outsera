@@ -3,6 +3,29 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-22 — Detalhes da listagem de filmes (bolt 5)
+
+- **Origem:** implementador, ao escrever os testes do bolt 5. A spec não dizia o que acontece com uma
+  página além da última. Com `page=2147483647`, o deslocamento (`page` × `size`) passa de
+  `Integer.MAX_VALUE`, o Spring Data recusa a consulta e a resposta seria 500.
+- **Decisão (implementador, para revisão do responsável no PR):**
+  - a spec ganhou um caso de borda antes do código (Princípio IV): uma página além da última responde
+    200 com `content` vazio e os totais reais, e um `page` que não cabe em 32 bits é inválido (400);
+  - quando o deslocamento passa do limite, o `MovieQueryService` consulta só a contagem;
+  - todos os parâmetros inválidos da consulta aparecem em `invalidParams`, e não só o primeiro;
+  - o `ResponseTimeIT` usa `@DirtiesContext`, para que a primeira chamada medida aconteça num contexto
+    sem nenhuma requisição anterior, incluindo a inicialização preguiçosa do Spring MVC (SC-005).
+- **Alternativas rejeitadas:**
+  - recusar com 400 uma página além da última: o FR-021 aceita qualquer `page` maior ou igual a 0, e o
+    US3-6 já responde 200 com lista vazia quando não há resultado;
+  - limitar `page` a um máximo arbitrário: seria uma regra sem origem na spec.
+- **T067:** os ITs de carga do bolt 2 (inclusive o `BomVariationsIT`, criado depois da T067) passaram a
+  verificar os filmes por `GET /api/movies`, e o `JdbcTemplate` saiu da `ScenarioIT`. No
+  `HarmlessVariationsIT`, a consulta à tabela `producer` não tem equivalente na listagem, que devolve os
+  produtores como texto. O nome sem espaços em volta continua provado pelos intervalos
+  (`Producer A` 1990→1991, classe `WithVariations`).
+- **Impacto:** caso de borda novo na spec, research R7, T063 e T071.
+
 ## 2026-11-22 — Bolts 5 e 6 entregues juntos
 
 - **Decisão (responsável):** os bolts 5 (listagem) e 6 (Swagger UI e fechamento do Marco 1) são
