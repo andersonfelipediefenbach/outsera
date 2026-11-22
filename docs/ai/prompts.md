@@ -401,3 +401,13 @@ Complete a tabela "Requisitos do enunciado" do README com os itens que faltam do
 ```text
 Crie o teste de que verbos não suportados, como POST, PUT e DELETE nos dois endpoints, recebem 405, e acrescente esse teste na linha do item 4.1 da tabela do README. Rode ./mvnw verify e faça um commit separado.
 ```
+
+## 2026-11-22 20:47:46 -03:00
+
+- Sessao: `c02766b2-c176-432b-af5a-dcc9a1bcc9cc`
+
+```text
+git add -A
+git status
+git commit -m "Sessão do bolt 3 e nomes das sessões corrigidos"
+```

@@ -46,8 +46,10 @@ Cada arquivo é a exportação em texto de uma sessão do Claude Code. O nome in
 | `01-bolt-1-projeto.md` | Bolt 1: geração do projeto e infraestrutura de teste |
 | `02-bolt-2-carga-csv.md` | Bolt 2: carga do CSV |
 | `02b-bolt-2-correcao-bom.md` | Correção do bolt 2 pedida pelo Codex no PR: o BOM passou a ser removido antes do parser |
-| `02b-bolt-3-correcaopr.md` | Segunda correção pedida pelo Codex no PR do bolt 2: a separação de produtores passou a ser feita em etapas |
+| `02c-bolt-2-correcao-and.md` | Segunda correção pedida pelo Codex no PR do bolt 2: a separação de produtores passou a ser feita em etapas |
+| `03-bolt-3-calculo.md` | Bolt 3: cálculo dos intervalos entre vitórias |
 | `04-bolt-4-endpoint.md` | Bolt 4: endpoint de intervalos no formato do enunciado |
+| `05-bolts-5-6-e-documentacao.md` | Bolts 5 e 6 (listagem, Swagger e fechamento) e, na mesma sessão, o papel de documentação: README, este guia e o teste de verbos não suportados (405) |
 
 - As exportações de uma mesma sessão são **cumulativas**: um arquivo exportado mais tarde repete o
   início do anterior.
