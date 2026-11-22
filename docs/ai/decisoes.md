@@ -3,6 +3,31 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-22 — Swagger UI pelo webjar, sem springdoc (bolt 6)
+
+- **Origem:** implementador, na T076. Com `springdoc.api-docs.enabled=false`, o `/swagger-ui.html`
+  respondia 404. Nas classes do springdoc 3.2.0, o `SwaggerConfig` (Swagger UI) tem
+  `@ConditionalOnBean(SpringDocConfiguration.class)`, e a `SpringDocConfiguration` tem
+  `@ConditionalOnProperty("springdoc.api-docs.enabled", matchIfMissing = true)`. Ou seja, nessa versão
+  o Swagger UI do springdoc exige a geração automática do contrato ligada.
+- **Decisão (responsável):** tirar o springdoc e servir o Swagger UI pelo webjar
+  `org.webjars:swagger-ui` 5.34.0 (a mesma versão que o springdoc 3.2.0 traria), com o
+  `webjars-locator-lite` gerenciado pelo Boot e uma página estática `static/swagger-ui.html` que aponta
+  para `/openapi.yaml`.
+- **Motivo:** mantém o contrato estático como fonte única (research R8). Não há contrato gerado pelo
+  código, `/v3/api-docs` responde 404 e nada varre os controllers na inicialização.
+- **Alternativas rejeitadas:**
+  - springdoc com `api-docs` ligado: publicaria em `/v3/api-docs` um segundo contrato, gerado pelo
+    código, que poderia divergir do estático;
+  - springdoc com `api-docs` ligado e nenhum caminho gerado (`paths-to-exclude=/**`): `/v3/api-docs`
+    continuaria publicado, vazio.
+- **Fim de linha:** o `ApiDocsIT` compara `/openapi.yaml` byte a byte com o contrato de `specs/`. Nesta
+  cópia de trabalho, o arquivo de `specs/` estava com CRLF, extraído antes do `.gitattributes`
+  (`eol=lf`), e o teste falhava. O conteúdo versionado tem LF nos dois arquivos, então o arquivo foi
+  extraído de novo. Outros 19 arquivos da cópia de trabalho estão na mesma situação e não foram
+  tocados. Num clone novo, todos vêm com LF.
+- **Impacto:** research R1 e R8, plano (stack e estrutura), T074 a T076 e `pom.xml`.
+
 ## 2026-11-22 — Detalhes da listagem de filmes (bolt 5)
 
 - **Origem:** implementador, ao escrever os testes do bolt 5. A spec não dizia o que acontece com uma

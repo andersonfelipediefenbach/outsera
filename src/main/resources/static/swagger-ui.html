@@ -1,0 +1,31 @@
+<!doctype html>
+<!--
+  Swagger UI sobre o contrato estático /openapi.yaml, a única fonte do contrato (FR-024, research R8).
+  Os arquivos vêm do webjar org.webjars:swagger-ui, por caminhos sem versão (webjars-locator-lite).
+-->
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Golden Raspberry Awards API</title>
+    <link rel="stylesheet" href="/webjars/swagger-ui/swagger-ui.css">
+    <link rel="stylesheet" href="/webjars/swagger-ui/index.css">
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="/webjars/swagger-ui/swagger-ui-bundle.js"></script>
+<script src="/webjars/swagger-ui/swagger-ui-standalone-preset.js"></script>
+<script>
+    window.onload = function () {
+        window.ui = SwaggerUIBundle({
+            url: "/openapi.yaml",
+            dom_id: "#swagger-ui",
+            deepLinking: true,
+            presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+            plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+            layout: "StandaloneLayout"
+        });
+    };
+</script>
+</body>
+</html>

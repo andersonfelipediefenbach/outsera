@@ -411,17 +411,18 @@ Todos os cenários usam nomes fictícios (`Producer A`, `Producer B`...) e anos 
 
 ### Testes do bolt 6 (escrever primeiro e ver falhar) ⚠️
 
-- [ ] T074 [US4] Escrever `src/test/java/com/outsera/awards/docs/ApiDocsIT.java`:
+- [X] T074 [US4] Escrever `src/test/java/com/outsera/awards/docs/ApiDocsIT.java`:
   - `"FR-024 Swagger UI disponível"`: `GET /swagger-ui.html` leva, seguindo o redirect, a uma página 200 em HTML;
-  - `"FR-024 Swagger UI aponta para /openapi.yaml"`: a configuração do Swagger UI servida pelo springdoc contém `/openapi.yaml`;
+  - `"FR-024 Swagger UI aponta para /openapi.yaml"`: a página do Swagger UI carrega o contrato de `/openapi.yaml`, e os arquivos do webjar que ela usa respondem 200;
+  - `"FR-024 a geração automática do contrato está desligada"`: `GET /v3/api-docs` responde 404;
   - `"FR-024 FR-025 contrato publicado idêntico ao da spec"`: o corpo de `GET /openapi.yaml` é igual, byte a byte, a `specs/001-producer-intervals-api/contracts/openapi.yaml` (lido do disco relativo ao `basedir` do Maven);
   - `"FR-024 contrato descreve os dois endpoints"`.
 
 ### Implementação do bolt 6
 
-- [ ] T075 [US4] Adicionar `org.springdoc:springdoc-openapi-starter-webmvc-ui:3.2.0` ao `pom.xml`
-- [ ] T076 [US4] Configurar em `src/main/resources/application.yml`: `springdoc.api-docs.enabled: false`, `springdoc.swagger-ui.url: /openapi.yaml` e `springdoc.swagger-ui.path: /swagger-ui.html`. Se, com `api-docs` desligado, o springdoc não servir a configuração do Swagger UI, ajustar seguindo a documentação do springdoc 3.2 e registrar a decisão em `specs/001-producer-intervals-api/research.md` (R8)
-- [ ] T077 [US4] Rodar `./mvnw verify`: tudo verde
+- [X] T075 [US4] Adicionar ao `pom.xml` `org.webjars:swagger-ui:5.34.0` e `org.webjars:webjars-locator-lite` (versão gerenciada pelo Boot). **Mudança no bolt 6:** o plano original usava o `springdoc-openapi-starter-webmvc-ui:3.2.0`, que não serve o Swagger UI com `springdoc.api-docs.enabled=false` (research R8; decisão em `docs/ai/decisoes.md`)
+- [X] T076 [US4] Criar `src/main/resources/static/swagger-ui.html`, que carrega o Swagger UI dos caminhos sem versão do webjar (`/webjars/swagger-ui/...`) com `url: "/openapi.yaml"`. Nada no `application.yml`
+- [X] T077 [US4] Rodar `./mvnw verify`: tudo verde
 
 **Checkpoint (commit da fase 7, no PR dos bolts 5 e 6)**: as quatro histórias funcionam de forma independente.
 

@@ -7,12 +7,13 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
 - **Decision**:
   - Java 25 (OpenJDK 25.0.2 instalado);
   - Spring Boot **4.1.2**;
-  - springdoc-openapi **3.2.0** (`springdoc-openapi-starter-webmvc-ui`);
+  - Swagger UI **5.34.0** (`org.webjars:swagger-ui`), com o `webjars-locator-lite` gerenciado pelo
+    Boot. O plano original usava o springdoc-openapi 3.2.0, trocado no bolt 6 (R8);
   - Apache Commons CSV **1.14.1**;
   - Maven **3.9.16** via Maven Wrapper **3.3.4** (distribuição `only-script`);
   - H2 e Flyway na versão gerenciada pelo Boot.
 - **Rationale**: a 4.1.2 é a última versão estável do Boot, porque a 4.2.0 ainda está em RC2. O
-  springdoc 3.2.0 declara a 4.1.2 como parent, então a compatibilidade é garantida. O Maven 4 ainda é
+  Swagger UI 5.34.0 é a versão que o springdoc 3.2.0, compatível com a 4.1.2, usa. O Maven 4 ainda é
   RC. O wrapper `only-script` baixa o Maven sem precisar de um JAR binário no repositório.
 - **Alternatives considered**:
   - Boot 4.2.0-RC2: não é estável.
@@ -183,9 +184,11 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
 ## R8. Contrato OpenAPI e Swagger UI (FR-024, FR-025, Princípio III)
 
 - **Decision**: o contrato vem **antes** do código. O arquivo `src/main/resources/static/openapi.yaml`,
-  copiado de `contracts/openapi.yaml`, é a única fonte. O springdoc fornece o Swagger UI
-  (`/swagger-ui.html`) apontando para ele (`springdoc.swagger-ui.url=/openapi.yaml`), com a geração
-  automática desligada (`springdoc.api-docs.enabled=false`). Os testes validam as respostas reais
+  copiado de `contracts/openapi.yaml`, é a única fonte. O Swagger UI vem do webjar
+  `org.webjars:swagger-ui` 5.34.0 (a mesma versão que o springdoc 3.2.0 traria), com o
+  `webjars-locator-lite` gerenciado pelo Boot para os caminhos sem versão. A página estática
+  `src/main/resources/static/swagger-ui.html` carrega o Swagger UI apontando para `/openapi.yaml`. Não
+  há geração de contrato a partir do código, e `/v3/api-docs` não existe. Os testes validam as respostas reais
   contra esse mesmo arquivo com `swagger-request-validator-core` 3.0.0 (Atlassian), só no escopo de
   teste. Na versão 3.0.0 o artifact foi relocado pelo projeto para
   `com.atlassian.oai:openapi-request-validator-core`, que é a coordenada declarada no `pom.xml`
@@ -198,8 +201,18 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
 - **Risco**: o validador usa Jackson 2 e o Boot 4 usa Jackson 3. Os pacotes são diferentes
   (`com.fasterxml` e `tools.jackson`), então os dois convivem. Se houver conflito, a alternativa é o
   `networknt/json-schema-validator` sobre os schemas do contrato.
-- **Alternatives considered**: code-first com springdoc (contrato derivado do código) e openapi4j
-  (sem manutenção desde 2021).
+- **Mudança no bolt 6 (decisão do responsável, ver `docs/ai/decisoes.md`):** o plano original usava o
+  springdoc 3.2.0 com `springdoc.api-docs.enabled=false` e `springdoc.swagger-ui.url=/openapi.yaml`. Na
+  3.2.0, o `SwaggerConfig` (Swagger UI) exige o bean `SpringDocConfiguration`, que só existe com
+  `springdoc.api-docs.enabled=true`. Com a geração desligada, `/swagger-ui.html` responde 404. O
+  springdoc saiu do projeto.
+- **Alternatives considered**:
+  - code-first com springdoc (contrato derivado do código);
+  - springdoc com `api-docs` ligado e `swagger-ui.url=/openapi.yaml`: publicaria em `/v3/api-docs` um
+    segundo contrato, gerado pelo código;
+  - springdoc com `api-docs` ligado e nenhum caminho gerado (`paths-to-exclude=/**`): `/v3/api-docs`
+    continuaria publicado, vazio, e o springdoc varreria os controllers na inicialização sem uso;
+  - openapi4j (sem manutenção desde 2021).
 
 ## R9. Estratégia de testes (Princípios I e VI, FR-026, FR-027)
 

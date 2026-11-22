@@ -16,7 +16,7 @@ H2 durante a inicialização, antes de o servidor aceitar conexões.
   - `GET /api/producers/intervals`, no formato exato do enunciado, com o cálculo por pares de vitórias
     vizinhas feito em um serviço;
   - `GET /api/movies`, com paginação e filtros validados à mão.
-- **Contrato:** o `openapi.yaml` é escrito antes do código e é a fonte única do Swagger UI (springdoc) e
+- **Contrato:** o `openapi.yaml` é escrito antes do código e é a fonte única do Swagger UI (webjar, R8) e
   da validação das respostas nos testes.
 - **Testes:** só de integração (`*IT` via Failsafe), com `@SpringBootTest` em porta aleatória, chamadas
   HTTP reais e um CSV de cenário por classe.
@@ -26,7 +26,8 @@ H2 durante a inicialização, antes de o servidor aceitar conexões.
 **Language/Version**: Java 25 (OpenJDK 25.0.2)
 
 **Primary Dependencies**: Spring Boot 4.1.2 (`spring-boot-starter-webmvc`, `-data-jpa`, `-flyway`),
-H2, Apache Commons CSV 1.14.1, springdoc-openapi-starter-webmvc-ui 3.2.0. Nos testes:
+H2, Apache Commons CSV 1.14.1, `org.webjars:swagger-ui` 5.34.0 com `webjars-locator-lite` (trocou o
+springdoc 3.2.0 no bolt 6, R8). Nos testes:
 `spring-boot-starter-test`, `swagger-request-validator-core` 3.0.0.
 
 **Storage**: H2 em memória, com nome único por contexto e esquema via Flyway (`ddl-auto=validate`)
@@ -119,6 +120,7 @@ src/main/resources/
 ├── movielist.csv                     # arquivo do enunciado (a ser adicionado)
 ├── db/migration/V1__create_schema.sql
 ├── static/openapi.yaml               # cópia de contracts/openapi.yaml
+├── static/swagger-ui.html            # Swagger UI (webjar) sobre o /openapi.yaml
 └── META-INF/spring.factories         # FailureAnalyzer
 src/test/java/com/outsera/awards/     # somente *IT (Failsafe)
 ├── SmokeIT
