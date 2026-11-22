@@ -20,6 +20,7 @@
     <properties>
         <java.version>25</java.version>
         <commons-csv.version>1.14.1</commons-csv.version>
+        <swagger-request-validator.version>3.0.0</swagger-request-validator.version>
     </properties>
 
     <dependencies>
@@ -68,6 +69,22 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-resttestclient</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <!-- Valida as respostas reais contra o openapi.yaml (FR-025, research R8) -->
+            <groupId>com.atlassian.oai</groupId>
+            <!-- Antigo swagger-request-validator-core, relocado pelo próprio projeto na versão 3.0.0 -->
+            <artifactId>openapi-request-validator-core</artifactId>
+            <version>${swagger-request-validator.version}</version>
+            <scope>test</scope>
+            <exclusions>
+                <!-- Vem do swagger-core e faria o Spring tentar montar um Bean Validation só nos
+                     testes. O classpath de teste fica igual ao de produção. -->
+                <exclusion>
+                    <groupId>jakarta.validation</groupId>
+                    <artifactId>jakarta.validation-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
     </dependencies>
 

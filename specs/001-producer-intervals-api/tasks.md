@@ -319,19 +319,19 @@ Todos os cenários usam nomes fictícios (`Producer A`, `Producer B`...) e anos 
 
 ### Testes do bolt 4 (escrever primeiro e ver falhar) ⚠️
 
-- [ ] T055 [P] [US1] Criar `src/test/java/com/outsera/awards/support/ContractValidator.java`, que carrega `classpath:static/openapi.yaml` e valida status, `Content-Type` e corpo de uma resposta com `com.atlassian.oai:swagger-request-validator-core:3.0.0`. Adicionar essa dependência ao `pom.xml` em escopo `test`. Se houver conflito com o Boot 4, usar o plano B da research R8 (`networknt/json-schema-validator` sobre os schemas do contrato)
-- [ ] T056 [P] [US1] Escrever `src/test/java/com/outsera/awards/intervals/ReferenceFileIT.java`, sem `movies.csv.path` (arquivo padrão): `"FR-017 SC-001 resultado de referência"`. O corpo é **exatamente** igual, comparado como JSON estrito (`JSONAssert` em modo `STRICT`), a `{"min":[{"producer":"Joel Silver","interval":1,"previousWin":1990,"followingWin":1991}],"max":[{"producer":"Matthew Vaughn","interval":13,"previousWin":2002,"followingWin":2015}]}`. Esses valores ficam **só** no teste, nunca em `src/main`
-- [ ] T057 [P] [US1] Escrever `src/test/java/com/outsera/awards/intervals/IntervalsShapeIT.java`, que usa `no-repeat-winners.csv` e `disjoint-producers.csv` em classes `@Nested`:
+- [X] T055 [P] [US1] Criar `src/test/java/com/outsera/awards/support/ContractValidator.java`, que carrega `classpath:static/openapi.yaml` e valida status, `Content-Type` e corpo de uma resposta com `com.atlassian.oai:swagger-request-validator-core:3.0.0`. Adicionar essa dependência ao `pom.xml` em escopo `test`. Se houver conflito com o Boot 4, usar o plano B da research R8 (`networknt/json-schema-validator` sobre os schemas do contrato)
+- [X] T056 [P] [US1] Escrever `src/test/java/com/outsera/awards/intervals/ReferenceFileIT.java`, sem `movies.csv.path` (arquivo padrão): `"FR-017 SC-001 resultado de referência"`. O corpo é **exatamente** igual, comparado como JSON estrito (`JSONAssert` em modo `STRICT`), a `{"min":[{"producer":"Joel Silver","interval":1,"previousWin":1990,"followingWin":1991}],"max":[{"producer":"Matthew Vaughn","interval":13,"previousWin":2002,"followingWin":2015}]}`. Esses valores ficam **só** no teste, nunca em `src/main`
+- [X] T057 [P] [US1] Escrever `src/test/java/com/outsera/awards/intervals/IntervalsShapeIT.java`, que usa `no-repeat-winners.csv` e `disjoint-producers.csv` em classes `@Nested`:
   - `"FR-017 só os 4 campos por item"`: cada item tem exatamente as chaves `producer`, `interval`, `previousWin` e `followingWin`;
   - `"FR-018 listas vazias como [] e não null nem ausentes"`;
   - `"FR-017 Content-Type application/json"`.
-- [ ] T058 [P] [US1] Escrever `src/test/java/com/outsera/awards/docs/IntervalsContractIT.java`: `"FR-025 resposta de intervalos compatível com o contrato"`, validando com o `ContractValidator` as respostas do arquivo padrão e de `no-repeat-winners.csv`
+- [X] T058 [P] [US1] Escrever `src/test/java/com/outsera/awards/docs/IntervalsContractIT.java`: `"FR-025 resposta de intervalos compatível com o contrato"`, validando com o `ContractValidator` as respostas do arquivo padrão e de `no-repeat-winners.csv`
 
 ### Implementação do bolt 4
 
-- [ ] T059 [US1] Copiar `specs/001-producer-intervals-api/contracts/openapi.yaml` para `src/main/resources/static/openapi.yaml`, sem nenhuma alteração. A fonte continua sendo o arquivo de `specs/`
-- [ ] T060 [US1] Ajustar `ProducerIntervalController` e os records até os testes T056 a T058 passarem (sem campos extras, sem `null` nas listas e com o `Content-Type` correto), sem alterar o contrato
-- [ ] T061 [US1] Rodar `./mvnw verify`: tudo verde
+- [X] T059 [US1] Copiar `specs/001-producer-intervals-api/contracts/openapi.yaml` para `src/main/resources/static/openapi.yaml`, sem nenhuma alteração. A fonte continua sendo o arquivo de `specs/`
+- [X] T060 [US1] Ajustar `ProducerIntervalController` e os records até os testes T056 a T058 passarem (sem campos extras, sem `null` nas listas e com o `Content-Type` correto), sem alterar o contrato
+- [X] T061 [US1] Rodar `./mvnw verify`: tudo verde
 
 **Checkpoint (PR do bolt 4)**: o requisito obrigatório do enunciado está entregue. **É o MVP.**
 

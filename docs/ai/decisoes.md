@@ -3,6 +3,27 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-22 — Validador do contrato com a coordenada nova da Atlassian (T055)
+
+- **Origem:** implementador, no bolt 4. Ao resolver
+  `com.atlassian.oai:swagger-request-validator-core:3.0.0`, o Maven avisa que o artifact foi relocado
+  pelo próprio projeto para `com.atlassian.oai:openapi-request-validator-core:3.0.0`.
+- **Decisão (implementador, para revisão do responsável no PR):** declarar no `pom.xml` a coordenada
+  nova, na mesma versão 3.0.0 da research R8. O código e os pacotes Java são os mesmos
+  (`com.atlassian.oai.validator`), então o plano B (`networknt/json-schema-validator`) não foi
+  necessário.
+- **Exclusão:** o `jakarta.validation-api` que chega pelo `swagger-core` foi excluído, só nessa
+  dependência de teste. Sem a exclusão, o Spring tentava montar um Bean Validation nos testes e
+  registrava `Failed to set up a Bean Validation provider`, um comportamento que não existe em
+  produção. Com a exclusão, o classpath de teste volta a ser igual ao de produção e os 78 testes
+  passam.
+- **Controle:** o `IntervalsContractIT` inclui um caso que adultera a resposta real com um campo a
+  mais e exige que o validador a recuse (`additionalProperties: false`), para provar que a validação
+  não é vazia.
+- **T060:** nenhum ajuste foi necessário no `ProducerIntervalController` nem nos records. O controller
+  mínimo do bolt 3 já cumpria o formato, e o T056 e o T057 passaram antes da implementação do bolt 4.
+  Só o T058 falhou antes do T059, por falta do contrato em `static/`.
+
 ## 2026-11-22 — Anos do `disjoint-producers.csv` fora do `movielist.csv` (T041)
 
 - **Origem:** conflito encontrado pelo implementador no bolt 3. A T041 pedia que o `Producer B`
