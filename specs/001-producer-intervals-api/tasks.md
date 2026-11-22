@@ -43,8 +43,14 @@ implementação.
 | 2. Carga do CSV | `bolt/2-carga-csv` | US2 | US2 |
 | 3. Cálculo dos intervalos | `bolt/3-calculo-intervalos` | US1 (regras) | US1 |
 | 4. Endpoint de intervalos | `bolt/4-endpoint-intervalos` | US1 (contrato) | US1 |
-| 5. Listagem | `bolt/5-listagem` | US3 | US3 |
-| 6. Swagger | `bolt/6-swagger` | US4 + Polish | US4 |
+| 5. Listagem | `bolt/5-6-listagem-swagger` | US3 | US3 |
+| 6. Swagger | `bolt/5-6-listagem-swagger` | US4 + Polish | US4 |
+
+> **Nota sobre os bolts 5 e 6.** Os dois bolts são entregues juntos, em um único branch
+> (`bolt/5-6-listagem-swagger`) e um único pull request, com um commit por etapa: fase 6 (listagem),
+> fase 7 (Swagger UI) e fase 8 (fechamento). Cada etapa termina com `./mvnw verify` verde antes do seu
+> commit, e os testes de cada etapa continuam vindo antes da implementação. Decisão registrada em
+> `docs/ai/decisoes.md`.
 
 > **Nota sobre os bolts 3 e 4.** Como só existem testes de integração, as regras de cálculo só podem
 > ser verificadas por HTTP. O bolt 3 inclui, portanto, um controller mínimo de
@@ -392,7 +398,7 @@ Todos os cenários usam nomes fictícios (`Producer A`, `Producer B`...) e anos 
 - [ ] T072 [US3] Criar `src/main/java/com/outsera/awards/movie/MovieController.java` com `GET /api/movies` e os parâmetros `year`, `winner`, `page` e `size` como `String` opcionais. Parâmetros desconhecidos são ignorados
 - [ ] T073 [US3] Rodar `./mvnw verify`: tudo verde
 
-**Checkpoint (PR do bolt 5)**: a listagem está completa e não altera o contrato de intervalos. Todos os ITs de carga do bolt 2 já verificam o resultado por HTTP.
+**Checkpoint (commit da fase 6, no PR dos bolts 5 e 6)**: a listagem está completa e não altera o contrato de intervalos. Todos os ITs de carga do bolt 2 já verificam o resultado por HTTP.
 
 ---
 
@@ -416,7 +422,7 @@ Todos os cenários usam nomes fictícios (`Producer A`, `Producer B`...) e anos 
 - [ ] T076 [US4] Configurar em `src/main/resources/application.yml`: `springdoc.api-docs.enabled: false`, `springdoc.swagger-ui.url: /openapi.yaml` e `springdoc.swagger-ui.path: /swagger-ui.html`. Se, com `api-docs` desligado, o springdoc não servir a configuração do Swagger UI, ajustar seguindo a documentação do springdoc 3.2 e registrar a decisão em `specs/001-producer-intervals-api/research.md` (R8)
 - [ ] T077 [US4] Rodar `./mvnw verify`: tudo verde
 
-**Checkpoint**: as quatro histórias funcionam de forma independente.
+**Checkpoint (commit da fase 7, no PR dos bolts 5 e 6)**: as quatro histórias funcionam de forma independente.
 
 ---
 
@@ -464,6 +470,7 @@ Todos os cenários usam nomes fictícios (`Producer A`, `Producer B`...) e anos 
 - **Bolt 4** (US1, contrato): depende do bolt 3.
 - **Bolt 5** (US3, listagem): depende do bolt 2 **e** do `ContractValidator` (T055, bolt 4). Se for feito em paralelo ao bolt 4, mover o T055 para o bolt 5 e o T059 para antes do T065. O T067 estende ITs do bolt 2.
 - **Bolt 6** (US4 + Polish): depende do bolt 4 (`static/openapi.yaml`). O fechamento (T078 a T083) depende de todos.
+- **Bolts 5 e 6 juntos:** entregues no mesmo branch e PR, na ordem fase 6 → fase 7 → fase 8, um commit por fase.
 
 ### Dentro de cada bolt
 
@@ -512,7 +519,7 @@ Task: "T047 IntervalOracle + RandomizedOracleIT"
 
 ## Notes
 
-- Um bolt por branch e um PR. Nenhum commit direto na `main`, e PR, merge e tag ficam com o responsável.
+- Um bolt por branch e um PR, com a exceção dos bolts 5 e 6, entregues juntos (ver o mapeamento bolt → fase). Nenhum commit direto na `main`, e PR, merge e tag ficam com o responsável.
 - Os CSVs de ataque do testador adversário (Codex) entram como novos arquivos em `src/test/resources/scenarios/`, com o seu `*IT`, no bolt em que a falha for encontrada.
 - Os valores do resultado de referência ficam **só** nos testes (T056), nunca em `src/main`.
 - Se um teste revelar uma ambiguidade nova, a spec é atualizada antes do código (Princípio IV).

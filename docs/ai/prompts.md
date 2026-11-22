@@ -262,3 +262,19 @@ O Codex apontou mais um problema na regex do ProducerNameParser: com "and" conse
 ```text
 Faça os commits do bolt 4, incluindo docs/ai/prompts.md e docs/ai/sessoes/04-bolt-4-endpoint.md. Use uma mensagem no formato dos bolts anteriores, começando por "Bolt 4:". Não faça push.
 ```
+
+## 2026-11-22 19:17:39 -03:00
+
+- Sessao: `8397c722-e4c8-416f-8e88-4adb94b64943`
+
+```text
+Os bolts 5 e 6 serão entregues juntos, em um único branch e pull request, com um commit por etapa. Atualize o mapeamento de bolts no tasks.md e registre a decisão em docs/ai/decisoes.md.
+```
+
+## 2026-11-22 19:18:40 -03:00
+
+- Sessao: `8397c722-e4c8-416f-8e88-4adb94b64943`
+
+```text
+Sim, utilize o mesmo padrão de commits dos outros.
+```

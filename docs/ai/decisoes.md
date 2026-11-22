@@ -3,6 +3,21 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-22 — Bolts 5 e 6 entregues juntos
+
+- **Decisão (responsável):** os bolts 5 (listagem) e 6 (Swagger UI e fechamento do Marco 1) são
+  entregues em um único branch, `bolt/5-6-listagem-swagger`, e em um único pull request, com um commit
+  por etapa:
+  1. fase 6 — listagem (T062 a T073);
+  2. fase 7 — Swagger UI (T074 a T077);
+  3. fase 8 — fechamento (T078 a T083).
+- **Regras mantidas:** cada etapa começa pelos testes, que precisam falhar antes da implementação, e
+  termina com `./mvnw verify` verde antes do commit. O PR, o merge e a tag continuam com o responsável.
+- **Alternativa rejeitada:** um branch e um PR por bolt, como previa o mapeamento original do
+  `tasks.md`.
+- **Impacto:** mapeamento bolt → fase, checkpoints das fases 6 e 7, dependências e notas do
+  `specs/001-producer-intervals-api/tasks.md`. Nenhuma mudança na spec nem no contrato.
+
 ## 2026-11-22 — Validador do contrato com a coordenada nova da Atlassian (T055)
 
 - **Origem:** implementador, no bolt 4. Ao resolver
