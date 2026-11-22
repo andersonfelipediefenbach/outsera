@@ -78,19 +78,28 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
 
 ## R4. Separação de produtores (FR-007 a FR-010)
 
-- **Decision**: a expressão regular `\s*,\s*(?:and(?=\s|$)\s*)?|(?:^|\s+)and(?=\s|$)\s*` divide a
-  coluna. O `and` só é separador como palavra inteira:
-  - antes dele vem uma vírgula, espaço ou o início do campo;
-  - depois dele vem espaço ou o fim do campo (lookahead `(?=\s|$)`).
+- **Decision**: a coluna é separada **em etapas**, sem uma regex única:
+  1. dividir o campo pelas vírgulas;
+  2. em cada parte, ler as palavras (sequências sem espaço). Uma palavra igual a `and`, exatamente em
+     minúsculas como no enunciado, é separador. As palavras entre dois separadores formam um nome;
+  3. o nome é o trecho original do campo, da primeira à última palavra do grupo. Assim, o texto interno
+     é preservado como está, inclusive espaços duplos;
+  4. descartar as partes vazias e remover as repetidas no mesmo filme (`LinkedHashSet`, que preserva a
+     ordem).
 
-  Em seguida, cada parte recebe `trim`, as vazias são descartadas e as repetidas no mesmo filme são
-  removidas (`LinkedHashSet`, que preserva a ordem). O `and` é comparado em minúsculas, como no
-  enunciado.
-- **Por que o fim do campo importa:** o leitor de CSV aplica `trim` antes do parser (T031). Assim, o
-  campo ` , and ` chega como `, and`, sem espaço depois do `and`. A regex anterior,
-  `\s*,\s*(?:and\s+)?|\s+and\s+`, exigia espaço depois do `and` e deixava `and` como produtor
-  (revisão do Codex no PR do bolt 2; ver `docs/ai/decisoes.md`).
-- **Casos verificados** (a regex foi executada contra cada um):
+  Como cada `and` é reconhecido pela palavra, e não pelos espaços em volta, vários `and` seguidos
+  contam como separadores, e o início e o fim do campo não precisam de tratamento especial.
+- **Histórico (duas revisões do Codex no PR do bolt 2; ver `docs/ai/decisoes.md`):**
+  - a primeira regex, `\s*,\s*(?:and\s+)?|\s+and\s+`, exigia espaço depois do `and`. Como o leitor de
+    CSV aplica `trim` antes do parser (T031), o campo ` , and ` chegava como `, and` e deixava `and`
+    como produtor;
+  - a segunda, `\s*,\s*(?:and(?=\s|$)\s*)?|(?:^|\s+)and(?=\s|$)\s*`, consumia o espaço depois de um
+    `and`, e o `and` seguinte deixava de ser reconhecido: `Producer A and and Producer B` virava
+    `Producer A` e `and Producer B`, e `and and` virava `and`.
+
+  Dois defeitos na mesma regex levaram à troca pela separação em etapas, mais fácil de ler e de
+  conferir caso a caso.
+- **Casos verificados** (todos cobertos pelo `ProducerNamesIT`, T022b):
   - `Eric Fellner, and Tom Hooper` dá 2 nomes;
   - `Gayle Dickie, Kenn Viselman` dá 2 nomes;
   - `Brian Robbinsand Sharla Sumpter Bridgett` dá 1 nome (não há espaço antes de `and`);
@@ -102,9 +111,18 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
   - `and Producer B` dá só `Producer B`;
   - `Anderson Silva` dá 1 nome, e `Joel Silver and Anderson` dá `Joel Silver` e `Anderson` (`And`
     maiúsculo não é separador);
-  - `A, andrew B` dá `A` e `andrew B` (o `and` seguido de letra não é palavra inteira).
-- **Alternatives considered**: tokenização manual (mais código, sem ganho) e `and` sem diferenciar
-  maiúsculas (não pedido, e aumentaria o risco de separar nomes por engano).
+  - `A, andrew B` dá `A` e `andrew B` (o `and` seguido de letra não é palavra inteira);
+  - `Producer A and and Producer B` dá `Producer A` e `Producer B`;
+  - `and and` dá nenhum nome, então a linha é rejeitada com `PRODUCERS_MISSING`;
+  - `Sid  Krofft  and  Marty`, com espaços duplos, dá `Sid  Krofft` (o espaço interno é preservado) e
+    `Marty`;
+  - `Producer R, Producer R` dá um único `Producer R`.
+- **Alternatives considered**:
+  - corrigir a regex de novo (por exemplo, com lookbehind para o `and` seguinte): seria o terceiro
+    ajuste na mesma expressão, cada vez mais difícil de ler e de conferir;
+  - dividir por espaços e juntar as palavras com um espaço: normalizaria espaços internos, o que a
+    FR-008 proíbe;
+  - `and` sem diferenciar maiúsculas: não foi pedido e aumentaria o risco de separar nomes por engano.
 
 ## R5. Modelo de persistência e esquema (FR-006d, Princípio V)
 

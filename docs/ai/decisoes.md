@@ -3,6 +3,40 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-22 — Separação de produtores em etapas, no lugar da regex (segunda revisão do Codex)
+
+- **Origem:** segundo comentário do Codex, como revisor, no pull request do bolt 2, sobre a mesma regex
+  do `ProducerNameParser`. A regex `\s*,\s*(?:and(?=\s|$)\s*)?|(?:^|\s+)and(?=\s|$)\s*`, adotada após a
+  primeira revisão (entrada "`and` no fim do campo de produtores", de 2026-11-19), consome o espaço
+  depois de um `and`, e o `and` seguinte deixa de ser reconhecido:
+  - `Producer A and and Producer B` vira `Producer A` e `and Producer B`;
+  - `and and` vira o produtor `and`, e a linha é aceita em vez de rejeitada.
+
+  Os dois casos foram reproduzidos com testes antes da correção.
+- **Decisão (responsável):** aceitar e, por ser o segundo defeito na mesma regex, trocá-la por uma
+  separação em etapas:
+  1. dividir o campo pelas vírgulas;
+  2. em cada parte, a palavra `and` isolada (separada por espaços) é separador;
+  3. o nome é o trecho original entre os separadores, então o texto interno é preservado;
+  4. as partes vazias são descartadas.
+- **Motivo:** cada etapa é simples de ler e de conferir caso a caso. Como o `and` é reconhecido pela
+  palavra, e não pelos espaços em volta, os casos de início e fim do campo (primeira revisão) e de `and`
+  repetido (segunda revisão) deixam de precisar de tratamento especial.
+- **Alternativas rejeitadas:**
+  - ajustar a regex de novo, por exemplo com lookbehind: seria a terceira correção na mesma expressão;
+  - dividir por espaços e juntar as palavras com um espaço: normalizaria os espaços internos dos nomes,
+    o que a FR-008 proíbe.
+- **Verificação:**
+  - o novo `ProducerNamesIT` (T022b) cobre todos os casos da research R4, mais `and and` (linha
+    rejeitada, sem produtores), `Producer A and and Producer B` (2 produtores) e um nome com espaços
+    internos duplos. Os casos antigos já passavam com a regex anterior e continuam passando;
+  - a regex antiga e o parser novo foram comparados nas 206 linhas do `movielist.csv` do enunciado,
+    sem nenhuma diferença.
+- **Impacto:** FR-007 da spec (exemplos com `and` repetido), research R4 (decisão, histórico das duas
+  revisões e casos), T030 (texto da separação), nova T022b e T043 (absorve o `producer-names.csv`, e o
+  `ProducerNamesIT` sai nesse bolt). A verificação pelo banco é temporária (Princípio I), porque a
+  listagem devolve os produtores como texto e não prova a separação.
+
 ## 2026-11-22 — BOM removido do `Reader`, antes do Commons CSV (revisão do Codex)
 
 - **Origem:** comentário do Codex, como revisor, no pull request do bolt 2. O leitor removia o BOM só

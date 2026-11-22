@@ -166,6 +166,12 @@ Para os erros estruturais, verificar a falha de inicialização com `Application
 - [X] T022a [P] [US2] Criar `src/test/resources/scenarios/bom-quoted-header.csv` (BOM seguido do cabeçalho entre aspas, `"year";"title";"studios";"producers";"winner"`, e 2 linhas válidas) e `src/test/resources/scenarios/bom-blank-line.csv` (BOM seguido de uma linha em branco, depois o cabeçalho e 2 linhas válidas), e escrever `src/test/java/com/outsera/awards/ingestion/BomVariationsIT.java` com uma classe `@Nested` por CSV (revisão do Codex no PR do bolt 2):
   - `"FR-005a BOM com cabeçalho entre aspas"` e `"FR-005a BOM seguido de linha em branco"`: a aplicação sobe, o resumo mostra `2 linhas lidas, 2 aceitas, 0 rejeitadas`, o carregador não emite `WARN` e `select count(*) from movie` é 2.
 
+- [X] T022b [P] [US2] Criar `src/test/resources/scenarios/producer-names.csv`, com uma linha por caso da research R4, inclusive `Producer A and and Producer B`, `and and` e um nome com espaços internos duplos, e escrever `src/test/java/com/outsera/awards/ingestion/ProducerNamesIT.java` (duas revisões do Codex no PR do bolt 2):
+  - `"FR-007 FR-008 FR-009 FR-010 {título}: {nomes}"` (`@ParameterizedTest`): no banco, os produtores vinculados a cada filme são exatamente os esperados;
+  - `"FR-006 FR-007 só separadores: {linha}"`: as linhas `and and` e ` , and ` são rejeitadas com `produtores vazios`.
+
+  A verificação pelo banco é temporária (Princípio I). A listagem devolve os produtores como texto e não prova a separação, então esses casos passam a ser verificados por HTTP no T043 (bolt 3), que absorve o `producer-names.csv`, e o `ProducerNamesIT` é removido nesse momento.
+
 ### Implementação do bolt 2
 
 - [X] T023 [US2] Criar `src/main/resources/db/migration/V1__create_schema.sql` (SQL portável entre H2 e PostgreSQL, sem funções específicas):
@@ -186,8 +192,8 @@ Para os erros estruturais, verificar a falha de inicialização com `Application
   Registrar o analyzer em `src/main/resources/META-INF/spring.factories` (chave `org.springframework.boot.diagnostics.FailureAnalyzer`)
 - [X] T029 [P] [US2] Criar `src/main/java/com/outsera/awards/ingestion/Rejection.java` (record `lineNumber`, `reason`, `detail`), o enum `RejectionReason` (`COLUMN_COUNT`, `YEAR_MISSING`, `YEAR_NOT_NUMERIC`, `TITLE_MISSING`, `PRODUCERS_MISSING`, `WINNER_INVALID` e `DUPLICATE`, cada um com uma mensagem legível em português) e `src/main/java/com/outsera/awards/ingestion/LoadReport.java` (`linesRead`, `accepted`, `rejected` e a lista de `Rejection`)
 - [X] T030 [P] [US2] Criar `src/main/java/com/outsera/awards/ingestion/ProducerNameParser.java` (research R4):
-  - dividir pela regex `\s*,\s*(?:and(?=\s|$)\s*)?|(?:^|\s+)and(?=\s|$)\s*`. O `and` é separador só como palavra inteira, inclusive no início e no fim do campo; os casos estão em R4;
-  - aplicar `trim` em cada parte e descartar as vazias;
+  - separar em etapas, sem regex única: dividir pelas vírgulas; em cada parte, tratar a palavra `and` isolada (separada por espaços) como separador; o nome é o trecho original da primeira à última palavra do grupo, preservando o texto interno; os casos estão em R4;
+  - descartar as partes vazias;
   - remover as repetidas com um `LinkedHashSet`;
   - devolver uma lista vazia quando nenhum nome resultar.
 - [X] T031 [US2] Criar `src/main/java/com/outsera/awards/ingestion/MovieCsvReader.java` (depende de T028 a T030; research R3). Leitura:
@@ -218,7 +224,7 @@ Para os erros estruturais, verificar a falha de inicialização com `Application
   - resolve o recurso e lança `MovieFileException(NOT_FOUND)` se ele não existir;
   - lê o arquivo, grava os filmes e registra cada `Rejection` como `WARN Linha {n} rejeitada: {motivo legível}`;
   - no fim, registra `INFO Carga do arquivo {caminho} concluída: {lidas} linhas lidas, {aceitas} aceitas, {rejeitadas} rejeitadas`.
-- [X] T034 [US2] Rodar `./mvnw verify`: todos os testes T013 a T022a e o `SmokeIT` passam
+- [X] T034 [US2] Rodar `./mvnw verify`: todos os testes T013 a T022b e o `SmokeIT` passam
 
 **Checkpoint (PR do bolt 2)**: a carga está completa e verificável pelo log e pelo banco. Ainda não há endpoint de negócio, e a verificação por HTTP desses cenários entra nos bolts 3 e 5 (Princípio I).
 
@@ -250,6 +256,8 @@ Todos os cenários usam nomes fictícios (`Producer A`, `Producer B`...) e anos 
   - `Brian Robbinsand Sharla Sumpter Bridgett`;
   - `Sid and Marty Krofft`;
   - `Producer A and`, com o `and` no fim do campo (research R4);
+  - `Producer A and and Producer B`, com `and` repetido (research R4);
+  - todos os demais casos do `producer-names.csv` do T022b, que é absorvido por este cenário (o `ProducerNamesIT` é removido aqui);
   - `A, , B`;
   - `Steven Perry` e `Steve Perry`;
   - espaços extras em volta dos nomes;

@@ -124,6 +124,7 @@ src/test/java/com/outsera/awards/     # somente *IT (Failsafe)
 ├── SmokeIT
 ├── support/     ScenarioIT (base), ApplicationStarter, LoaderLog, ContractValidator, IntervalOracle
 ├── ingestion/   StartupFailureIT, HeaderCaseIT, HarmlessVariationsIT, BomVariationsIT, InvalidLinesIT,
+│                ProducerNamesIT (só até o bolt 3),
 │                LoadSummaryIT, OptionalStudiosIT, DuplicateLinesIT, EmptyLoadIT, DefaultFileIT
 ├── intervals/   ReferenceFileIT, IntervalsShapeIT, TiesMinIT, TiesMaxIT, ThreeOrMoreWinsIT,
 │                UnorderedLinesIT, SameYearWinsIT, NoRepeatWinnersIT, DisjointProducersIT,
@@ -153,7 +154,7 @@ removido.
 | FR-006c | `StartupFailureIT`, `HarmlessVariationsIT`, `BomVariationsIT`, `InvalidLinesIT`, `DuplicateLinesIT` |
 | FR-006d | `DuplicateLinesIT`, `DuplicateWinnerIT` |
 | FR-006e | `OptionalStudiosIT`, `MoviesListingIT` |
-| FR-007 a FR-010 | `ProducerSeparatorsIT` |
+| FR-007 a FR-010 | `ProducerSeparatorsIT`; no bolt 2, `ProducerNamesIT` (verificação pelo banco, removido quando o T043 absorver os casos) |
 | FR-011 | `WinnerVariantsIT` |
 | FR-012, FR-016 | `ThreeOrMoreWinsIT`, `UnorderedLinesIT` |
 | FR-013 | `SameYearWinsIT` |

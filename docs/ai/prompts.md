@@ -214,3 +214,11 @@ Antes de implementar o bolt 2: aplique no tasks.md que T014 e T015 verificam ape
 ```text
 O Codex apontou no PR que o BOM é removido tarde demais: com BOM e cabeçalho entre aspas, o Commons CSV não reconhece a aspa e a inicialização falha com INVALID_HEADER; com BOM seguido de linha em branco, a linha em branco vira cabeçalho. Remova o BOM do Reader antes de entregá-lo ao Commons CSV, sem adicionar dependência nova, e retire o tratamento no primeiro campo. Crie dois cenários de teste: BOM com cabeçalho entre aspas e BOM seguido de linha em branco, ambos devendo carregar normalmente. Atualize a research e registre a decisão em docs/ai/decisoes.md citando a revisão do Codex.
 ```
+
+## 2026-11-22 18:05:02 -03:00
+
+- Sessao: `62d0d2d6-3afc-4c30-bf3d-d88d47de2497`
+
+```text
+O Codex apontou mais um problema na regex do ProducerNameParser: com "and" consecutivos, o primeiro consome o espaço e o segundo não é reconhecido ("Producer A and and Producer B" vira [Producer A, and Producer B]; "and and" vira [and]). Como é o segundo achado na mesma regex, substitua-a por uma separação em etapas: dividir pelas vírgulas; em cada parte, tratar a palavra "and" isolada (separada por espaços) como separador; descartar partes vazias. Preserve o texto interno de cada nome. Garanta que todos os cenários de separação existentes continuam passando e acrescente "and and" (rejeitada, sem produtores) e "Producer A and and Producer B" (2 produtores). Atualize a research R4 e registre a decisão em docs/ai/decisoes.md citando as duas revisões do Codex.
+```
