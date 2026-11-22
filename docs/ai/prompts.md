@@ -371,3 +371,33 @@ Todo comando do README precisa ter sido executado por você e funcionar. Faça u
 <summary>Background command "Start the app on Windows with MOVIES_CSV_PATH and PORT" failed with exit code 1</summary>
 </task-notification>
 ```
+
+## 2026-11-22 20:31:37 -03:00
+
+- Sessao: `8397c722-e4c8-416f-8e88-4adb94b64943`
+
+```text
+<task-notification>
+<task-id>bhho5tm15</task-id>
+<tool-use-id>toolu_012C25VM6KFwg7qfyLza8rEm</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bhho5tm15.output</output-file>
+<status>failed</status>
+<summary>Background command "Start the app from cmd on Windows" failed with exit code 1</summary>
+</task-notification>
+```
+
+## 2026-11-22 20:34:19 -03:00
+
+- Sessao: `8397c722-e4c8-416f-8e88-4adb94b64943`
+
+```text
+Complete a tabela "Requisitos do enunciado" do README com os itens que faltam do PDF, usando a numeração do enunciado: 4.1 (API RESTful no nível 2 de Richardson: recursos nomeados, verbo GET e códigos HTTP adequados, como 200, 400 e 404; aponte os testes que verificam os códigos), 4.3 (deixe explícito o H2 em memória como SGBD embarcado), 4.4 (este README, com as seções de execução e testes), 4.5 (repositório git) e 5.1 e 5.2 (uso de IA e registro de interações, apontando para docs/ai/README.md). Se algum código HTTP do item 4.1 não tiver teste, me diga antes de criar. Faça um commit separado.
+```
+
+## 2026-11-22 20:39:57 -03:00
+
+- Sessao: `8397c722-e4c8-416f-8e88-4adb94b64943`
+
+```text
+Crie o teste de que verbos não suportados, como POST, PUT e DELETE nos dois endpoints, recebem 405, e acrescente esse teste na linha do item 4.1 da tabela do README. Rode ./mvnw verify e faça um commit separado.
+```

@@ -134,7 +134,8 @@ src/test/java/com/outsera/awards/     # somente *IT (Failsafe)
 │                DuplicateWinnerIT, ProducerSeparatorsIT, WinnerVariantsIT, InvalidLineIgnoredIT,
 │                IntervalEdgeCasesIT, RandomizedOracleIT
 ├── movies/      MoviesListingIT, MoviesInvalidParamsIT, ResponseTimeIT
-└── docs/        IntervalsContractIT, MoviesContractIT, ApiDocsIT
+├── docs/        IntervalsContractIT, MoviesContractIT, ApiDocsIT
+└── web/         HttpMethodsIT
 src/test/resources/scenarios/*.csv    # um CSV por cenário (o RandomizedOracleIT gera os seus)
 ```
 
@@ -167,6 +168,7 @@ removido.
 | FR-018 | `NoRepeatWinnersIT`, `IntervalsShapeIT`, `EmptyLoadIT` |
 | FR-019 a FR-022 | `MoviesListingIT`; os ITs de carga de `ingestion/` também conferem os filmes por `GET /api/movies` |
 | FR-023 | `MoviesInvalidParamsIT` |
+| FR-023a | `HttpMethodsIT` |
 | FR-024 | `ApiDocsIT` |
 | FR-025 | `IntervalsContractIT`, `MoviesContractIT`, `ApiDocsIT` |
 | FR-026, FR-027 | `SmokeIT`, `./mvnw verify` sem Docker; esta matriz |

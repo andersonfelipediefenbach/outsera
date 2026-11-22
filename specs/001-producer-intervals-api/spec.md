@@ -322,6 +322,9 @@ máquina e conferir se os dois endpoints estão descritos. Validar as respostas 
 - **FR-022**: A listagem MUST ser ordenada por ano crescente e depois pelo título.
 - **FR-023**: Parâmetros inválidos MUST resultar em status 400 no formato Problem Details (RFC 9457),
   identificando o parâmetro e o motivo.
+- **FR-023a**: Os dois endpoints de negócio (`/api/producers/intervals` e `/api/movies`) MUST aceitar só
+  o verbo GET. Qualquer outro verbo, como POST, PUT ou DELETE, MUST resultar em status 405 no formato
+  Problem Details, com o cabeçalho `Allow` indicando GET.
 
 **Documentação**
 

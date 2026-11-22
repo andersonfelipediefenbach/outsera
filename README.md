@@ -201,6 +201,7 @@ curl -s "http://localhost:8080/api/movies?page=-1&size=500"
 | 200 | Consulta atendida, inclusive com listas vazias |
 | 400 | Parâmetro inválido em `/api/movies`, em Problem Details |
 | 404 | Caminho inexistente, em Problem Details |
+| 405 | Verbo diferente de GET nos dois endpoints, em Problem Details e com o cabeçalho `Allow: GET` |
 
 ---
 
@@ -216,7 +217,7 @@ curl -s "http://localhost:8080/api/movies?page=-1&size=500"
 .\mvnw.cmd verify "-Dit.test=ReferenceFileIT"   # no PowerShell, o -D vai entre aspas
 ```
 
-São **115 testes de integração**, executados pelo Maven Failsafe na fase `verify`, sem Docker. A
+São **121 testes de integração**, executados pelo Maven Failsafe na fase `verify`, sem Docker. A
 execução completa leva cerca de 30 s com as dependências já baixadas.
 
 | Grupo (`src/test/java/com/outsera/awards/`) | O que cobre |
@@ -226,6 +227,7 @@ execução completa leva cerca de 30 s com as dependências já baixadas.
 | `intervals/` | Cálculo e formato dos intervalos: resultado de referência, empates em `min` e `max`, três ou mais vitórias, linhas fora de ordem, vitórias no mesmo ano, separação de produtores, arquivo com anos diferentes dos do enunciado e um oráculo independente com arquivos gerados |
 | `movies/` | Listagem: paginação, filtros, ordem, parâmetros inválidos e tempo de resposta abaixo de 1 s |
 | `docs/` | As respostas reais dos dois endpoints validadas contra o `openapi.yaml`, mais o Swagger UI e o contrato publicado |
+| `web/` | Verbos não suportados nos dois endpoints respondem 405 |
 | `support/` | Base comum (`ScenarioIT`) e apoios, sem testes próprios |
 
 **Como os testes funcionam:**
@@ -255,7 +257,7 @@ requisito da spec, está em
 
 | Item do enunciado | Requisitos da spec | Como é comprovado |
 | --- | --- | --- |
-| API RESTful no nível 2 de Richardson: recursos nomeados (`/api/producers/intervals`, `/api/movies`), verbo GET e códigos HTTP adequados (item 4.1) | FR-017, FR-018, FR-019, FR-023 | **200:** `ReferenceFileIT`, `IntervalsShapeIT`, `MoviesListingIT`. **400** em Problem Details: `MoviesInvalidParamsIT`, `MoviesContractIT`. **404** em Problem Details para rota inexistente: `SmokeIT` |
+| API RESTful no nível 2 de Richardson: recursos nomeados (`/api/producers/intervals`, `/api/movies`), verbo GET e códigos HTTP adequados (item 4.1) | FR-017, FR-018, FR-019, FR-023, FR-023a | **200:** `ReferenceFileIT`, `IntervalsShapeIT`, `MoviesListingIT`. **400** em Problem Details: `MoviesInvalidParamsIT`, `MoviesContractIT`. **404** em Problem Details para rota inexistente: `SmokeIT`. **405** para POST, PUT e DELETE nos dois endpoints, com `Allow: GET`: `HttpMethodsIT` |
 | Carga do CSV na inicialização, antes de o servidor aceitar conexões | FR-001, FR-002 | `DefaultFileIT` |
 | Formato de `min` e `max` (`producer`, `interval`, `previousWin`, `followingWin`), página 2 | FR-017, FR-025 | `IntervalsShapeIT`, `IntervalsContractIT` |
 | Intervalo só entre vitórias consecutivas do mesmo produtor | FR-011, FR-012, FR-013, FR-016 | `ThreeOrMoreWinsIT`, `UnorderedLinesIT`, `SameYearWinsIT`, `WinnerVariantsIT` |
@@ -497,7 +499,7 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 │   ├── static/swagger-ui.html   # página do Swagger UI
 │   └── META-INF/spring.factories # registra a mensagem de falha da carga
 ├── src/test/java/com/outsera/awards/  # somente testes de integração (*IT)
-│   ├── ingestion/  intervals/  movies/  docs/  support/
+│   ├── ingestion/  intervals/  movies/  docs/  web/  support/
 │   └── SmokeIT.java
 ├── src/test/resources/scenarios/  # um CSV por cenário de teste
 └── docs/ai/                     # evidência do uso de IA (ver docs/ai/README.md)
