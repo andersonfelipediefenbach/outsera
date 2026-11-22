@@ -34,7 +34,8 @@ springdoc 3.2.0 no bolt 6, R8). Nos testes:
 
 **Testing**: JUnit 5 + `@SpringBootTest(webEnvironment = RANDOM_PORT)` + `RestTestClient`, executados pelo
 maven-failsafe-plugin em `./mvnw verify`, mais `OutputCaptureExtension` para os logs e `JdbcTemplate` para as
-verificações de banco dos testes de carga, enquanto não há endpoint (Princípio I)
+verificações de banco dos testes de carga, enquanto não há endpoint (Princípio I). No bolt 5, essas
+verificações passaram a ser feitas por `GET /api/movies`, e o `JdbcTemplate` saiu dos testes
 
 **Target Platform**: JVM 25 em qualquer sistema operacional (Windows, Linux e macOS), via Maven Wrapper
 3.3.4 e Maven 3.9.16
@@ -125,7 +126,7 @@ src/main/resources/
 src/test/java/com/outsera/awards/     # somente *IT (Failsafe)
 ├── SmokeIT
 ├── support/     ScenarioIT (base), ApplicationStarter, LoaderLog, IntervalItem, IntervalsBody,
-│                ContractValidator, IntervalOracle
+│                ContractValidator, IntervalOracle, MovieJson, MoviesBody
 ├── ingestion/   StartupFailureIT, HeaderCaseIT, HarmlessVariationsIT, BomVariationsIT, InvalidLinesIT,
 │                LoadSummaryIT, OptionalStudiosIT, DuplicateLinesIT, EmptyLoadIT, DefaultFileIT
 ├── intervals/   ReferenceFileIT, IntervalsShapeIT, TiesMinIT, TiesMaxIT, ThreeOrMoreWinsIT,
@@ -164,7 +165,7 @@ removido.
 | FR-016a, FR-016b | `DisjointProducersIT`, `RandomizedOracleIT`, a busca do quickstart (passo 6) |
 | FR-017 | `ReferenceFileIT`, `IntervalsShapeIT` |
 | FR-018 | `NoRepeatWinnersIT`, `IntervalsShapeIT`, `EmptyLoadIT` |
-| FR-019 a FR-022 | `MoviesListingIT` |
+| FR-019 a FR-022 | `MoviesListingIT`; os ITs de carga de `ingestion/` também conferem os filmes por `GET /api/movies` |
 | FR-023 | `MoviesInvalidParamsIT` |
 | FR-024 | `ApiDocsIT` |
 | FR-025 | `IntervalsContractIT`, `MoviesContractIT`, `ApiDocsIT` |
@@ -176,6 +177,7 @@ removido.
 | SC-006, SC-006a | `StartupFailureIT`, `InvalidLinesIT`, `LoadSummaryIT` |
 | SC-003 | checagem manual no fechamento (quickstart em clone limpo) |
 | Casos de borda (UTF-8, vazio) | `ProducerSeparatorsIT`, `MoviesListingIT`, `EmptyLoadIT` |
+| Caso de borda (página além da última) | `MoviesListingIT`, `MoviesInvalidParamsIT` (`page` fora de 32 bits) |
 
 ## Riscos
 

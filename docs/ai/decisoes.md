@@ -3,6 +3,43 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-22 — Decisões do Marco 1 que divergem do briefing (T082)
+
+Registro consolidado no fechamento do marco. As decisões foram tomadas na clarificação da spec
+(sessão de 2026-11-18) e no plano 001. Os detalhes ficam na spec e na research.
+
+- **Linha inválida é ignorada com aviso, e a carga continua (FR-006).**
+  - *Briefing:* "a carga inteira é rejeitada", marcado como decisão em aberto (`briefing.md` e
+    `decisoes-planejamento.md`).
+  - *Decisão (responsável, na clarificação):* só os erros estruturais (arquivo ausente, cabeçalho ou
+    separador inválido) impedem a inicialização. Uma linha inválida é ignorada, com aviso no log (número
+    da linha e motivo), e a carga termina com um resumo de lidas, aceitas e rejeitadas.
+  - *Efeito:* uma linha ruim não derruba a aplicação nem esconde o resultado das linhas boas, e o aviso
+    com o número da linha continua mostrando o problema.
+  - *Alternativa rejeitada:* rejeitar a carga inteira, como no briefing.
+- **Duplicata identificada por ano + título (FR-006d).**
+  - *Briefing:* não tratava linhas repetidas.
+  - *Decisão (responsável, na clarificação):* ano e título, sem os espaços em volta, identificam o
+    filme. A primeira ocorrência prevalece, e as repetições são ignoradas com aviso.
+  - *Efeito:* sem isso, uma linha vencedora repetida geraria um intervalo 0 falso para os seus produtores.
+  - *Alternativa rejeitada:* contar cada linha como um filme.
+- **Cabeçalho sem diferenciar maiúsculas, mas com ordem fixa (FR-003).**
+  - *Briefing:* cabeçalho `year;title;studios;producers;winner`, sem dizer se a comparação é exata.
+  - *Decisão (responsável, na clarificação):* `Year;Title;...` é aceito, e uma ordem diferente, uma
+    coluna faltando ou uma a mais impedem a inicialização.
+  - *Efeito:* a diferença de maiúsculas não muda o sentido do arquivo. Já uma ordem diferente indica um
+    arquivo de outro formato, e aceitá-la exigiria mapear colunas por nome, sem pedido do enunciado.
+  - *Alternativas rejeitadas:* comparação exata, que recusaria um arquivo inofensivo, e colunas em
+    qualquer ordem.
+- **Contrato em `/openapi.yaml`, e não em `/v3/api-docs` (research R8).**
+  - *Briefing:* `GET /v3/api-docs` como contrato OpenAPI.
+  - *Decisão (plano 001, research R8):* o contrato estático, escrito antes do código, é a única fonte
+    e é publicado em `/openapi.yaml`. No bolt 6, isso levou a tirar o springdoc do projeto (entrada
+    "Swagger UI pelo webjar, sem springdoc", abaixo).
+  - *Motivo:* o briefing exige que o contrato seja a fonte do Swagger UI e da validação das respostas.
+    Um contrato gerado pelo código seria um segundo contrato, que poderia divergir do desenhado.
+  - *Alternativa rejeitada:* contrato gerado por anotações em `/v3/api-docs`.
+
 ## 2026-11-22 — Swagger UI pelo webjar, sem springdoc (bolt 6)
 
 - **Origem:** implementador, na T076. Com `springdoc.api-docs.enabled=false`, o `/swagger-ui.html`

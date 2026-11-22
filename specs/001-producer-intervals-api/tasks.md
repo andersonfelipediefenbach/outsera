@@ -430,19 +430,21 @@ Todos os cenários usam nomes fictícios (`Producer A`, `Producer B`...) e anos 
 
 ## Phase 8: Polish & Cross-Cutting Concerns — Bolt 6 (fechamento)
 
-- [ ] T078 Confirmar que não existe teste unitário: nenhuma classe em `src/test/java` sem o sufixo `IT` contém `@Test` (as classes de `support/` não têm testes). Corrigir qualquer violação do Princípio I. Confirmar também:
+- [X] T078 Confirmar que não existe teste unitário: nenhuma classe em `src/test/java` sem o sufixo `IT` contém `@Test` (as classes de `support/` não têm testes). Corrigir qualquer violação do Princípio I. Confirmar também:
   - nenhum teste usa `@MockitoBean`, `@MockBean`, Mockito ou outro dublê;
   - todo `*IT`, menos o `StartupFailureIT`, usa `@SpringBootTest` (direto ou pela `ScenarioIT`);
   - nenhum `*IT` verifica pelo banco (não sobra `JdbcTemplate` nos testes), porque no fim do marco os dados carregados têm endpoint;
   - a verificação por log só aparece para comportamentos sem endpoint (avisos, resumo, ordem da carga e falhas de inicialização), e todo IT de `ingestion/`, menos o `StartupFailureIT`, também faz uma chamada HTTP.
-- [ ] T079 [P] Executar a busca do SC-004b descrita em `specs/001-producer-intervals-api/quickstart.md` (passo 6) sobre `src/main/java`. O resultado deve ser `OK`
-- [ ] T080 [P] Conferir a matriz de rastreabilidade de `specs/001-producer-intervals-api/plan.md` com as classes de teste realmente criadas e corrigir qualquer diferença
+- [X] T079 [P] Executar a busca do SC-004b descrita em `specs/001-producer-intervals-api/quickstart.md` (passo 6) sobre `src/main/java`. O resultado deve ser `OK`
+- [X] T080 [P] Conferir a matriz de rastreabilidade de `specs/001-producer-intervals-api/plan.md` com as classes de teste realmente criadas e corrigir qualquer diferença
 - [ ] T081 Executar os passos 1 a 7 de `specs/001-producer-intervals-api/quickstart.md` em um clone limpo, no Windows (`mvnw.cmd`) e no Git Bash (`./mvnw`). Itens de checagem manual, registrados na descrição do PR:
   - o `./mvnw verify` termina em menos de 2 minutos com as dependências já baixadas;
   - o passo 4 roda com a variável de ambiente `MOVIES_CSV_PATH` real, no shell (FR-002);
   - SC-003: a aplicação sobe e responde aos intervalos com um único comando em menos de 2 minutos;
   - SC-004: a rodada do testador adversário (Codex) foi feita sobre o Marco 1, e cada falha virou um CSV e um `*IT` permanentes.
-- [ ] T082 [P] Completar `docs/ai/decisoes.md` com as decisões do Marco 1 que divergem do briefing ou da sugestão da IA:
+
+  **Situação em 2026-11-22 (aberta):** o implementador executou os passos 1 a 7 num clone limpo do commit `bc4dbde`, no Windows (`mvnw.cmd`) e no Git Bash (`./mvnw`), e todos conferem. O `verify` levou 29 s no Windows e 26 s no Git Bash, com 115 testes. O passo 4 rodou com `MOVIES_CSV_PATH` exportada no shell. Pelo SC-003, a primeira resposta veio 9 s depois do comando. Falta a rodada do testador adversário (SC-004), e o registro na descrição do PR fica com o responsável.
+- [X] T082 [P] Completar `docs/ai/decisoes.md` com as decisões do Marco 1 que divergem do briefing ou da sugestão da IA:
   - linha inválida ignorada com aviso, em vez de rejeitar a carga inteira (FR-006);
   - duplicata identificada por ano + título (FR-006d);
   - cabeçalho sem diferenciar maiúsculas, mas com ordem fixa (FR-003);
@@ -459,6 +461,8 @@ Todos os cenários usam nomes fictícios (`Producer A`, `Producer B`...) e anos 
   - execução só com o wrapper (item 4.3).
 
   A tabela é derivada da matriz do `plan.md`. Se nesta rodada o `README.md` pertencer ao papel de documentação, registrar o conteúdo da tabela como pedido a esse papel em vez de editar o arquivo (AGENTS.md, "Papéis e propriedade"). Nesse caso, a tarefa só fecha quando a tabela estiver no README
+
+  **Situação em 2026-11-22 (aberta):** o `README.md` ainda não existe e é do papel de documentação. A tabela foi registrada como pedido em `docs/ai/pedidos-documentacao.md`.
 
 ---
 
