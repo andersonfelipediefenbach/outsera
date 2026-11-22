@@ -222,3 +222,27 @@ O Codex apontou no PR que o BOM é removido tarde demais: com BOM e cabeçalho e
 ```text
 O Codex apontou mais um problema na regex do ProducerNameParser: com "and" consecutivos, o primeiro consome o espaço e o segundo não é reconhecido ("Producer A and and Producer B" vira [Producer A, and Producer B]; "and and" vira [and]). Como é o segundo achado na mesma regex, substitua-a por uma separação em etapas: dividir pelas vírgulas; em cada parte, tratar a palavra "and" isolada (separada por espaços) como separador; descartar partes vazias. Preserve o texto interno de cada nome. Garanta que todos os cenários de separação existentes continuam passando e acrescente "and and" (rejeitada, sem produtores) e "Producer A and and Producer B" (2 produtores). Atualize a research R4 e registre a decisão em docs/ai/decisoes.md citando as duas revisões do Codex.
 ```
+
+## 2026-11-22 18:23:19 -03:00
+
+- Sessao: `c02766b2-c176-432b-af5a-dcc9a1bcc9cc`
+
+```text
+/speckit-implement Execute somente o bolt 3 (Phase 4 do tasks.md). Pare ao final do bolt 3.
+```
+
+## 2026-11-22 18:23:44 -03:00
+
+- Sessao: `c02766b2-c176-432b-af5a-dcc9a1bcc9cc`
+
+```text
+/speckit-implement Execute somente o bolt 3 (Phase 4 do tasks.md). Pare ao final do bolt 3.
+```
+
+## 2026-11-22 18:40:05 -03:00
+
+- Sessao: `c02766b2-c176-432b-af5a-dcc9a1bcc9cc`
+
+```text
+./mvnw verify
+```

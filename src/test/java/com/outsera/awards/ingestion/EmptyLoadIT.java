@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.outsera.awards.support.LoaderLog;
 import com.outsera.awards.support.LoaderLog.Summary;
 import com.outsera.awards.support.ScenarioIT;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,12 @@ class EmptyLoadIT {
             assertThat(summary.accepted()).isZero();
             assertThat(jdbc.queryForObject("select count(*) from movie", Integer.class)).isZero();
         }
+
+        @Test
+        @DisplayName("FR-018 Edge arquivo sem linhas válidas")
+        void emptyIntervals() {
+            assertIntervals(List.of(), List.of());
+        }
     }
 
     @Nested
@@ -42,6 +49,12 @@ class EmptyLoadIT {
             assertThat(summary.accepted()).isZero();
             assertThat(summary.rejected()).isEqualTo(3);
             assertThat(jdbc.queryForObject("select count(*) from movie", Integer.class)).isZero();
+        }
+
+        @Test
+        @DisplayName("FR-018 Edge arquivo sem linhas válidas")
+        void emptyIntervals() {
+            assertIntervals(List.of(), List.of());
         }
     }
 }

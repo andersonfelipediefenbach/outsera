@@ -99,7 +99,8 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
 
   Dois defeitos na mesma regex levaram à troca pela separação em etapas, mais fácil de ler e de
   conferir caso a caso.
-- **Casos verificados** (todos cobertos pelo `ProducerNamesIT`, T022b):
+- **Casos verificados** (todos cobertos pelo `ProducerSeparatorsIT`, T043, que no bolt 3 absorveu o
+  `ProducerNamesIT` do T022b):
   - `Eric Fellner, and Tom Hooper` dá 2 nomes;
   - `Gayle Dickie, Kenn Viselman` dá 2 nomes;
   - `Brian Robbinsand Sharla Sumpter Bridgett` dá 1 nome (não há espaço antes de `and`);

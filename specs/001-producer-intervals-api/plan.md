@@ -99,10 +99,10 @@ src/main/java/com/outsera/awards/
 │   └── MoviePage.java, MovieItem.java
 ├── producer/
 │   ├── Producer.java                 # entidade JPA
-│   ├── ProducerRepository.java       # JPQL: pares (nome, ano) dos vencedores
+│   ├── ProducerRepository.java       # JPQL: pares (nome, ano) dos vencedores (ProducerWin)
 │   ├── ProducerIntervalService.java  # cálculo FR-011..FR-016
 │   ├── ProducerIntervalController.java  # GET /api/producers/intervals
-│   └── ProducerInterval.java, ProducerIntervalsResponse.java
+│   └── ProducerInterval.java, ProducerIntervalsResponse.java, ProducerWin.java
 ├── ingestion/
 │   ├── MovieFileProperties.java      # movies.csv.path (MOVIES_CSV_PATH)
 │   ├── MovieCsvReader.java           # cabeçalho, BOM, validação de linha, LoadReport
@@ -122,9 +122,9 @@ src/main/resources/
 └── META-INF/spring.factories         # FailureAnalyzer
 src/test/java/com/outsera/awards/     # somente *IT (Failsafe)
 ├── SmokeIT
-├── support/     ScenarioIT (base), ApplicationStarter, LoaderLog, ContractValidator, IntervalOracle
+├── support/     ScenarioIT (base), ApplicationStarter, LoaderLog, IntervalItem, IntervalsBody,
+│                ContractValidator, IntervalOracle
 ├── ingestion/   StartupFailureIT, HeaderCaseIT, HarmlessVariationsIT, BomVariationsIT, InvalidLinesIT,
-│                ProducerNamesIT (só até o bolt 3),
 │                LoadSummaryIT, OptionalStudiosIT, DuplicateLinesIT, EmptyLoadIT, DefaultFileIT
 ├── intervals/   ReferenceFileIT, IntervalsShapeIT, TiesMinIT, TiesMaxIT, ThreeOrMoreWinsIT,
 │                UnorderedLinesIT, SameYearWinsIT, NoRepeatWinnersIT, DisjointProducersIT,
@@ -154,7 +154,7 @@ removido.
 | FR-006c | `StartupFailureIT`, `HarmlessVariationsIT`, `BomVariationsIT`, `InvalidLinesIT`, `DuplicateLinesIT` |
 | FR-006d | `DuplicateLinesIT`, `DuplicateWinnerIT` |
 | FR-006e | `OptionalStudiosIT`, `MoviesListingIT` |
-| FR-007 a FR-010 | `ProducerSeparatorsIT`; no bolt 2, `ProducerNamesIT` (verificação pelo banco, removido quando o T043 absorver os casos) |
+| FR-007 a FR-010 | `ProducerSeparatorsIT` (absorveu, no bolt 3, o `ProducerNamesIT` do bolt 2, que verificava pelo banco) |
 | FR-011 | `WinnerVariantsIT` |
 | FR-012, FR-016 | `ThreeOrMoreWinsIT`, `UnorderedLinesIT` |
 | FR-013 | `SameYearWinsIT` |
