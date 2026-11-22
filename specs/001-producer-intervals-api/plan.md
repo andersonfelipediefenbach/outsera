@@ -110,7 +110,7 @@ src/main/java/com/outsera/awards/
 │   ├── MovieImportService.java       # serviço único de gravação (Princípio V)
 │   ├── MovieFileLoader.java          # SmartInitializingSingleton: carga antes do servidor
 │   ├── MovieFileException.java, MovieFileFailureAnalyzer.java
-│   └── LoadReport.java, Rejection.java
+│   └── LoadReport.java, Rejection.java, RejectionReason.java, MovieRow.java
 └── web/
     ├── ApiExceptionHandler.java      # ProblemDetail (RFC 9457)
     └── InvalidParameterException.java
@@ -122,8 +122,9 @@ src/main/resources/
 └── META-INF/spring.factories         # FailureAnalyzer
 src/test/java/com/outsera/awards/     # somente *IT (Failsafe)
 ├── SmokeIT
-├── support/     ScenarioIT (base), ApplicationStarter, ContractValidator, IntervalOracle
-├── ingestion/   StartupFailureIT, HeaderCaseIT, HarmlessVariationsIT, InvalidLinesIT,
+├── support/     ScenarioIT (base), ApplicationStarter, LoaderLog, ContractValidator, IntervalOracle
+├── ingestion/   StartupFailureIT, HeaderCaseIT, HarmlessVariationsIT, BomVariationsIT, InvalidLinesIT,
+│                ProducerNamesIT (só até o bolt 3),
 │                LoadSummaryIT, OptionalStudiosIT, DuplicateLinesIT, EmptyLoadIT, DefaultFileIT
 ├── intervals/   ReferenceFileIT, IntervalsShapeIT, TiesMinIT, TiesMaxIT, ThreeOrMoreWinsIT,
 │                UnorderedLinesIT, SameYearWinsIT, NoRepeatWinnersIT, DisjointProducersIT,
@@ -147,13 +148,13 @@ removido.
 | FR-002 | `DefaultFileIT` (padrão), `DisjointProducersIT` (chave `MOVIES_CSV_PATH`) |
 | FR-003, FR-005 | `StartupFailureIT`, `HeaderCaseIT` |
 | FR-004 | `HarmlessVariationsIT`, `WinnerVariantsIT` |
-| FR-005a | `HarmlessVariationsIT` (um método por variação, mais a comparação com `harmless-clean.csv`), `HeaderCaseIT` |
+| FR-005a | `HarmlessVariationsIT` (um método por variação, mais a comparação com `harmless-clean.csv`), `HeaderCaseIT`, `BomVariationsIT` (BOM com cabeçalho entre aspas e BOM seguido de linha em branco) |
 | FR-006, FR-006a | `InvalidLinesIT` (um caso por motivo), `InvalidLineIgnoredIT` |
 | FR-006b | `LoadSummaryIT` |
-| FR-006c | `StartupFailureIT`, `HarmlessVariationsIT`, `InvalidLinesIT`, `DuplicateLinesIT` |
+| FR-006c | `StartupFailureIT`, `HarmlessVariationsIT`, `BomVariationsIT`, `InvalidLinesIT`, `DuplicateLinesIT` |
 | FR-006d | `DuplicateLinesIT`, `DuplicateWinnerIT` |
 | FR-006e | `OptionalStudiosIT`, `MoviesListingIT` |
-| FR-007 a FR-010 | `ProducerSeparatorsIT` |
+| FR-007 a FR-010 | `ProducerSeparatorsIT`; no bolt 2, `ProducerNamesIT` (verificação pelo banco, removido quando o T043 absorver os casos) |
 | FR-011 | `WinnerVariantsIT` |
 | FR-012, FR-016 | `ThreeOrMoreWinsIT`, `UnorderedLinesIT` |
 | FR-013 | `SameYearWinsIT` |

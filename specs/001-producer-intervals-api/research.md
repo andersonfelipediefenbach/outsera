@@ -39,8 +39,13 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
   - delimitador `;` e aspas `"` (campos entre aspas podem conter `;`);
   - `ignoreEmptyLines=true`, `trim=true` e `ignoreSurroundingSpaces=true`.
 
+  O BOM (`U+FEFF`) é removido do `Reader` **antes** de o Commons CSV ler qualquer caractere: o leitor
+  lê o primeiro caractere com `mark`/`reset` e o descarta se for o BOM. Remover o BOM só do primeiro
+  campo é tarde demais (revisão do Codex no PR do bolt 2): com o BOM na frente, o Commons CSV não
+  reconhece a aspa de um cabeçalho entre aspas (`"year";...`), e uma linha só com o BOM deixa de ser
+  uma linha em branco e vira o cabeçalho.
+
   O cabeçalho é lido como um registro comum e validado à mão:
-  - remove o BOM (`﻿`) do primeiro campo;
   - aplica `trim` e compara os nomes sem diferenciar maiúsculas (`equalsIgnoreCase`), na ordem exata;
   - exige exatamente 5 colunas.
 
@@ -48,7 +53,16 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
   Os demais registros são validados por linha (seção "Validação de linha" de `data-model.md`).
 - **Número da linha**: é a linha física no arquivo (o cabeçalho é a linha 1), obtida com
   `CSVParser.getCurrentLineNumber()` depois de ler o registro. Assim, as linhas em branco puladas
-  continuam contando, e o aviso aponta para a linha certa no editor.
+  continuam contando, e o aviso aponta para a linha certa no editor. Conferido com o Commons CSV
+  1.14.1 em 2026-11-22: o número é correto também na última linha sem quebra final e com CRLF. Num
+  registro com quebra de linha dentro de aspas, o número é o da última linha física do registro.
+- **Linha só com espaços**: o `ignoreEmptyLines` só pula linhas totalmente vazias. Uma linha só com
+  espaços chega como um registro de uma coluna vazia e seria rejeitada por `COLUMN_COUNT`. O leitor
+  trata esse registro como linha em branco (não conta como lida e não gera aviso), como pede a
+  FR-005a.
+- **Arquivo que não pode ser analisado** (aspas sem fechamento ou bytes que não são UTF-8 válido): é
+  erro estrutural `UNREADABLE`, porque o leitor não consegue separar as linhas com segurança. A
+  mensagem cita a linha onde a leitura parou, quando o Commons CSV a informa.
 - **Ano**: aceita só dígitos (`\d{1,9}`), sem sinal nem decimal. Ano vazio ou fora desse padrão
   invalida a linha. Isso resolve o ponto "faixa válida de ano", que ficou em aberto na clarificação,
   de forma conservadora e coerente com o FR-006 ("não numérico").
@@ -56,24 +70,36 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
 - **Alternatives considered**:
   - `setHeader().setSkipHeaderRecord()` com nomes: o Commons CSV compara os nomes diferenciando
     maiúsculas e não detecta ordem errada com uma mensagem clara.
-  - `BOMInputStream`: adiciona uma dependência direta só para um caractere.
+  - `BOMInputStream` (Commons IO): o Commons IO só chega como dependência transitiva do Commons CSV, e
+    usá-lo direto exigiria declará-lo no `pom.xml`, uma dependência nova só para um caractere.
+  - Remover o BOM do primeiro campo, depois da leitura: não trata o cabeçalho entre aspas nem o BOM
+    seguido de linha em branco (abordagem original, substituída após a revisão do Codex).
   - `String.split`: não trata aspas.
 
 ## R4. Separação de produtores (FR-007 a FR-010)
 
-- **Decision**: a expressão regular `\s*,\s*(?:and(?=\s|$)\s*)?|(?:^|\s+)and(?=\s|$)\s*` divide a
-  coluna. O `and` só é separador como palavra inteira:
-  - antes dele vem uma vírgula, espaço ou o início do campo;
-  - depois dele vem espaço ou o fim do campo (lookahead `(?=\s|$)`).
+- **Decision**: a coluna é separada **em etapas**, sem uma regex única:
+  1. dividir o campo pelas vírgulas;
+  2. em cada parte, ler as palavras (sequências sem espaço). Uma palavra igual a `and`, exatamente em
+     minúsculas como no enunciado, é separador. As palavras entre dois separadores formam um nome;
+  3. o nome é o trecho original do campo, da primeira à última palavra do grupo. Assim, o texto interno
+     é preservado como está, inclusive espaços duplos;
+  4. descartar as partes vazias e remover as repetidas no mesmo filme (`LinkedHashSet`, que preserva a
+     ordem).
 
-  Em seguida, cada parte recebe `trim`, as vazias são descartadas e as repetidas no mesmo filme são
-  removidas (`LinkedHashSet`, que preserva a ordem). O `and` é comparado em minúsculas, como no
-  enunciado.
-- **Por que o fim do campo importa:** o leitor de CSV aplica `trim` antes do parser (T031). Assim, o
-  campo ` , and ` chega como `, and`, sem espaço depois do `and`. A regex anterior,
-  `\s*,\s*(?:and\s+)?|\s+and\s+`, exigia espaço depois do `and` e deixava `and` como produtor
-  (revisão do Codex no PR do bolt 2; ver `docs/ai/decisoes.md`).
-- **Casos verificados** (a regex foi executada contra cada um):
+  Como cada `and` é reconhecido pela palavra, e não pelos espaços em volta, vários `and` seguidos
+  contam como separadores, e o início e o fim do campo não precisam de tratamento especial.
+- **Histórico (duas revisões do Codex no PR do bolt 2; ver `docs/ai/decisoes.md`):**
+  - a primeira regex, `\s*,\s*(?:and\s+)?|\s+and\s+`, exigia espaço depois do `and`. Como o leitor de
+    CSV aplica `trim` antes do parser (T031), o campo ` , and ` chegava como `, and` e deixava `and`
+    como produtor;
+  - a segunda, `\s*,\s*(?:and(?=\s|$)\s*)?|(?:^|\s+)and(?=\s|$)\s*`, consumia o espaço depois de um
+    `and`, e o `and` seguinte deixava de ser reconhecido: `Producer A and and Producer B` virava
+    `Producer A` e `and Producer B`, e `and and` virava `and`.
+
+  Dois defeitos na mesma regex levaram à troca pela separação em etapas, mais fácil de ler e de
+  conferir caso a caso.
+- **Casos verificados** (todos cobertos pelo `ProducerNamesIT`, T022b):
   - `Eric Fellner, and Tom Hooper` dá 2 nomes;
   - `Gayle Dickie, Kenn Viselman` dá 2 nomes;
   - `Brian Robbinsand Sharla Sumpter Bridgett` dá 1 nome (não há espaço antes de `and`);
@@ -85,9 +111,18 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
   - `and Producer B` dá só `Producer B`;
   - `Anderson Silva` dá 1 nome, e `Joel Silver and Anderson` dá `Joel Silver` e `Anderson` (`And`
     maiúsculo não é separador);
-  - `A, andrew B` dá `A` e `andrew B` (o `and` seguido de letra não é palavra inteira).
-- **Alternatives considered**: tokenização manual (mais código, sem ganho) e `and` sem diferenciar
-  maiúsculas (não pedido, e aumentaria o risco de separar nomes por engano).
+  - `A, andrew B` dá `A` e `andrew B` (o `and` seguido de letra não é palavra inteira);
+  - `Producer A and and Producer B` dá `Producer A` e `Producer B`;
+  - `and and` dá nenhum nome, então a linha é rejeitada com `PRODUCERS_MISSING`;
+  - `Sid  Krofft  and  Marty`, com espaços duplos, dá `Sid  Krofft` (o espaço interno é preservado) e
+    `Marty`;
+  - `Producer R, Producer R` dá um único `Producer R`.
+- **Alternatives considered**:
+  - corrigir a regex de novo (por exemplo, com lookbehind para o `and` seguinte): seria o terceiro
+    ajuste na mesma expressão, cada vez mais difícil de ler e de conferir;
+  - dividir por espaços e juntar as palavras com um espaço: normalizaria espaços internos, o que a
+    FR-008 proíbe;
+  - `and` sem diferenciar maiúsculas: não foi pedido e aumentaria o risco de separar nomes por engano.
 
 ## R5. Modelo de persistência e esquema (FR-006d, Princípio V)
 
@@ -160,8 +195,10 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
 
 - **Decision**:
   - **Só testes de integração**, com nomes `*IT` e executados pelo **maven-failsafe-plugin** na fase
-    `verify`. O Surefire não tem testes. Cada classe é um cenário com `@SpringBootTest(webEnvironment =
-    RANDOM_PORT, properties = "movies.csv.path=classpath:scenarios/<cenario>.csv")`, ou seja, um CSV
+    `verify`. O Surefire não tem testes. Cada classe é um cenário que estende a base `ScenarioIT`
+    (`@SpringBootTest(webEnvironment = RANDOM_PORT)`) e escolhe o CSV com
+    `@TestPropertySource(properties = "movies.csv.path=classpath:scenarios/<cenario>.csv")`. A subclasse
+    não redeclara `@SpringBootTest`, porque a anotação dela substituiria a da base. Ou seja, um CSV
     por cenário e um contexto por CSV, guardado no cache de contextos do Spring. As chamadas HTTP são
     reais, feitas com `RestTestClient` (Spring Framework 7, via `@AutoConfigureRestTestClient`).
   - **Falhas de inicialização**: o teste executa `SpringApplication` de verdade, com o CSV inválido e
