@@ -451,7 +451,7 @@ Todos os cenários usam nomes fictícios (`Producer A`, `Producer B`...) e anos 
   - contrato em `/openapi.yaml` em vez de `/v3/api-docs` (R8).
 
   As emendas 1.1.0 e 1.2.0 da constituição já estão registradas.
-- [ ] T083 [P] Princípio VI: adicionar ao `README.md` a seção "Requisitos do enunciado → testes", com uma tabela que liga cada item exigido pelo enunciado ao `*IT` que o comprova:
+- [X] T083 [P] Princípio VI: adicionar ao `README.md` a seção "Requisitos do enunciado → testes", com uma tabela que liga cada item exigido pelo enunciado ao `*IT` que o comprova:
   - a carga do CSV na inicialização;
   - o formato de `min` e `max`;
   - os empates;
@@ -462,7 +462,7 @@ Todos os cenários usam nomes fictícios (`Producer A`, `Producer B`...) e anos 
 
   A tabela é derivada da matriz do `plan.md`. Se nesta rodada o `README.md` pertencer ao papel de documentação, registrar o conteúdo da tabela como pedido a esse papel em vez de editar o arquivo (AGENTS.md, "Papéis e propriedade"). Nesse caso, a tarefa só fecha quando a tabela estiver no README
 
-  **Situação em 2026-11-22 (aberta):** o `README.md` ainda não existe e é do papel de documentação. A tabela foi registrada como pedido em `docs/ai/pedidos-documentacao.md`.
+  **Situação em 2026-11-22 (fechada):** a tabela foi registrada como pedido em `docs/ai/pedidos-documentacao.md`, e o papel de documentação a incluiu na seção 6 do `README.md`.
 
 ---
 

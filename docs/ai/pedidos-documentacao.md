@@ -3,7 +3,10 @@
 Mudanças pedidas por outros papéis em arquivos que pertencem ao papel de documentação (AGENTS.md,
 "Papéis e propriedade"). Cada pedido fica aberto até ser atendido.
 
-## 2026-11-22 — Tabela "Requisitos do enunciado → testes" no README (T083, aberto)
+## 2026-11-22 — Tabela "Requisitos do enunciado → testes" no README (T083, atendido)
+
+- **Atendido em 2026-11-22:** a tabela está na seção 6 do `README.md`, com três linhas a mais
+  (vitórias consecutivas, outros arquivos e listagem).
 
 - **De:** implementador, no fechamento do Marco 1 (bolts 5 e 6).
 - **Pedido:** adicionar ao `README.md` a seção "Requisitos do enunciado → testes", com a tabela abaixo
