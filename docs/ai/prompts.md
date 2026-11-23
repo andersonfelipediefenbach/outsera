@@ -411,3 +411,45 @@ git add -A
 git status
 git commit -m "Sessão do bolt 3 e nomes das sessões corrigidos"
 ```
+
+## 2026-11-22 21:05:13 -03:00
+
+- Sessao: `f2edc55a-a5db-4a4e-8792-0d4a9c6aee4a`
+
+```text
+
+
+<pasted_content id="6bf8">
+O testador adversário (Codex) gerou casos em docs/ai/adversario/. Primeiro, atualize a spec com três decisões e registre-as em docs/ai/decisoes.md citando o testador: (1) o separador "and" é reconhecido sem diferenciar maiúsculas; os nomes continuam comparados exatamente como escritos; (2) nomes empatados são ordenados pela ordem dos caracteres Unicode (String.compareTo), independente de locale; (3) ano válido é um inteiro entre 1 e 9999; fora disso, a linha é rejeitada como inválida. Depois, crie um teste de integração por caso. Para os casos 01 a 11, use os expected.json sem alterar, exceto se a decisão (3) mudar o resultado do caso 09: nesse caso, me mostre a diferença antes de ajustar. Para os casos 12 e 13, escreva o expected a partir das decisões e marque no README que foi escrito por nós, não pelo testador. Rode ./mvnw verify e me mostre quais testes falharam antes de corrigir o código.
+</pasted_content id="6bf8">
+
+```
+
+## 2026-11-22 21:15:25 -03:00
+
+- Sessao: `f2edc55a-a5db-4a4e-8792-0d4a9c6aee4a`
+
+```text
+é isso ai meu chapa, Aprovado. Aplique as duas correções (equalsIgnoreCase no ProducerNameParser e faixa de ano 1 a 9999 no MovieCsvReader, com o motivo YEAR_OUT_OF_RANGE) e inclua no InvalidLinesIT as linhas com ano 0 e 10000. Para o caso 09: com a nova regra, só restam os anos 1 e 2, de produtores diferentes, então o esperado é min e max vazios. Mantenha o expected.json original do testador intacto em docs/ai/adversario/ e use o esperado ajustado apenas em src/test/resources, registrando no README dos casos e em docs/ai/decisoes.md que o caso 09 diverge do testador por causa da decisão da faixa de anos, e que ele revelou que o ano 0 era aceito. Rode ./mvnw verify, me mostre o resultado e faça os commits: um para a spec e as decisões, um para os testes e um para as correções.
+```
+
+## 2026-11-22 21:25:34 -03:00
+
+- Sessao: `fcf0231f-8173-46f2-9c4e-0dd7576421c3`
+
+```text
+
+
+<pasted_content id="17fd">
+Você está no papel de documentação. Atualize o docs/ai/README.md: na tabela de sessões, acrescente 07-testador-adversario.md (conversa com o Codex no papel de testador adversário, em pasta isolada, só com o enunciado, a spec e o contrato) e 08-adversario-testes-e-correcoes.md (testes de integração dos casos do testador e correções decorrentes). Confira se o 03-bolt-3-calculo.md já está na tabela. Inclua também uma seção sobre a pasta docs/ai/adversario/, explicando que os CSVs e expected.json são os originais do testador, que os casos 12 e 13 tiveram o esperado escrito por nós e que o caso 09 diverge do testador pela decisão da faixa de anos. No README.md da raiz, atualize o trecho do testador adversário: a rodada foi feita, 11 de 13 casos passaram sem correção, e os dois restantes levaram às decisões registradas em docs/ai/decisoes.md. Faça um commit separado.
+</pasted_content id="17fd">
+
+```
+
+## 2026-11-23 11:13:23 -03:00
+
+- Sessao: `fcf0231f-8173-46f2-9c4e-0dd7576421c3`
+
+```text
+pode corrigir
+```
