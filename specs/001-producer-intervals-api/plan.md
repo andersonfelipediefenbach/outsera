@@ -16,7 +16,7 @@ H2 durante a inicialização, antes de o servidor aceitar conexões.
   - `GET /api/producers/intervals`, no formato exato do enunciado, com o cálculo por pares de vitórias
     vizinhas feito em um serviço;
   - `GET /api/movies`, com paginação e filtros validados à mão.
-- **Contrato:** o `openapi.yaml` é escrito antes do código e é a fonte única do Swagger UI (springdoc) e
+- **Contrato:** o `openapi.yaml` é escrito antes do código e é a fonte única do Swagger UI (webjar, R8) e
   da validação das respostas nos testes.
 - **Testes:** só de integração (`*IT` via Failsafe), com `@SpringBootTest` em porta aleatória, chamadas
   HTTP reais e um CSV de cenário por classe.
@@ -26,14 +26,16 @@ H2 durante a inicialização, antes de o servidor aceitar conexões.
 **Language/Version**: Java 25 (OpenJDK 25.0.2)
 
 **Primary Dependencies**: Spring Boot 4.1.2 (`spring-boot-starter-webmvc`, `-data-jpa`, `-flyway`),
-H2, Apache Commons CSV 1.14.1, springdoc-openapi-starter-webmvc-ui 3.2.0. Nos testes:
+H2, Apache Commons CSV 1.14.1, `org.webjars:swagger-ui` 5.34.0 com `webjars-locator-lite` (trocou o
+springdoc 3.2.0 no bolt 6, R8). Nos testes:
 `spring-boot-starter-test`, `swagger-request-validator-core` 3.0.0.
 
 **Storage**: H2 em memória, com nome único por contexto e esquema via Flyway (`ddl-auto=validate`)
 
 **Testing**: JUnit 5 + `@SpringBootTest(webEnvironment = RANDOM_PORT)` + `RestTestClient`, executados pelo
 maven-failsafe-plugin em `./mvnw verify`, mais `OutputCaptureExtension` para os logs e `JdbcTemplate` para as
-verificações de banco dos testes de carga, enquanto não há endpoint (Princípio I)
+verificações de banco dos testes de carga, enquanto não há endpoint (Princípio I). No bolt 5, essas
+verificações passaram a ser feitas por `GET /api/movies`, e o `JdbcTemplate` saiu dos testes
 
 **Target Platform**: JVM 25 em qualquer sistema operacional (Windows, Linux e macOS), via Maven Wrapper
 3.3.4 e Maven 3.9.16
@@ -119,11 +121,12 @@ src/main/resources/
 ├── movielist.csv                     # arquivo do enunciado (a ser adicionado)
 ├── db/migration/V1__create_schema.sql
 ├── static/openapi.yaml               # cópia de contracts/openapi.yaml
+├── static/swagger-ui.html            # Swagger UI (webjar) sobre o /openapi.yaml
 └── META-INF/spring.factories         # FailureAnalyzer
 src/test/java/com/outsera/awards/     # somente *IT (Failsafe)
 ├── SmokeIT
 ├── support/     ScenarioIT (base), ApplicationStarter, LoaderLog, IntervalItem, IntervalsBody,
-│                ContractValidator, IntervalOracle
+│                ContractValidator, IntervalOracle, MovieJson, MoviesBody
 ├── ingestion/   StartupFailureIT, HeaderCaseIT, HarmlessVariationsIT, BomVariationsIT, InvalidLinesIT,
 │                LoadSummaryIT, OptionalStudiosIT, DuplicateLinesIT, EmptyLoadIT, DefaultFileIT
 ├── intervals/   ReferenceFileIT, IntervalsShapeIT, TiesMinIT, TiesMaxIT, ThreeOrMoreWinsIT,
@@ -131,7 +134,8 @@ src/test/java/com/outsera/awards/     # somente *IT (Failsafe)
 │                DuplicateWinnerIT, ProducerSeparatorsIT, WinnerVariantsIT, InvalidLineIgnoredIT,
 │                IntervalEdgeCasesIT, RandomizedOracleIT
 ├── movies/      MoviesListingIT, MoviesInvalidParamsIT, ResponseTimeIT
-└── docs/        IntervalsContractIT, MoviesContractIT, ApiDocsIT
+├── docs/        IntervalsContractIT, MoviesContractIT, ApiDocsIT
+└── web/         HttpMethodsIT
 src/test/resources/scenarios/*.csv    # um CSV por cenário (o RandomizedOracleIT gera os seus)
 ```
 
@@ -162,8 +166,9 @@ removido.
 | FR-016a, FR-016b | `DisjointProducersIT`, `RandomizedOracleIT`, a busca do quickstart (passo 6) |
 | FR-017 | `ReferenceFileIT`, `IntervalsShapeIT` |
 | FR-018 | `NoRepeatWinnersIT`, `IntervalsShapeIT`, `EmptyLoadIT` |
-| FR-019 a FR-022 | `MoviesListingIT` |
+| FR-019 a FR-022 | `MoviesListingIT`; os ITs de carga de `ingestion/` também conferem os filmes por `GET /api/movies` |
 | FR-023 | `MoviesInvalidParamsIT` |
+| FR-023a | `HttpMethodsIT` |
 | FR-024 | `ApiDocsIT` |
 | FR-025 | `IntervalsContractIT`, `MoviesContractIT`, `ApiDocsIT` |
 | FR-026, FR-027 | `SmokeIT`, `./mvnw verify` sem Docker; esta matriz |
@@ -175,6 +180,7 @@ removido.
 | SC-006, SC-006a | `StartupFailureIT`, `InvalidLinesIT`, `LoadSummaryIT` |
 | SC-003 | checagem manual no fechamento (quickstart em clone limpo) |
 | Casos de borda (UTF-8, vazio) | `ProducerSeparatorsIT`, `MoviesListingIT`, `EmptyLoadIT` |
+| Caso de borda (página além da última) | `MoviesListingIT`, `MoviesInvalidParamsIT` (`page` fora de 32 bits) |
 
 ## Riscos
 

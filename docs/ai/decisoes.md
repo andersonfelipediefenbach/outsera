@@ -45,6 +45,106 @@ decisões de arquitetura ficam em ADRs, em `docs/adr/`.
   `data-model.md`, research R3 e R4, matriz do `plan.md` e 13 ITs novos em
   `src/test/java/com/outsera/awards/adversario/`.
 
+## 2026-11-22 — Decisões do Marco 1 que divergem do briefing (T082)
+
+Registro consolidado no fechamento do marco. As decisões foram tomadas na clarificação da spec
+(sessão de 2026-11-18) e no plano 001. Os detalhes ficam na spec e na research.
+
+- **Linha inválida é ignorada com aviso, e a carga continua (FR-006).**
+  - *Briefing:* "a carga inteira é rejeitada", marcado como decisão em aberto (`briefing.md` e
+    `decisoes-planejamento.md`).
+  - *Decisão (responsável, na clarificação):* só os erros estruturais (arquivo ausente, cabeçalho ou
+    separador inválido) impedem a inicialização. Uma linha inválida é ignorada, com aviso no log (número
+    da linha e motivo), e a carga termina com um resumo de lidas, aceitas e rejeitadas.
+  - *Efeito:* uma linha ruim não derruba a aplicação nem esconde o resultado das linhas boas, e o aviso
+    com o número da linha continua mostrando o problema.
+  - *Alternativa rejeitada:* rejeitar a carga inteira, como no briefing.
+- **Duplicata identificada por ano + título (FR-006d).**
+  - *Briefing:* não tratava linhas repetidas.
+  - *Decisão (responsável, na clarificação):* ano e título, sem os espaços em volta, identificam o
+    filme. A primeira ocorrência prevalece, e as repetições são ignoradas com aviso.
+  - *Efeito:* sem isso, uma linha vencedora repetida geraria um intervalo 0 falso para os seus produtores.
+  - *Alternativa rejeitada:* contar cada linha como um filme.
+- **Cabeçalho sem diferenciar maiúsculas, mas com ordem fixa (FR-003).**
+  - *Briefing:* cabeçalho `year;title;studios;producers;winner`, sem dizer se a comparação é exata.
+  - *Decisão (responsável, na clarificação):* `Year;Title;...` é aceito, e uma ordem diferente, uma
+    coluna faltando ou uma a mais impedem a inicialização.
+  - *Efeito:* a diferença de maiúsculas não muda o sentido do arquivo. Já uma ordem diferente indica um
+    arquivo de outro formato, e aceitá-la exigiria mapear colunas por nome, sem pedido do enunciado.
+  - *Alternativas rejeitadas:* comparação exata, que recusaria um arquivo inofensivo, e colunas em
+    qualquer ordem.
+- **Contrato em `/openapi.yaml`, e não em `/v3/api-docs` (research R8).**
+  - *Briefing:* `GET /v3/api-docs` como contrato OpenAPI.
+  - *Decisão (plano 001, research R8):* o contrato estático, escrito antes do código, é a única fonte
+    e é publicado em `/openapi.yaml`. No bolt 6, isso levou a tirar o springdoc do projeto (entrada
+    "Swagger UI pelo webjar, sem springdoc", abaixo).
+  - *Motivo:* o briefing exige que o contrato seja a fonte do Swagger UI e da validação das respostas.
+    Um contrato gerado pelo código seria um segundo contrato, que poderia divergir do desenhado.
+  - *Alternativa rejeitada:* contrato gerado por anotações em `/v3/api-docs`.
+
+## 2026-11-22 — Swagger UI pelo webjar, sem springdoc (bolt 6)
+
+- **Origem:** implementador, na T076. Com `springdoc.api-docs.enabled=false`, o `/swagger-ui.html`
+  respondia 404. Nas classes do springdoc 3.2.0, o `SwaggerConfig` (Swagger UI) tem
+  `@ConditionalOnBean(SpringDocConfiguration.class)`, e a `SpringDocConfiguration` tem
+  `@ConditionalOnProperty("springdoc.api-docs.enabled", matchIfMissing = true)`. Ou seja, nessa versão
+  o Swagger UI do springdoc exige a geração automática do contrato ligada.
+- **Decisão (responsável):** tirar o springdoc e servir o Swagger UI pelo webjar
+  `org.webjars:swagger-ui` 5.34.0 (a mesma versão que o springdoc 3.2.0 traria), com o
+  `webjars-locator-lite` gerenciado pelo Boot e uma página estática `static/swagger-ui.html` que aponta
+  para `/openapi.yaml`.
+- **Motivo:** mantém o contrato estático como fonte única (research R8). Não há contrato gerado pelo
+  código, `/v3/api-docs` responde 404 e nada varre os controllers na inicialização.
+- **Alternativas rejeitadas:**
+  - springdoc com `api-docs` ligado: publicaria em `/v3/api-docs` um segundo contrato, gerado pelo
+    código, que poderia divergir do estático;
+  - springdoc com `api-docs` ligado e nenhum caminho gerado (`paths-to-exclude=/**`): `/v3/api-docs`
+    continuaria publicado, vazio.
+- **Fim de linha:** o `ApiDocsIT` compara `/openapi.yaml` byte a byte com o contrato de `specs/`. Nesta
+  cópia de trabalho, o arquivo de `specs/` estava com CRLF, extraído antes do `.gitattributes`
+  (`eol=lf`), e o teste falhava. O conteúdo versionado tem LF nos dois arquivos, então o arquivo foi
+  extraído de novo. Outros 19 arquivos da cópia de trabalho estão na mesma situação e não foram
+  tocados. Num clone novo, todos vêm com LF.
+- **Impacto:** research R1 e R8, plano (stack e estrutura), T074 a T076 e `pom.xml`.
+
+## 2026-11-22 — Detalhes da listagem de filmes (bolt 5)
+
+- **Origem:** implementador, ao escrever os testes do bolt 5. A spec não dizia o que acontece com uma
+  página além da última. Com `page=2147483647`, o deslocamento (`page` × `size`) passa de
+  `Integer.MAX_VALUE`, o Spring Data recusa a consulta e a resposta seria 500.
+- **Decisão (implementador, para revisão do responsável no PR):**
+  - a spec ganhou um caso de borda antes do código (Princípio IV): uma página além da última responde
+    200 com `content` vazio e os totais reais, e um `page` que não cabe em 32 bits é inválido (400);
+  - quando o deslocamento passa do limite, o `MovieQueryService` consulta só a contagem;
+  - todos os parâmetros inválidos da consulta aparecem em `invalidParams`, e não só o primeiro;
+  - o `ResponseTimeIT` usa `@DirtiesContext`, para que a primeira chamada medida aconteça num contexto
+    sem nenhuma requisição anterior, incluindo a inicialização preguiçosa do Spring MVC (SC-005).
+- **Alternativas rejeitadas:**
+  - recusar com 400 uma página além da última: o FR-021 aceita qualquer `page` maior ou igual a 0, e o
+    US3-6 já responde 200 com lista vazia quando não há resultado;
+  - limitar `page` a um máximo arbitrário: seria uma regra sem origem na spec.
+- **T067:** os ITs de carga do bolt 2 (inclusive o `BomVariationsIT`, criado depois da T067) passaram a
+  verificar os filmes por `GET /api/movies`, e o `JdbcTemplate` saiu da `ScenarioIT`. No
+  `HarmlessVariationsIT`, a consulta à tabela `producer` não tem equivalente na listagem, que devolve os
+  produtores como texto. O nome sem espaços em volta continua provado pelos intervalos
+  (`Producer A` 1990→1991, classe `WithVariations`).
+- **Impacto:** caso de borda novo na spec, research R7, T063 e T071.
+
+## 2026-11-22 — Bolts 5 e 6 entregues juntos
+
+- **Decisão (responsável):** os bolts 5 (listagem) e 6 (Swagger UI e fechamento do Marco 1) são
+  entregues em um único branch, `bolt/5-6-listagem-swagger`, e em um único pull request, com um commit
+  por etapa:
+  1. fase 6 — listagem (T062 a T073);
+  2. fase 7 — Swagger UI (T074 a T077);
+  3. fase 8 — fechamento (T078 a T083).
+- **Regras mantidas:** cada etapa começa pelos testes, que precisam falhar antes da implementação, e
+  termina com `./mvnw verify` verde antes do commit. O PR, o merge e a tag continuam com o responsável.
+- **Alternativa rejeitada:** um branch e um PR por bolt, como previa o mapeamento original do
+  `tasks.md`.
+- **Impacto:** mapeamento bolt → fase, checkpoints das fases 6 e 7, dependências e notas do
+  `specs/001-producer-intervals-api/tasks.md`. Nenhuma mudança na spec nem no contrato.
+
 ## 2026-11-22 — Validador do contrato com a coordenada nova da Atlassian (T055)
 
 - **Origem:** implementador, no bolt 4. Ao resolver

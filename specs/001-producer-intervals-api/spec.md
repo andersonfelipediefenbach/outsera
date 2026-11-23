@@ -239,6 +239,9 @@ máquina e conferir se os dois endpoints estão descritos. Validar as respostas 
 - Linha vencedora duplicada (mesmo ano e título): ignorada (FR-006d), então não gera um intervalo 0
   falso. Dois filmes **diferentes** do mesmo produtor no mesmo ano continuam gerando intervalo 0
   (FR-013).
+- Página além da última na listagem (por exemplo, `page=2` com 25 filmes e `size=20`, ou o maior `page`
+  aceito, 2147483647): status 200 com `content` vazio e os totais reais (FR-021). Um `page` que não cabe
+  em um inteiro de 32 bits é parâmetro inválido (FR-023).
 
 ## Requirements *(mandatory)*
 
@@ -341,6 +344,9 @@ máquina e conferir se os dois endpoints estão descritos. Validar as respostas 
 - **FR-022**: A listagem MUST ser ordenada por ano crescente e depois pelo título.
 - **FR-023**: Parâmetros inválidos MUST resultar em status 400 no formato Problem Details (RFC 9457),
   identificando o parâmetro e o motivo.
+- **FR-023a**: Os dois endpoints de negócio (`/api/producers/intervals` e `/api/movies`) MUST aceitar só
+  o verbo GET. Qualquer outro verbo, como POST, PUT ou DELETE, MUST resultar em status 405 no formato
+  Problem Details, com o cabeçalho `Allow` indicando GET.
 
 **Documentação**
 

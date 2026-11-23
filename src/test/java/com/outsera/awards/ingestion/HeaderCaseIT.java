@@ -22,6 +22,6 @@ class HeaderCaseIT extends ScenarioIT {
         assertThat(summary.accepted()).isEqualTo(3);
         assertThat(summary.rejected()).isZero();
         assertThat(LoaderLog.loaderWarnings(output.getAll())).isEmpty();
-        assertThat(jdbc.queryForObject("select count(*) from movie", Integer.class)).isEqualTo(3);
+        assertThat(movies("").totalElements()).isEqualTo(3);
     }
 }

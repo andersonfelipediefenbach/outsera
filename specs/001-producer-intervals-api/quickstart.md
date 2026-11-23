@@ -48,7 +48,7 @@ MOVIES_CSV_PATH=src/test/resources/scenarios/disjoint-producers.csv ./mvnw sprin
 curl -s http://localhost:8080/api/producers/intervals
 ```
 
-Resultado esperado: só `Producer A` (2, 1950, 1952) em `min` e `Producer B` (50, 1960, 2010) em `max`.
+Resultado esperado: só `Producer A` (2, 1950, 1952) em `min` e `Producer B` (50, 1925, 1975) em `max`.
 
 Falhas esperadas na inicialização (SC-006), cada uma com o bloco "APPLICATION FAILED TO START" e o
 motivo:
