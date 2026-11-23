@@ -262,3 +262,152 @@ O Codex apontou mais um problema na regex do ProducerNameParser: com "and" conse
 ```text
 Faça os commits do bolt 4, incluindo docs/ai/prompts.md e docs/ai/sessoes/04-bolt-4-endpoint.md. Use uma mensagem no formato dos bolts anteriores, começando por "Bolt 4:". Não faça push.
 ```
+
+## 2026-11-22 19:17:39 -03:00
+
+- Sessao: `8397c722-e4c8-416f-8e88-4adb94b64943`
+
+```text
+Os bolts 5 e 6 serão entregues juntos, em um único branch e pull request, com um commit por etapa. Atualize o mapeamento de bolts no tasks.md e registre a decisão em docs/ai/decisoes.md.
+```
+
+## 2026-11-22 19:18:40 -03:00
+
+- Sessao: `8397c722-e4c8-416f-8e88-4adb94b64943`
+
+```text
+Sim, utilize o mesmo padrão de commits dos outros.
+```
+
+## 2026-11-22 19:19:07 -03:00
+
+- Sessao: `8397c722-e4c8-416f-8e88-4adb94b64943`
+
+```text
+/speckit-implement Execute os bolts 5 e 6 (Phases 6, 7 e 8 do tasks.md), nesta ordem: listagem, Swagger e fechamento. Ao fim de cada fase, rode ./mvnw verify e faça um commit da fase. Não faça push. Pare ao final do bolt 6.
+```
+
+## 2026-11-22 19:48:35 -03:00
+
+- Sessao: `8397c722-e4c8-416f-8e88-4adb94b64943`
+
+```text
+<task-notification>
+<task-id>b5ple051c</task-id>
+<tool-use-id>toolu_01TMgSVXXKL2s2b3pjBxKusX</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\b5ple051c.output</output-file>
+<status>failed</status>
+<summary>Background command "Start the app with the default file in the background" failed with exit code 1</summary>
+</task-notification>
+```
+
+## 2026-11-22 19:49:12 -03:00
+
+- Sessao: `8397c722-e4c8-416f-8e88-4adb94b64943`
+
+```text
+<task-notification>
+<task-id>bqc7nilg5</task-id>
+<tool-use-id>toolu_013jiSd6SgvmdPb5EDpcqZzg</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bqc7nilg5.output</output-file>
+<status>failed</status>
+<summary>Background command "Start the app with MOVIES_CSV_PATH set in the shell" failed with exit code 1</summary>
+</task-notification>
+```
+
+## 2026-11-22 19:59:00 -03:00
+
+- Sessao: `8397c722-e4c8-416f-8e88-4adb94b64943`
+
+```text
+
+
+<pasted_content id="5fd5">
+Você está no papel de documentação. Crie o README.md na raiz, em português, completo e fácil de escanear, cobrindo somente o que está implementado no marco 1. Não mencione marcos futuros nem extras planejados. Use como fonte a spec, o plan.md, o quickstart.md, a constituição, docs/ai/decisoes.md e docs/ai/pedidos-documentacao.md. Seções, nesta ordem:
+
+1. Visão geral: o que a API faz, em até três linhas.
+2. Avalie em 2 minutos: pré-requisitos (só JDK 25), comandos para subir e para testar no Windows e no Linux, e dois exemplos de curl com a resposta real.
+3. Como executar: porta, troca do CSV por variável de ambiente e comportamento com arquivo inválido.
+4. Endpoints: intervalos e listagem, com parâmetros, exemplos de resposta, códigos HTTP e link para o Swagger UI.
+5. Testes: como rodar, o que cada grupo de testes cobre e por que só há testes de integração (item 4.2 do enunciado).
+6. Requisitos do enunciado: tabela relacionando cada item do PDF ao teste que o comprova.
+7. Regras de negócio: separação de nomes de produtores, empates, linhas inválidas e duplicadas, BOM e cabeçalho.
+8. Arquitetura: pacotes, fluxo da carga do CSV até a resposta e stack com versões.
+9. Decisões: as principais em uma linha cada, com link para docs/ai/decisoes.md.
+10. Uso de IA: Spec Kit, Claude Code e Codex, o fluxo por bolts, os papéis de cada agente e link para docs/ai/README.md.
+11. Estrutura do repositório: árvore de pastas comentada.
+
+Crie também o docs/ai/README.md, explicando cada arquivo e pasta de docs/ai e como ler a evidência de uso de IA.
+
+Todo comando do README precisa ter sido executado por você e funcionar. Faça um commit separado com a documentação.
+</pasted_content id="5fd5">
+
+```
+
+## 2026-11-22 20:13:32 -03:00
+
+- Sessao: `8397c722-e4c8-416f-8e88-4adb94b64943`
+
+```text
+<task-notification>
+<task-id>bilgxz4yr</task-id>
+<tool-use-id>toolu_01BBL36Hy6UvTgUAh7uKei1E</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bilgxz4yr.output</output-file>
+<status>failed</status>
+<summary>Background command "Start the app on Windows with PowerShell" failed with exit code 1</summary>
+</task-notification>
+```
+
+## 2026-11-22 20:15:42 -03:00
+
+- Sessao: `8397c722-e4c8-416f-8e88-4adb94b64943`
+
+```text
+<task-notification>
+<task-id>bq5imyqfu</task-id>
+<tool-use-id>toolu_01XPTQkgZ4DHAQmVjc8gFQXf</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bq5imyqfu.output</output-file>
+<status>failed</status>
+<summary>Background command "Start the app on Windows with MOVIES_CSV_PATH and PORT" failed with exit code 1</summary>
+</task-notification>
+```
+
+## 2026-11-22 20:31:37 -03:00
+
+- Sessao: `8397c722-e4c8-416f-8e88-4adb94b64943`
+
+```text
+<task-notification>
+<task-id>bhho5tm15</task-id>
+<tool-use-id>toolu_012C25VM6KFwg7qfyLza8rEm</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bhho5tm15.output</output-file>
+<status>failed</status>
+<summary>Background command "Start the app from cmd on Windows" failed with exit code 1</summary>
+</task-notification>
+```
+
+## 2026-11-22 20:34:19 -03:00
+
+- Sessao: `8397c722-e4c8-416f-8e88-4adb94b64943`
+
+```text
+Complete a tabela "Requisitos do enunciado" do README com os itens que faltam do PDF, usando a numeração do enunciado: 4.1 (API RESTful no nível 2 de Richardson: recursos nomeados, verbo GET e códigos HTTP adequados, como 200, 400 e 404; aponte os testes que verificam os códigos), 4.3 (deixe explícito o H2 em memória como SGBD embarcado), 4.4 (este README, com as seções de execução e testes), 4.5 (repositório git) e 5.1 e 5.2 (uso de IA e registro de interações, apontando para docs/ai/README.md). Se algum código HTTP do item 4.1 não tiver teste, me diga antes de criar. Faça um commit separado.
+```
+
+## 2026-11-22 20:39:57 -03:00
+
+- Sessao: `8397c722-e4c8-416f-8e88-4adb94b64943`
+
+```text
+Crie o teste de que verbos não suportados, como POST, PUT e DELETE nos dois endpoints, recebem 405, e acrescente esse teste na linha do item 4.1 da tabela do README. Rode ./mvnw verify e faça um commit separado.
+```
+
+## 2026-11-22 20:47:46 -03:00
+
+- Sessao: `c02766b2-c176-432b-af5a-dcc9a1bcc9cc`
+
+```text
+git add -A
+git status
+git commit -m "Sessão do bolt 3 e nomes das sessões corrigidos"
+```

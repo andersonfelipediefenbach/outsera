@@ -28,8 +28,7 @@ class DefaultFileIT extends ScenarioIT {
         assertThat(summary.path()).isEqualTo("classpath:movielist.csv");
         assertThat(summary.rejected()).isZero();
         assertThat(summary.accepted()).isPositive();
-        assertThat(jdbc.queryForObject("select count(*) from movie", Integer.class))
-                .isEqualTo(summary.accepted());
+        assertThat(movies("").totalElements()).isEqualTo(summary.accepted());
     }
 
     @Test

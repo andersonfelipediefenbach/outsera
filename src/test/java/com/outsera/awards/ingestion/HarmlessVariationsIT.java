@@ -7,6 +7,8 @@ import static com.outsera.awards.support.IntervalItem.item;
 import com.outsera.awards.support.IntervalItem;
 import com.outsera.awards.support.LoaderLog;
 import com.outsera.awards.support.LoaderLog.Summary;
+import com.outsera.awards.support.MovieJson;
+import com.outsera.awards.support.MoviesBody;
 import com.outsera.awards.support.ScenarioIT;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -35,8 +37,7 @@ class HarmlessVariationsIT extends ScenarioIT {
     @DisplayName("FR-005a BOM no início do arquivo")
     void bomBeforeHeader(CapturedOutput output) {
         assertThat(output.getAll()).doesNotContain("INVALID_HEADER");
-        assertThat(jdbc.queryForObject("select count(*) from movie where release_year = 1990", Integer.class))
-                .isEqualTo(1);
+        assertThat(movies("year=1990").totalElements()).isEqualTo(1);
     }
 
     @Test
@@ -46,24 +47,29 @@ class HarmlessVariationsIT extends ScenarioIT {
         assertThat(summary.read()).isEqualTo(4);
         assertThat(summary.accepted()).isEqualTo(4);
         assertThat(summary.rejected()).isZero();
+        assertThat(allMovies().totalElements()).isEqualTo(4);
     }
 
+    /**
+     * O nome do produtor sem os espaços em volta é provado também pelos intervalos ({@code WithVariations}):
+     * as vitórias de 1990 e 1991 só formam o intervalo se os dois nomes forem o mesmo {@code Producer A}.
+     */
     @Test
     @DisplayName("FR-005a espaços em volta dos campos e do cabeçalho")
     void surroundingSpacesAreRemoved() {
-        assertThat(jdbc.queryForMap("select title, studios, producers from movie where release_year = 1990"))
-                .containsEntry("TITLE", "Filme Com Espaços")
-                .containsEntry("STUDIOS", "Estúdio A")
-                .containsEntry("PRODUCERS", "Producer A");
-        assertThat(jdbc.queryForList("select name from producer where name like '%Producer A%'", String.class))
-                .containsExactly("Producer A");
+        MoviesBody movies = movies("year=1990");
+        assertThat(movies.content()).hasSize(1);
+        MovieJson movie = movies.content().getFirst();
+        assertThat(movie.title()).isEqualTo("Filme Com Espaços");
+        assertThat(movie.studios()).isEqualTo("Estúdio A");
+        assertThat(movie.producers()).isEqualTo("Producer A");
+        assertThat(allMovies().titles()).allSatisfy(title -> assertThat(title).doesNotContain("﻿"));
     }
 
     @Test
     @DisplayName("FR-004 FR-005a yes em qualquer caixa")
     void yesInAnyCase() {
-        assertThat(jdbc.queryForList("select release_year from movie where winner order by release_year",
-                Integer.class)).containsExactly(1990, 1991);
+        assertThat(movies("winner=true").content()).extracting(MovieJson::year).containsExactly(1990, 1991);
     }
 
     /** Em todos os casos, o carregador não emite {@code WARN}. */

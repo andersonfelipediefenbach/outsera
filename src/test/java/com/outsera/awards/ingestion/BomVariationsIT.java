@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.outsera.awards.support.LoaderLog;
 import com.outsera.awards.support.LoaderLog.Summary;
+import com.outsera.awards.support.MoviesBody;
 import com.outsera.awards.support.ScenarioIT;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -25,7 +26,7 @@ class BomVariationsIT {
         @Test
         @DisplayName("FR-005a BOM com cabeçalho entre aspas carrega normalmente")
         void loadsNormally(CapturedOutput output) {
-            assertLoadedTwoMovies(output, jdbc.queryForObject("select count(*) from movie", Integer.class));
+            assertLoadedTwoMovies(output, allMovies());
         }
     }
 
@@ -37,16 +38,17 @@ class BomVariationsIT {
         @Test
         @DisplayName("FR-005a BOM seguido de linha em branco carrega normalmente")
         void loadsNormally(CapturedOutput output) {
-            assertLoadedTwoMovies(output, jdbc.queryForObject("select count(*) from movie", Integer.class));
+            assertLoadedTwoMovies(output, allMovies());
         }
     }
 
-    private static void assertLoadedTwoMovies(CapturedOutput output, Integer moviesInDatabase) {
+    private static void assertLoadedTwoMovies(CapturedOutput output, MoviesBody movies) {
         Summary summary = LoaderLog.summary(output.getAll());
         assertThat(summary.read()).isEqualTo(2);
         assertThat(summary.accepted()).isEqualTo(2);
         assertThat(summary.rejected()).isZero();
         assertThat(LoaderLog.loaderWarnings(output.getAll())).isEmpty();
-        assertThat(moviesInDatabase).isEqualTo(2);
+        assertThat(movies.totalElements()).isEqualTo(2);
+        assertThat(movies.titles()).containsExactly("Filme A", "Filme B");
     }
 }

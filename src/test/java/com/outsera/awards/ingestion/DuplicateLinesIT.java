@@ -4,9 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.outsera.awards.support.LoaderLog;
 import com.outsera.awards.support.LoaderLog.Summary;
+import com.outsera.awards.support.MovieJson;
+import com.outsera.awards.support.MoviesBody;
 import com.outsera.awards.support.ScenarioIT;
-import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -31,10 +31,11 @@ class DuplicateLinesIT extends ScenarioIT {
         assertThat(summary.accepted()).isEqualTo(1);
         assertThat(summary.rejected()).isEqualTo(2);
 
-        List<Map<String, Object>> movies = jdbc.queryForList("select title, studios from movie");
-        assertThat(movies).hasSize(1);
-        assertThat(movies.getFirst())
-                .containsEntry("TITLE", "Filme X")
-                .containsEntry("STUDIOS", "Estúdio");
+        MoviesBody movies = allMovies();
+        assertThat(movies.totalElements()).isEqualTo(1);
+        MovieJson movie = movies.content().getFirst();
+        assertThat(movie.title()).isEqualTo("Filme X");
+        assertThat(movie.studios()).isEqualTo("Estúdio");
+        assertThat(movie.producers()).isEqualTo("Producer A");
     }
 }
