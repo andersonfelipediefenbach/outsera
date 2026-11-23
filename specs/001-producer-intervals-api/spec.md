@@ -36,6 +36,18 @@
   endpoint existir, e depois por HTTP. Os testes de falha de inicialização seguem a cláusula própria do
   princípio.
 
+### Session 2026-11-22
+
+Decisões tomadas a partir dos casos do testador adversário (Codex), em `docs/ai/adversario/`.
+
+- Q: O separador `and` diferencia maiúsculas (`AND`, `aNd`)? → A: Não. A palavra `and` é reconhecida
+  como separador em qualquer combinação de maiúsculas e minúsculas (FR-007). Os nomes continuam
+  comparados exatamente como escritos (FR-008). Caso 12.
+- Q: Com que regra os nomes empatados são ordenados? → A: Pela ordem dos caracteres Unicode
+  (`String.compareTo`), independente de locale, sem colação linguística (FR-015). Caso 13.
+- Q: Qual é a faixa válida de ano? → A: Um inteiro entre 1 e 9999. Fora disso, a linha é rejeitada como
+  inválida (FR-006). Caso 09.
+
 ## User Scenarios & Testing *(mandatory)*
 
 Os atores são o **avaliador da Outsera**, que sobe a aplicação e confere o resultado (manualmente ou por
@@ -219,6 +231,11 @@ máquina e conferir se os dois endpoints estão descritos. Validar as respostas 
   aceitas, e a listagem e os intervalos vêm vazios.
 - Linha com colunas a mais que o cabeçalho: tratada como inválida (colunas em número diferente do
   esperado).
+- Ano `0`, ano com mais de quatro dígitos significativos (como `10000` ou `2147483648`) ou ano com
+  sinal: a linha é rejeitada (FR-006). Zeros à esquerda não mudam o valor (`0042` é o ano 42).
+- Separador `and` em maiúsculas (`AND`, `aNd`): separa nomes como `and` (FR-007).
+- Nomes empatados que diferem só em acento ou em maiúsculas (`ana`, `Ana`, `Álvaro`): são produtores
+  distintos (FR-008), ordenados pela ordem Unicode (FR-015).
 - Linha vencedora duplicada (mesmo ano e título): ignorada (FR-006d), então não gera um intervalo 0
   falso. Dois filmes **diferentes** do mesmo produtor no mesmo ano continuam gerando intervalo 0
   (FR-013).
@@ -252,7 +269,8 @@ máquina e conferir se os dois endpoints estão descritos. Validar as respostas 
 - **FR-006**: Uma linha de dados inválida MUST ser ignorada, sem interromper a carga. A linha é
   inválida quando:
   - o número de colunas difere do cabeçalho;
-  - o ano está vazio ou não é numérico;
+  - o ano está vazio ou não é numérico (só dígitos, sem sinal nem decimal);
+  - o ano não é um inteiro entre 1 e 9999 (por exemplo, `0` ou `10000`);
   - o título está vazio;
   - a coluna de produtores está vazia ou não gera nenhum nome depois da separação (FR-007 a FR-010);
   - `winner` tem um valor diferente de `yes` ou vazio.
@@ -276,7 +294,9 @@ máquina e conferir se os dois endpoints estão descritos. Validar as respostas 
   espaço, vírgula ou o início do campo, e depois dele vem espaço ou o fim do campo. Por exemplo,
   `Producer A and` e `Producer A, and` dão só `Producer A`, e `, and` não dá nenhum nome. Vários `and`
   seguidos são todos separadores: `Producer A and and Producer B` dá `Producer A` e `Producer B`, e
-  `and and` não dá nenhum nome.
+  `and and` não dá nenhum nome. O `and` é reconhecido sem diferenciar maiúsculas: `AND`, `And` e `aNd`
+  também são separadores, e `Iris AND Nilo aNd Eva` dá `Iris`, `Nilo` e `Eva`. Essa regra vale só para
+  o separador. Os nomes continuam comparados exatamente como escritos (FR-008).
 - **FR-008**: Cada nome MUST ter os espaços em volta removidos e ser comparado exatamente como escrito,
   sem corrigir grafia, abreviação ou maiúsculas.
 - **FR-009**: Um `and` que faz parte de uma palavra (por exemplo, `Robbinsand`, `Anderson` ou
@@ -294,13 +314,15 @@ máquina e conferir se os dois endpoints estão descritos. Validar as respostas 
 - **FR-014**: `min` MUST conter todos os intervalos iguais ao menor valor, e `max` todos os intervalos
   iguais ao maior valor.
 - **FR-015**: Os itens de `min` e de `max` MUST ser ordenados por `previousWin` crescente e, em caso de
-  empate, pelo nome do produtor.
+  empate, pelo nome do produtor. Os nomes são comparados pela ordem dos caracteres Unicode, um a um
+  (`String.compareTo` do Java), independente de locale e sem colação linguística. Por exemplo, `Ana`,
+  `Zeca`, `ana` e `Álvaro` ficam nessa ordem, porque `A` < `Z` < `a` < `Á`.
 - **FR-016**: O resultado MUST ser o mesmo, qualquer que seja a ordem das linhas no arquivo.
 - **FR-016a**: O resultado MUST ser derivado só do conteúdo do arquivo carregado. Nenhum nome de
   produtor, ano, intervalo ou resultado esperado pode ser fixado no código ou na configuração. O único
   valor padrão permitido é o caminho do arquivo (FR-002).
 - **FR-016b**: O cálculo MUST estar correto para qualquer arquivo que siga o formato do enunciado,
-  qualquer que seja a quantidade de filmes ou de produtores e a faixa de anos.
+  qualquer que seja a quantidade de filmes ou de produtores e a faixa de anos válidos (1 a 9999, FR-006).
 
 **Endpoint de intervalos**
 

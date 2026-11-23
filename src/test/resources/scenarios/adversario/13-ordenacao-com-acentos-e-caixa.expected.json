@@ -1,0 +1,54 @@
+{
+  "min": [
+    {
+      "producer": "Ana",
+      "interval": 5,
+      "previousWin": 2000,
+      "followingWin": 2005
+    },
+    {
+      "producer": "Zeca",
+      "interval": 5,
+      "previousWin": 2000,
+      "followingWin": 2005
+    },
+    {
+      "producer": "ana",
+      "interval": 5,
+      "previousWin": 2000,
+      "followingWin": 2005
+    },
+    {
+      "producer": "Álvaro",
+      "interval": 5,
+      "previousWin": 2000,
+      "followingWin": 2005
+    }
+  ],
+  "max": [
+    {
+      "producer": "Ana",
+      "interval": 5,
+      "previousWin": 2000,
+      "followingWin": 2005
+    },
+    {
+      "producer": "Zeca",
+      "interval": 5,
+      "previousWin": 2000,
+      "followingWin": 2005
+    },
+    {
+      "producer": "ana",
+      "interval": 5,
+      "previousWin": 2000,
+      "followingWin": 2005
+    },
+    {
+      "producer": "Álvaro",
+      "interval": 5,
+      "previousWin": 2000,
+      "followingWin": 2005
+    }
+  ]
+}

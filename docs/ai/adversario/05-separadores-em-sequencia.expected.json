@@ -1,0 +1,24 @@
+{
+  "min": [
+    {
+      "producer": "Abel",
+      "interval": 3,
+      "previousWin": 1980,
+      "followingWin": 1983
+    },
+    {
+      "producer": "Zora",
+      "interval": 3,
+      "previousWin": 1980,
+      "followingWin": 1983
+    }
+  ],
+  "max": [
+    {
+      "producer": "Ivo",
+      "interval": 20,
+      "previousWin": 1980,
+      "followingWin": 2000
+    }
+  ]
+}

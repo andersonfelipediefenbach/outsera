@@ -11,8 +11,8 @@ import java.util.regex.Pattern;
  *
  * <ol>
  *   <li>divide o campo pelas vírgulas;</li>
- *   <li>em cada parte, lê as palavras (sequências sem espaço). A palavra {@code and}, exatamente em
- *       minúsculas, é separador. Por ser reconhecida pela palavra, e não pelos espaços em volta, ela é
+ *   <li>em cada parte, lê as palavras (sequências sem espaço). A palavra {@code and}, sem diferenciar
+ *       maiúsculas ({@code AND} e {@code aNd} também), é separador. Por ser reconhecida pela palavra, e não pelos espaços em volta, ela é
  *       separador também no início e no fim da parte e quando se repete ({@code and and});</li>
  *   <li>o nome é o trecho original da primeira à última palavra do grupo, então o texto interno é
  *       preservado como está (FR-008);</li>
@@ -48,7 +48,7 @@ public final class ProducerNameParser {
         int nameStart = -1;
         int nameEnd = -1;
         while (word.find()) {
-            if (word.group().equals(AND)) {
+            if (word.group().equalsIgnoreCase(AND)) {
                 addName(part, nameStart, nameEnd, names);
                 nameStart = -1;
             } else {

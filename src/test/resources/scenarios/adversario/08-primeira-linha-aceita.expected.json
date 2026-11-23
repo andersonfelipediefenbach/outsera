@@ -1,0 +1,18 @@
+{
+  "min": [
+    {
+      "producer": "Raul",
+      "interval": 2,
+      "previousWin": 2004,
+      "followingWin": 2006
+    }
+  ],
+  "max": [
+    {
+      "producer": "Nina",
+      "interval": 8,
+      "previousWin": 2004,
+      "followingWin": 2012
+    }
+  ]
+}

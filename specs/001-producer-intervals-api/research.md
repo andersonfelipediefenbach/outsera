@@ -64,9 +64,9 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
 - **Arquivo que não pode ser analisado** (aspas sem fechamento ou bytes que não são UTF-8 válido): é
   erro estrutural `UNREADABLE`, porque o leitor não consegue separar as linhas com segurança. A
   mensagem cita a linha onde a leitura parou, quando o Commons CSV a informa.
-- **Ano**: aceita só dígitos (`\d{1,9}`), sem sinal nem decimal. Ano vazio ou fora desse padrão
-  invalida a linha. Isso resolve o ponto "faixa válida de ano", que ficou em aberto na clarificação,
-  de forma conservadora e coerente com o FR-006 ("não numérico").
+- **Ano**: aceita só dígitos, sem sinal nem decimal, com valor entre 1 e 9999. Ano vazio, não numérico
+  ou fora da faixa invalida a linha. A faixa foi decidida na sessão 2026-11-22 da spec, a partir do
+  caso 09 do testador adversário, e substitui o limite anterior de `\d{1,9}`, que aceitava o ano 0.
 - **Codificação**: UTF-8, explícita na abertura do `Reader`.
 - **Alternatives considered**:
   - `setHeader().setSkipHeaderRecord()` com nomes: o Commons CSV compara os nomes diferenciando
@@ -81,8 +81,9 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
 
 - **Decision**: a coluna é separada **em etapas**, sem uma regex única:
   1. dividir o campo pelas vírgulas;
-  2. em cada parte, ler as palavras (sequências sem espaço). Uma palavra igual a `and`, exatamente em
-     minúsculas como no enunciado, é separador. As palavras entre dois separadores formam um nome;
+  2. em cada parte, ler as palavras (sequências sem espaço). Uma palavra igual a `and`, sem diferenciar
+     maiúsculas (sessão 2026-11-22 da spec, caso 12 do testador), é separador. As palavras entre dois
+     separadores formam um nome;
   3. o nome é o trecho original do campo, da primeira à última palavra do grupo. Assim, o texto interno
      é preservado como está, inclusive espaços duplos;
   4. descartar as partes vazias e remover as repetidas no mesmo filme (`LinkedHashSet`, que preserva a
@@ -112,7 +113,9 @@ Decisões técnicas da fase 0. As versões foram conferidas no Maven Central em 
   - `Producer A and` e `Producer A, and` dão só `Producer A`;
   - `and Producer B` dá só `Producer B`;
   - `Anderson Silva` dá 1 nome, e `Joel Silver and Anderson` dá `Joel Silver` e `Anderson` (`And`
-    maiúsculo não é separador);
+    dentro de uma palavra não é separador);
+  - `Iris AND Nilo aNd Eva` dá `Iris`, `Nilo` e `Eva` (caso 12 do testador, coberto pelo
+    `Case12AndSeparatorCaseIT`);
   - `A, andrew B` dá `A` e `andrew B` (o `and` seguido de letra não é palavra inteira);
   - `Producer A and and Producer B` dá `Producer A` e `Producer B`;
   - `and and` dá nenhum nome, então a linha é rejeitada com `PRODUCERS_MISSING`;

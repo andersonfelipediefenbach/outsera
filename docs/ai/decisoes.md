@@ -3,6 +3,48 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-22 — Três ambiguidades apontadas pelo testador adversário
+
+- **Origem:** rodada do Codex como testador adversário do Marco 1, com os casos em
+  `docs/ai/adversario/`. O testador escreveu os CSVs a partir da spec, sem ler o código de produção.
+  Os casos 12 e 13 foram entregues sem resultado esperado, porque a spec não determinava uma resposta
+  única. O caso 09 usa anos (0, 2147483648, 4294967296) que a spec não proibia.
+- **Decisões (responsável):**
+  1. **`and` sem diferenciar maiúsculas (caso 12).** `AND`, `And` e `aNd` são separadores, como `and`.
+     A regra vale só para o separador: os nomes continuam comparados exatamente como escritos (FR-008).
+     Spec: FR-007.
+  2. **Ordem Unicode no desempate por nome (caso 13).** Os nomes empatados são ordenados por
+     `String.compareTo`, caractere a caractere, independente de locale. Spec: FR-015.
+  3. **Ano válido de 1 a 9999 (caso 09).** Fora dessa faixa, a linha é rejeitada como inválida, com
+     aviso no log. Spec: FR-006, FR-016b e o motivo novo `YEAR_OUT_OF_RANGE` do `data-model.md`.
+- **Motivos:**
+  - (1) a spec já não diferencia maiúsculas no `winner` nem no cabeçalho, e um `AND` no meio de nomes é separador para
+    quem lê o arquivo. Tratar `Iris AND Nilo` como um único produtor inventaria um nome;
+  - (2) a ordem por código de caractere é determinística, não depende da máquina do avaliador e é a
+    ordem natural da linguagem. Uma colação linguística mudaria com o locale da JVM;
+  - (3) o enunciado trata de anos de premiação. A faixa elimina o ano 0 e os valores que estouram
+    `int`, sem exigir tipos maiores no banco e no contrato.
+- **Alternativas rejeitadas:**
+  - `and` só em minúsculas, como estava: o caso 12 mostrou que o resultado mudaria só pela caixa do
+    separador;
+  - colação com `java.text.Collator`: o resultado dependeria do locale;
+  - anos sem limite, com `long` ou `BigInteger`: exigiria mudar o esquema e o tipo do contrato para um
+    caso que não representa uma premiação real.
+- **Efeito sobre os casos:** os resultados esperados dos casos 12 e 13 foram escritos pelo implementador
+  a partir das decisões (1) e (2), e o README dos casos registra isso.
+- **Caso 09 diverge do testador (responsável):** com a decisão (3), as linhas dos anos 0, 2147483647,
+  2147483648 e 4294967296 são rejeitadas. Só sobram os anos 1 (`Orion`) e 2 (`Nova`), de produtores
+  diferentes, então o esperado passa a ser `min` e `max` vazios. O `expected.json` original do testador
+  fica intacto em `docs/ai/adversario/`, como registro da rodada. O esperado ajustado existe só na cópia
+  de `src/test/resources/scenarios/adversario/`, que é a usada pelo `Case09ExtremeYearsIT`.
+- **O que o caso 09 revelou:** o leitor aceitava o ano 0. O padrão `\d{1,9}` só verificava os dígitos,
+  sem faixa. Com o arquivo do testador, a aplicação respondia com `Nova` de 0 a 2 em `min` e em `max`.
+  Os anos de 10 dígitos já eram rejeitados, como "ano não numérico", uma mensagem enganosa. Agora todos
+  saem com o motivo `YEAR_OUT_OF_RANGE`.
+- **Impacto:** spec (sessão 2026-11-22, FR-006, FR-007, FR-015, FR-016b e casos de borda),
+  `data-model.md`, research R3 e R4, matriz do `plan.md` e 13 ITs novos em
+  `src/test/java/com/outsera/awards/adversario/`.
+
 ## 2026-11-22 — Decisões do Marco 1 que divergem do briefing (T082)
 
 Registro consolidado no fechamento do marco. As decisões foram tomadas na clarificação da spec

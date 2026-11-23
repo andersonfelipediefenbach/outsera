@@ -1,0 +1,7 @@
+year;title;studios;producers;winner
+4294967296;Limite Alto;E;Tito;yes
+2147483648;Marco Depois;E;Dario;yes
+2;Nova Dois;E;Nova;yes
+2147483647;Marco Antes;E;Dario, Orion;yes
+0;Marco Zero;E;Tito, Nova;yes
+1;Primeiro Marco;E;Orion;yes

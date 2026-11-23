@@ -130,8 +130,9 @@ registra cada rejeição e o resumo:
 WARN ... Linha 4 rejeitada: número de colunas diferente de 5 (encontradas 4)
 WARN ... Linha 8 rejeitada: ano não numérico (19x0)
 WARN ... Linha 13 rejeitada: winner diferente de yes ou vazio (no)
+WARN ... Linha 14 rejeitada: ano fora da faixa de 1 a 9999 (0)
 ...
-Carga do arquivo src/test/resources/scenarios/invalid-lines.csv concluída: 11 linhas lidas, 2 aceitas, 9 rejeitadas
+Carga do arquivo src/test/resources/scenarios/invalid-lines.csv concluída: 13 linhas lidas, 2 aceitas, 11 rejeitadas
 ```
 
 ---
@@ -217,7 +218,7 @@ curl -s "http://localhost:8080/api/movies?page=-1&size=500"
 .\mvnw.cmd verify "-Dit.test=ReferenceFileIT"   # no PowerShell, o -D vai entre aspas
 ```
 
-São **121 testes de integração**, executados pelo Maven Failsafe na fase `verify`, sem Docker. A
+São **136 testes de integração**, executados pelo Maven Failsafe na fase `verify`, sem Docker. A
 execução completa leva cerca de 30 s com as dependências já baixadas.
 
 | Grupo (`src/test/java/com/outsera/awards/`) | O que cobre |
@@ -225,6 +226,7 @@ execução completa leva cerca de 30 s com as dependências já baixadas.
 | `SmokeIT` | A aplicação sobe com o arquivo padrão |
 | `ingestion/` | Carga do CSV: falhas de inicialização, variações inofensivas, BOM, linhas inválidas, duplicatas, estúdios vazios, resumo da carga e arquivos sem filmes válidos |
 | `intervals/` | Cálculo e formato dos intervalos: resultado de referência, empates em `min` e `max`, três ou mais vitórias, linhas fora de ordem, vitórias no mesmo ano, separação de produtores, arquivo com anos diferentes dos do enunciado e um oráculo independente com arquivos gerados |
+| `adversario/` | Os 13 casos do testador adversário ([seção 10](#10-uso-de-ia)), um IT por caso, com o CSV e o resultado esperado em `src/test/resources/scenarios/adversario/` |
 | `movies/` | Listagem: paginação, filtros, ordem, parâmetros inválidos e tempo de resposta abaixo de 1 s |
 | `docs/` | As respostas reais dos dois endpoints validadas contra o `openapi.yaml`, mais o Swagger UI e o contrato publicado |
 | `web/` | Verbos não suportados nos dois endpoints respondem 405 |
@@ -301,10 +303,11 @@ Uma linha inválida é ignorada, com um aviso que cita o número da linha físic
 1. número de colunas diferente de 5;
 2. ano vazio;
 3. ano não numérico (aceita só dígitos, sem sinal);
-4. título vazio;
-5. produtores vazios, inclusive quando a separação não gera nenhum nome;
-6. `winner` diferente de `yes` ou vazio;
-7. **duplicata:** o filme é identificado por ano + título. A primeira ocorrência vale, e as repetições
+4. ano fora da faixa de 1 a 9999, como `0` ou `10000`;
+5. título vazio;
+6. produtores vazios, inclusive quando a separação não gera nenhum nome;
+7. `winner` diferente de `yes` ou vazio;
+8. **duplicata:** o filme é identificado por ano + título. A primeira ocorrência vale, e as repetições
    são ignoradas com aviso que cita a linha original.
 
 A coluna de estúdios é opcional. Ao final, o log traz o resumo de linhas lidas, aceitas e rejeitadas.
@@ -312,8 +315,8 @@ A coluna de estúdios é opcional. Ao final, o log traz o resumo de linhas lidas
 ### Separação dos nomes de produtores
 
 - Os separadores são a vírgula, a palavra `and` e a combinação `, and`.
-- O `and` só separa como palavra inteira, em minúsculas. `Robbinsand`, `Anderson` e `andrew` não são
-  cortados.
+- O `and` só separa como palavra inteira, sem diferenciar maiúsculas: `AND` e `aNd` também separam.
+  `Robbinsand`, `Anderson` e `andrew` não são cortados.
 - Vários `and` seguidos contam todos como separadores. Partes vazias são descartadas, e um nome
   repetido no mesmo filme conta uma vez.
 - Os nomes são comparados **exatamente como escritos**, depois de tirar os espaços em volta. Não há
@@ -323,6 +326,7 @@ A coluna de estúdios é opcional. Ao final, o log traz o resumo de linhas lidas
 | --- | --- |
 | `Eric Fellner, and Tom Hooper` | `Eric Fellner`, `Tom Hooper` |
 | `Sid and Marty Krofft` | `Sid`, `Marty Krofft` |
+| `Iris AND Nilo aNd Eva` | `Iris`, `Nilo`, `Eva` |
 | `Brian Robbinsand Sharla Sumpter Bridgett` | um nome só |
 | `A, , B` | `A`, `B` |
 | `Producer A and and Producer B` | `Producer A`, `Producer B` |
@@ -403,6 +407,11 @@ As principais, em uma linha cada. O motivo e as alternativas de cada uma estão 
 - **Separação de produtores em etapas, e não por uma regex**, depois de dois defeitos na regex
   apontados pelo Codex na revisão.
 - **BOM removido antes do parser do CSV**, também após revisão do Codex.
+- **`and` separa sem diferenciar maiúsculas**, a partir de um caso do testador adversário. Os nomes
+  continuam comparados exatamente como escritos.
+- **Ano válido de 1 a 9999 no CSV**, também a partir do testador: o ano 0 era aceito.
+- **Desempate por nome em ordem Unicode** (`String.compareTo`), para que o resultado não dependa do
+  idioma da máquina.
 - **Carga antes de o servidor aceitar conexões**, para que nenhuma consulta veja dados incompletos.
 - **Cálculo dos intervalos a cada requisição, sem cache**, porque leva milissegundos.
 - **Contrato estático em `/openapi.yaml` como fonte única:** ele alimenta o Swagger UI e valida as
@@ -456,6 +465,17 @@ PR, merge e tags são feitos só pelo responsável, nunca por um agente.
 | Testador adversário | Codex | Cria CSVs de ataque a partir da spec, sem ler o código de produção. Cada falha vira teste permanente |
 | Documentação | Claude Code, em sessão separada | README e guia da evidência de IA |
 
+**Rodada do testador adversário:** feita sobre o Marco 1. O Codex trabalhou numa pasta isolada, só com
+o enunciado, a spec e o contrato, e entregou 13 casos de ataque, em
+[`docs/ai/adversario/`](docs/ai/adversario/). Cada caso virou um teste de integração permanente em
+`src/test/java/com/outsera/awards/adversario/`.
+- **11 dos 13 casos passaram sem nenhuma correção.**
+- Os outros dois levaram às decisões registradas em [`docs/ai/decisoes.md`](docs/ai/decisoes.md):
+  - o caso 12 fez o separador `and` deixar de diferenciar maiúsculas (FR-007);
+  - o caso 09 fez o ano válido ficar limitado de 1 a 9999 (FR-006), porque o ano 0 era aceito.
+- O caso 13 também pedia uma decisão (a ordem dos nomes com acento e caixa), mas o código já seguia a
+  ordem escolhida.
+
 **Evidência:** cada mensagem enviada aos agentes é gravada com data e hora por um hook. As sessões são
 exportadas por bolt, e as sugestões aceitas ou rejeitadas ficam registradas com o motivo. O guia de
 leitura está em [`docs/ai/README.md`](docs/ai/README.md).
@@ -499,7 +519,7 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 │   ├── static/swagger-ui.html   # página do Swagger UI
 │   └── META-INF/spring.factories # registra a mensagem de falha da carga
 ├── src/test/java/com/outsera/awards/  # somente testes de integração (*IT)
-│   ├── ingestion/  intervals/  movies/  docs/  web/  support/
+│   ├── adversario/  ingestion/  intervals/  movies/  docs/  web/  support/
 │   └── SmokeIT.java
 ├── src/test/resources/scenarios/  # um CSV por cenário de teste
 └── docs/ai/                     # evidência do uso de IA (ver docs/ai/README.md)

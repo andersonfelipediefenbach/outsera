@@ -31,6 +31,8 @@ class InvalidLinesIT extends ScenarioIT {
             11 | produtores vazios
             12 | produtores vazios
             13 | winner diferente de yes ou vazio (no)
+            14 | ano fora da faixa de 1 a 9999 (0)
+            15 | ano fora da faixa de 1 a 9999 (10000)
             """)
     void invalidLineIsRejectedWithWarning(int line, String reason, CapturedOutput output) {
         assertThat(LoaderLog.loaderWarnings(output.getAll()))
@@ -41,10 +43,10 @@ class InvalidLinesIT extends ScenarioIT {
     @DisplayName("FR-006 a carga continua")
     void loadContinues(CapturedOutput output) {
         Summary summary = LoaderLog.summary(output.getAll());
-        assertThat(summary.read()).isEqualTo(11);
+        assertThat(summary.read()).isEqualTo(13);
         assertThat(summary.accepted()).isEqualTo(2);
-        assertThat(summary.rejected()).isEqualTo(9);
-        assertThat(LoaderLog.loaderWarnings(output.getAll())).hasSize(9);
+        assertThat(summary.rejected()).isEqualTo(11);
+        assertThat(LoaderLog.loaderWarnings(output.getAll())).hasSize(11);
         assertThat(allMovies().titles()).containsExactly("Filme Válido 1", "Filme Válido 2");
     }
 }
