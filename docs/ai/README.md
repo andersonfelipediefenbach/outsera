@@ -13,6 +13,7 @@ Nenhum arquivo daqui contém segredos ou credenciais (Princípio VII da
 | [`prompts.md`](prompts.md) | Todas as mensagens enviadas ao Claude Code, em ordem, com data, hora e o identificador da sessão | O hook `.claude/hooks/log-prompt.ps1`, automaticamente. Não é editado à mão |
 | [`sessoes/`](sessoes/) | Exportações completas das sessões do Claude Code: mensagens, respostas, comandos executados e resultados | O responsável, com o comando `/export` ao fim de cada bolt |
 | [`decisoes.md`](decisoes.md) | Sugestões e decisões relevantes, aceitas ou rejeitadas, com origem, motivo, alternativas e impacto | Os agentes, no bolt em que a decisão acontece |
+| [`adversario/`](adversario/) | Os casos de ataque do testador adversário: um CSV e um resultado esperado por caso | O Codex, no papel de testador adversário. Exceções na seção [`adversario/`](#adversario) |
 | [`pedidos-documentacao.md`](pedidos-documentacao.md) | Pedidos de outros papéis para arquivos que pertencem ao papel de documentação, como o README | O papel que precisa da mudança |
 | [`planejamento/`](planejamento/) | Síntese do planejamento feito antes do código | O responsável. Os agentes só leem |
 | `README.md` | Este guia | Papel de documentação |
@@ -38,7 +39,8 @@ acrescenta uma entrada por mensagem:
 
 ### `sessoes/`
 
-Cada arquivo é a exportação em texto de uma sessão do Claude Code. O nome indica o bolt.
+Cada arquivo é a exportação em texto de uma sessão do Claude Code. O nome indica o bolt. A exceção é
+o `07-testador-adversario.md`, que é a conversa com o Codex.
 
 | Arquivo | Conteúdo |
 | --- | --- |
@@ -50,6 +52,8 @@ Cada arquivo é a exportação em texto de uma sessão do Claude Code. O nome in
 | `03-bolt-3-calculo.md` | Bolt 3: cálculo dos intervalos entre vitórias |
 | `04-bolt-4-endpoint.md` | Bolt 4: endpoint de intervalos no formato do enunciado |
 | `05-bolts-5-6-e-documentacao.md` | Bolts 5 e 6 (listagem, Swagger e fechamento) e, na mesma sessão, o papel de documentação: README, este guia e o teste de verbos não suportados (405) |
+| `07-testador-adversario.md` | Conversa com o Codex no papel de testador adversário. Ele trabalhou numa pasta isolada, só com o enunciado, a spec e o contrato, sem acesso ao código de produção |
+| `08-adversario-testes-e-correcoes.md` | Testes de integração dos casos do testador adversário e as correções que eles provocaram |
 
 - As exportações de uma mesma sessão são **cumulativas**: um arquivo exportado mais tarde repete o
   início do anterior.
@@ -70,6 +74,27 @@ Cada entrada segue o mesmo formato:
 
 As entradas mais recentes ficam no topo. As revisões do Codex são o ponto de partida de várias delas
 (BOM, separação de produtores), e o texto completo de cada revisão está no pull request correspondente.
+
+### `adversario/`
+
+Os casos que o Codex criou no papel de testador adversário. Ele trabalhou numa pasta isolada, só com o
+enunciado, a spec e o contrato, sem ler o código de produção. A conversa está em
+`sessoes/07-testador-adversario.md`.
+
+- Cada caso tem um CSV e um `expected.json` com a resposta esperada de
+  `GET /api/producers/intervals`. O [`README.md`](adversario/README.md) da pasta explica o que cada caso
+  ataca e quais requisitos da spec ele cobre.
+- **Os arquivos são os originais do testador, sem alteração.** Ficam aqui como registro da rodada.
+- Os testes usam uma cópia em `src/test/resources/scenarios/adversario/`, com um IT por caso em
+  `src/test/java/com/outsera/awards/adversario/`.
+- **Casos 12 e 13: o esperado foi escrito pelo projeto, não pelo testador.** O testador entregou esses
+  dois CSVs sem `expected.json`, porque a spec não determinava uma resposta única (caixa do separador
+  `and` e ordem de nomes com acento e caixa). O implementador escreveu os dois arquivos depois, a partir
+  das decisões do responsável registradas em `decisoes.md`.
+- **Caso 09: o teste diverge do testador.** A decisão de aceitar só anos de 1 a 9999 (FR-006) faz o
+  arquivo do caso perder as linhas dos anos 0, 2147483647, 2147483648 e 4294967296, e o esperado passa a
+  ser `min` e `max` vazios. O `expected.json` desta pasta continua o do testador. O esperado ajustado
+  existe só na cópia de `src/test/`.
 
 ### `planejamento/`
 

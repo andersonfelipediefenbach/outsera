@@ -456,6 +456,17 @@ PR, merge e tags são feitos só pelo responsável, nunca por um agente.
 | Testador adversário | Codex | Cria CSVs de ataque a partir da spec, sem ler o código de produção. Cada falha vira teste permanente |
 | Documentação | Claude Code, em sessão separada | README e guia da evidência de IA |
 
+**Rodada do testador adversário:** feita sobre o Marco 1. O Codex trabalhou numa pasta isolada, só com
+o enunciado, a spec e o contrato, e entregou 13 casos de ataque, em
+[`docs/ai/adversario/`](docs/ai/adversario/). Cada caso virou um teste de integração permanente em
+`src/test/java/com/outsera/awards/adversario/`.
+- **11 dos 13 casos passaram sem nenhuma correção.**
+- Os outros dois levaram às decisões registradas em [`docs/ai/decisoes.md`](docs/ai/decisoes.md):
+  - o caso 12 fez o separador `and` deixar de diferenciar maiúsculas (FR-007);
+  - o caso 09 fez o ano válido ficar limitado de 1 a 9999 (FR-006), porque o ano 0 era aceito.
+- O caso 13 também pedia uma decisão (a ordem dos nomes com acento e caixa), mas o código já seguia a
+  ordem escolhida.
+
 **Evidência:** cada mensagem enviada aos agentes é gravada com data e hora por um hook. As sessões são
 exportadas por bolt, e as sugestões aceitas ou rejeitadas ficam registradas com o motivo. O guia de
 leitura está em [`docs/ai/README.md`](docs/ai/README.md).
