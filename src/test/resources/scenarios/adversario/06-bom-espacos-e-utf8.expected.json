@@ -1,0 +1,18 @@
+{
+  "min": [
+    {
+      "producer": "Lúcia Prado",
+      "interval": 1,
+      "previousWin": 2020,
+      "followingWin": 2021
+    }
+  ],
+  "max": [
+    {
+      "producer": "Álvaro Reis",
+      "interval": 40,
+      "previousWin": 1980,
+      "followingWin": 2020
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "min": [
+    {
+      "producer": "Bruno",
+      "interval": 2,
+      "previousWin": 1890,
+      "followingWin": 1892
+    },
+    {
+      "producer": "Ada",
+      "interval": 2,
+      "previousWin": 1900,
+      "followingWin": 1902
+    },
+    {
+      "producer": "Zeno",
+      "interval": 2,
+      "previousWin": 1900,
+      "followingWin": 1902
+    }
+  ],
+  "max": [
+    {
+      "producer": "Bruno",
+      "interval": 30,
+      "previousWin": 1892,
+      "followingWin": 1922
+    },
+    {
+      "producer": "Ada",
+      "interval": 30,
+      "previousWin": 1902,
+      "followingWin": 1932
+    },
+    {
+      "producer": "Zeno",
+      "interval": 30,
+      "previousWin": 1902,
+      "followingWin": 1932
+    }
+  ]
+}

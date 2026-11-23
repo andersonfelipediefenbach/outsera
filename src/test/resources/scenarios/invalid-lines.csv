@@ -11,3 +11,5 @@ year;title;studios;producers;winner
 1995;Sem Produtores;Estúdio;;
 1996;Produtores Sem Nome;Estúdio; , and ;
 1997;Winner Inválido;Estúdio;Producer I;no
+0;Ano Zero;Estúdio;Producer J;
+10000;Ano Cinco Dígitos;Estúdio;Producer K;

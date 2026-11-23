@@ -1,0 +1,42 @@
+{
+  "min": [
+    {
+      "producer": "Ada",
+      "interval": 0,
+      "previousWin": 2004,
+      "followingWin": 2004
+    },
+    {
+      "producer": "Ada",
+      "interval": 0,
+      "previousWin": 2004,
+      "followingWin": 2004
+    },
+    {
+      "producer": "Ada",
+      "interval": 0,
+      "previousWin": 2004,
+      "followingWin": 2004
+    },
+    {
+      "producer": "Zeno",
+      "interval": 0,
+      "previousWin": 2004,
+      "followingWin": 2004
+    }
+  ],
+  "max": [
+    {
+      "producer": "Ada",
+      "interval": 16,
+      "previousWin": 2004,
+      "followingWin": 2020
+    },
+    {
+      "producer": "Zeno",
+      "interval": 16,
+      "previousWin": 2010,
+      "followingWin": 2026
+    }
+  ]
+}
