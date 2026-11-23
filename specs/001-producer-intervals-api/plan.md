@@ -168,7 +168,8 @@ removido.
 | FR-025 | `IntervalsContractIT`, `MoviesContractIT`, `ApiDocsIT` |
 | FR-026, FR-027 | `SmokeIT`, `./mvnw verify` sem Docker; esta matriz |
 | SC-001 | `ReferenceFileIT` |
-| SC-004 | `RandomizedOracleIT`, mais a rodada do testador adversário (checagem manual no fechamento) |
+| SC-004 | `RandomizedOracleIT` e os 13 casos do testador adversário (`adversario/Case01…Case13*IT`, um por CSV de `docs/ai/adversario/`) |
+| FR-006 (faixa de ano), FR-007 (`and` sem diferenciar maiúsculas), FR-015 (ordem Unicode) | `Case09ExtremeYearsIT`, `Case12AndSeparatorCaseIT`, `Case13AccentAndCaseOrderIT` |
 | SC-004a | `DisjointProducersIT` |
 | SC-005 | `ResponseTimeIT` |
 | SC-006, SC-006a | `StartupFailureIT`, `InvalidLinesIT`, `LoadSummaryIT` |

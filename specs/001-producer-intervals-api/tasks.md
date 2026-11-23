@@ -149,10 +149,10 @@ Para os erros estruturais, verificar a falha de inicialização com `Application
   Em todos, o carregador não emite `WARN`.
 
   **Nota (T014 e T015):** a verificação de "sem `WARN`" olha só as linhas de nível `WARN` emitidas pelo carregador do CSV (logger `MovieFileLoader`, do pacote `com.outsera.awards.ingestion`), e não o log inteiro. Avisos de outras bibliotecas, como o do Flyway sobre a versão do H2, não fazem o teste falhar (decisão de 2026-11-22 em `docs/ai/decisoes.md`)
-- [X] T016 [P] [US2] Criar `src/test/resources/scenarios/invalid-lines.csv`, com cabeçalho válido, 2 linhas válidas e uma linha inválida por motivo, nesta ordem: `COLUMN_COUNT` (4 colunas), `COLUMN_COUNT` (6 colunas), `YEAR_MISSING`, `YEAR_NOT_NUMERIC` (`19x0`), `YEAR_NOT_NUMERIC` (`-1990`), `TITLE_MISSING`, `PRODUCERS_MISSING` (vazio), `PRODUCERS_MISSING` (` , and `) e `WINNER_INVALID` (`no`). Inserir uma linha em branco antes de uma das inválidas, para provar que a numeração é a da linha física
+- [X] T016 [P] [US2] Criar `src/test/resources/scenarios/invalid-lines.csv`, com cabeçalho válido, 2 linhas válidas e uma linha inválida por motivo, nesta ordem: `COLUMN_COUNT` (4 colunas), `COLUMN_COUNT` (6 colunas), `YEAR_MISSING`, `YEAR_NOT_NUMERIC` (`19x0`), `YEAR_NOT_NUMERIC` (`-1990`), `TITLE_MISSING`, `PRODUCERS_MISSING` (vazio), `PRODUCERS_MISSING` (` , and `), `WINNER_INVALID` (`no`) e, desde a T085, `YEAR_OUT_OF_RANGE` (`0` e `10000`). Inserir uma linha em branco antes de uma das inválidas, para provar que a numeração é a da linha física
 - [X] T017 [US2] Escrever `src/test/java/com/outsera/awards/ingestion/InvalidLinesIT.java` (depende do T016):
   - `@ParameterizedTest` com um caso por linha inválida do T016 (FR-006c), no formato `(linha física, motivo legível)`, com nome `"FR-006 FR-006a linha {0} rejeitada: {1}"`. O log contém `WARN` com `Linha {n} rejeitada:` e o motivo, com `n` igual à linha física (cabeçalho = 1);
-  - `"FR-006 a carga continua"`: o resumo mostra 2 aceitas e 9 rejeitadas, e `select count(*) from movie` é 2.
+  - `"FR-006 a carga continua"`: o resumo mostra 2 aceitas e 9 rejeitadas (11 desde a T085), e `select count(*) from movie` é 2.
 - [X] T018 [P] [US2] Criar `src/test/resources/scenarios/load-summary.csv` (10 linhas de dados, das quais 2 inválidas) e escrever `src/test/java/com/outsera/awards/ingestion/LoadSummaryIT.java`: `"FR-006b SC-006a resumo"`. O log contém `10 linhas lidas, 8 aceitas, 2 rejeitadas` e o caminho do arquivo, e o banco tem 8 filmes
 - [X] T019 [P] [US2] Criar `src/test/resources/scenarios/optional-studios.csv` (uma linha com `studios` vazio) e escrever `src/test/java/com/outsera/awards/ingestion/OptionalStudiosIT.java`: `"FR-006e estúdios é opcional"`. A linha é aceita, sem `WARN`, e no banco o filme tem `studios` nulo
 - [X] T020 [P] [US2] Criar `src/test/resources/scenarios/duplicate-lines.csv` (a mesma `1990;Filme X;Estúdio;Producer A;yes` nas linhas 2 e 4, e `1990;Filme X ;Outro;Producer B;` na linha 5, que repete ano e título depois do `trim`) e escrever `src/test/java/com/outsera/awards/ingestion/DuplicateLinesIT.java`: `"FR-006d duplicata ano+título"`. As linhas 4 e 5 geram `WARN` citando a linha original 2, o resumo mostra 1 aceita e 2 rejeitadas, e o banco tem um único `Filme X`, com `studios` = `Estúdio`
@@ -190,7 +190,7 @@ Para os erros estruturais, verificar a falha de inicialização com `Application
   - a **Action** traz o cabeçalho esperado `year;title;studios;producers;winner`, o separador `;` e a variável `MOVIES_CSV_PATH`.
 
   Registrar o analyzer em `src/main/resources/META-INF/spring.factories` (chave `org.springframework.boot.diagnostics.FailureAnalyzer`)
-- [X] T029 [P] [US2] Criar `src/main/java/com/outsera/awards/ingestion/Rejection.java` (record `lineNumber`, `reason`, `detail`), o enum `RejectionReason` (`COLUMN_COUNT`, `YEAR_MISSING`, `YEAR_NOT_NUMERIC`, `TITLE_MISSING`, `PRODUCERS_MISSING`, `WINNER_INVALID` e `DUPLICATE`, cada um com uma mensagem legível em português) e `src/main/java/com/outsera/awards/ingestion/LoadReport.java` (`linesRead`, `accepted`, `rejected` e a lista de `Rejection`)
+- [X] T029 [P] [US2] Criar `src/main/java/com/outsera/awards/ingestion/Rejection.java` (record `lineNumber`, `reason`, `detail`), o enum `RejectionReason` (`COLUMN_COUNT`, `YEAR_MISSING`, `YEAR_NOT_NUMERIC`, `YEAR_OUT_OF_RANGE` (desde a T086), `TITLE_MISSING`, `PRODUCERS_MISSING`, `WINNER_INVALID` e `DUPLICATE`, cada um com uma mensagem legível em português) e `src/main/java/com/outsera/awards/ingestion/LoadReport.java` (`linesRead`, `accepted`, `rejected` e a lista de `Rejection`)
 - [X] T030 [P] [US2] Criar `src/main/java/com/outsera/awards/ingestion/ProducerNameParser.java` (research R4):
   - separar em etapas, sem regex única: dividir pelas vírgulas; em cada parte, tratar a palavra `and` isolada (separada por espaços) como separador; o nome é o trecho original da primeira à última palavra do grupo, preservando o texto interno; os casos estão em R4;
   - descartar as partes vazias;
@@ -212,11 +212,12 @@ Para os erros estruturais, verificar a falha de inicialização com `Application
   Validação de linha, na ordem de `data-model.md`, registrando o primeiro motivo encontrado:
   1. `COLUMN_COUNT`: número de colunas diferente de 5;
   2. `YEAR_MISSING`: ano vazio;
-  3. `YEAR_NOT_NUMERIC`: ano que não casa com `\d{1,9}`;
-  4. `TITLE_MISSING`: título vazio;
-  5. `PRODUCERS_MISSING`: produtores vazios ou sem nenhum nome depois do parser. O parser recebe o campo já com `trim` (por exemplo, ` , and ` chega como `, and`) e não pode depender dos espaços em volta;
-  6. `WINNER_INVALID`: `winner` não vazio e diferente de `yes`, sem diferenciar maiúsculas;
-  7. `DUPLICATE`: ano + título (após `trim`) já aceitos. O detalhe cita a linha original.
+  3. `YEAR_NOT_NUMERIC`: ano que não é formado só por dígitos (`\d+`; era `\d{1,9}` até a T086);
+  4. `YEAR_OUT_OF_RANGE`: ano fora de 1 a 9999 (T086);
+  5. `TITLE_MISSING`: título vazio;
+  6. `PRODUCERS_MISSING`: produtores vazios ou sem nenhum nome depois do parser. O parser recebe o campo já com `trim` (por exemplo, ` , and ` chega como `, and`) e não pode depender dos espaços em volta;
+  7. `WINNER_INVALID`: `winner` não vazio e diferente de `yes`, sem diferenciar maiúsculas;
+  8. `DUPLICATE`: ano + título (após `trim`) já aceitos. O detalhe cita a linha original.
 
   Saída: as linhas válidas (como registros) e o `LoadReport`.
 - [X] T032 [US2] Criar `src/main/java/com/outsera/awards/ingestion/MovieImportService.java`. É o **serviço único de gravação** (Princípio V): `@Transactional`, obtém ou cria cada `Producer` por nome (com cache local dentro da carga) e grava os `Movie` com os vínculos
@@ -451,6 +452,17 @@ Todos os cenários usam nomes fictícios (`Producer A`, `Producer B`...) e anos 
   - execução só com o wrapper (item 4.3).
 
   A tabela é derivada da matriz do `plan.md`. Se nesta rodada o `README.md` pertencer ao papel de documentação, registrar o conteúdo da tabela como pedido a esse papel em vez de editar o arquivo (AGENTS.md, "Papéis e propriedade"). Nesse caso, a tarefa só fecha quando a tabela estiver no README
+
+---
+
+## Rodada do testador adversário (Codex) — casos de `docs/ai/adversario/`
+
+Decisões na sessão 2026-11-22 da spec e em `docs/ai/decisoes.md`.
+
+- [X] T084 [US1] Copiar os 13 casos para `src/test/resources/scenarios/adversario/` e escrever um `*IT` por caso em `src/test/java/com/outsera/awards/adversario/`, comparando o corpo de `GET /api/producers/intervals` com o `expected.json` como JSON estrito. Os expected dos casos 01 a 08, 10 e 11 são os do testador, sem alteração. Os dos casos 12 e 13 foram escritos pelo implementador a partir das decisões. O do caso 09 foi ajustado só em `src/test/resources` (listas vazias), e o original do testador fica intacto em `docs/ai/adversario/`
+- [X] T085 [US2] Acrescentar ao `invalid-lines.csv` as linhas com ano `0` e `10000` e ao `InvalidLinesIT` os dois casos de `YEAR_OUT_OF_RANGE` (FR-006c)
+- [X] T086 [US2] `MovieCsvReader`: aceitar só anos de 1 a 9999 e rejeitar os demais com `YEAR_OUT_OF_RANGE`, sem estourar com sequências longas de dígitos (FR-006)
+- [X] T087 [US1] `ProducerNameParser`: reconhecer a palavra `and` como separador sem diferenciar maiúsculas (FR-007)
 
 ---
 

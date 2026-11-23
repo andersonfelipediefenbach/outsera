@@ -1,0 +1,18 @@
+{
+  "min": [
+    {
+      "producer": "Dario",
+      "interval": 1,
+      "previousWin": 2147483647,
+      "followingWin": 2147483648
+    }
+  ],
+  "max": [
+    {
+      "producer": "Tito",
+      "interval": 4294967296,
+      "previousWin": 0,
+      "followingWin": 4294967296
+    }
+  ]
+}

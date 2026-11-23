@@ -1,0 +1,30 @@
+{
+  "min": [
+    {
+      "producer": "Lia",
+      "interval": 1,
+      "previousWin": 2000,
+      "followingWin": 2001
+    },
+    {
+      "producer": "Lia",
+      "interval": 1,
+      "previousWin": 2001,
+      "followingWin": 2002
+    }
+  ],
+  "max": [
+    {
+      "producer": "Lia",
+      "interval": 10,
+      "previousWin": 2002,
+      "followingWin": 2012
+    },
+    {
+      "producer": "Lia",
+      "interval": 10,
+      "previousWin": 2017,
+      "followingWin": 2027
+    }
+  ]
+}

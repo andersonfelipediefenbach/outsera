@@ -1,0 +1,54 @@
+{
+  "min": [
+    {
+      "producer": "Zeca",
+      "interval": 7,
+      "previousWin": 4,
+      "followingWin": 11
+    },
+    {
+      "producer": "Ada",
+      "interval": 7,
+      "previousWin": 11,
+      "followingWin": 18
+    },
+    {
+      "producer": "Ada",
+      "interval": 7,
+      "previousWin": 18,
+      "followingWin": 25
+    },
+    {
+      "producer": "Bela",
+      "interval": 7,
+      "previousWin": 18,
+      "followingWin": 25
+    }
+  ],
+  "max": [
+    {
+      "producer": "Zeca",
+      "interval": 7,
+      "previousWin": 4,
+      "followingWin": 11
+    },
+    {
+      "producer": "Ada",
+      "interval": 7,
+      "previousWin": 11,
+      "followingWin": 18
+    },
+    {
+      "producer": "Ada",
+      "interval": 7,
+      "previousWin": 18,
+      "followingWin": 25
+    },
+    {
+      "producer": "Bela",
+      "interval": 7,
+      "previousWin": 18,
+      "followingWin": 25
+    }
+  ]
+}

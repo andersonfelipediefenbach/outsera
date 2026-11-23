@@ -1,0 +1,24 @@
+{
+  "min": [
+    {
+      "producer": "Alex  Silva",
+      "interval": 2,
+      "previousWin": 1991,
+      "followingWin": 1993
+    },
+    {
+      "producer": "STEVE PERRY",
+      "interval": 2,
+      "previousWin": 1992,
+      "followingWin": 1994
+    }
+  ],
+  "max": [
+    {
+      "producer": "Steven Perry",
+      "interval": 10,
+      "previousWin": 1991,
+      "followingWin": 2001
+    }
+  ]
+}

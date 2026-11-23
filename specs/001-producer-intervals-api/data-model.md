@@ -70,11 +70,13 @@ A verificação segue a ordem abaixo, e o primeiro motivo encontrado é o regist
 
 1. `COLUMN_COUNT`: o número de colunas é diferente de 5.
 2. `YEAR_MISSING`: o ano está vazio.
-3. `YEAR_NOT_NUMERIC`: o ano não casa com `\d{1,9}`.
-4. `TITLE_MISSING`: o título está vazio.
-5. `PRODUCERS_MISSING`: a coluna de produtores está vazia ou não gera nenhum nome depois da separação.
-6. `WINNER_INVALID`: `winner` não é vazio e é diferente de `yes`, sem diferenciar maiúsculas.
-7. `DUPLICATE`: o ano e o título repetem uma linha já aceita. O aviso cita a linha original.
+3. `YEAR_NOT_NUMERIC`: o ano não é formado só por dígitos (`\d+`).
+4. `YEAR_OUT_OF_RANGE`: o valor do ano, só com dígitos, não está entre 1 e 9999 (sessão 2026-11-22 da
+   spec, caso 09 do testador). A verificação não pode estourar com sequências longas de dígitos.
+5. `TITLE_MISSING`: o título está vazio.
+6. `PRODUCERS_MISSING`: a coluna de produtores está vazia ou não gera nenhum nome depois da separação.
+7. `WINNER_INVALID`: `winner` não é vazio e é diferente de `yes`, sem diferenciar maiúsculas.
+8. `DUPLICATE`: o ano e o título repetem uma linha já aceita. O aviso cita a linha original.
 
 Uma linha em branco não é lida, não conta como linha lida e não gera aviso (FR-005a).
 
