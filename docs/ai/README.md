@@ -54,6 +54,7 @@ o `07-testador-adversario.md`, que é a conversa com o Codex.
 | `05-bolts-5-6-e-documentacao.md` | Bolts 5 e 6 (listagem, Swagger e fechamento) e, na mesma sessão, o papel de documentação: README, este guia e o teste de verbos não suportados (405) |
 | `07-testador-adversario.md` | Conversa com o Codex no papel de testador adversário. Ele trabalhou numa pasta isolada, só com o enunciado, a spec e o contrato, sem acesso ao código de produção |
 | `08-adversario-testes-e-correcoes.md` | Testes de integração dos casos do testador adversário e as correções que eles provocaram |
+| `09-documentacao-adversario.md` | Papel de documentação: merge da main no branch do testador adversário e atualização dos READMEs com o resultado da rodada |
 
 - As exportações de uma mesma sessão são **cumulativas**: um arquivo exportado mais tarde repete o
   início do anterior.
