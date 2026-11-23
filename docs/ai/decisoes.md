@@ -3,6 +3,336 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-23 — Correções da segunda análise da spec 002
+
+- **Origem:** segunda rodada do `/speckit-analyze` da spec 002, sem achados críticos. O responsável
+  aprovou as correções de H1, H2, M1, M2, M3 e M4. Os achados de nível LOW continuam fora.
+- **H1, memória da JVM no `ENTRYPOINT`, e não em `JAVA_TOOL_OPTIONS`:**
+  - *Problema:* com `JAVA_TOOL_OPTIONS` definida, a JVM sempre escreve `Picked up JAVA_TOOL_OPTIONS:
+    ...` no stderr, fora do log. Essa linha não é JSON e quebraria o SC-005 e o passo 5 do teste de
+    fumaça no container;
+  - *Decisão:* `-XX:MaxRAMPercentage=75` vai direto no `ENTRYPOINT` em forma exec, e a imagem não define
+    `JAVA_TOOL_OPTIONS`;
+  - *Impacto:* research R8, `contracts/container.md`, data-model e T036.
+- **H2, banner desligado em todas as execuções (opção b):**
+  - *Decisão (responsável):* `spring.main.banner-mode: off` no `application.yml`, em todas as execuções
+    e nos dois formatos;
+  - *Motivo:* o banner não traz informação. Ele é escrito direto no stdout, fora do logging, e em JSON
+    viraria um evento com desenho ASCII (com `banner-mode: log`) ou linhas soltas que não são JSON (com o
+    padrão `console`);
+  - *Alternativas rejeitadas:* (a) `banner-mode: log`, que poria o desenho ASCII dentro da `message` de
+    um evento JSON; (c) desligar só na imagem, que deixaria o JSON quebrado em qualquer outra execução
+    com a variável, contra a FR-020;
+  - *Efeito no Marco 1:* o log do `./mvnw spring-boot:run` perde o banner, e o resto do texto não muda.
+    O SC-005 passou a dizer "mesmo texto do Marco 1, sem o banner";
+  - *Efeito nos testes:* os testes de US4 da etapa 2 passam a falhar antes da implementação (pelo
+    banner), e a mudança no `application.yml` os faz passar;
+  - *Impacto:* spec (clarificação, FR-020 e SC-005), research R6, data-model, `contracts/container.md`,
+    quickstart, plano e tarefas T024, T025, T026, T028 e T054.
+- **M1, referências aninhadas da `trivy-action`:**
+  - *Contexto:* o ataque de 2026 à cadeia do Trivy atingiu o `aquasecurity/setup-trivy`, que a
+    `trivy-action` usa por dentro. O hash do nosso `uses:` não fixa o que uma action composta chama;
+  - *Verificação (implementador, 2026-11-23, API pública do GitHub, porque o `gh` não está instalado):*
+    - `trivy-action` v0.36.0, de 2026-04-22: `setup-trivy@3fb12ec…` (v0.2.6) e `actions/cache@27d5ce7…`
+      (v5.0.5), os dois por hash;
+    - `setup-trivy` nesse hash: `actions/cache/restore` e `actions/cache/save` (`9255dc7…`, v5.0.1) e
+      `actions/checkout` (`8e8c483…`, v6.0.1), por hash. O `install.sh` vem de um commit fixo
+      (`75c4dc0…`);
+    - o `install.sh` confere o SHA-256 do binário contra o arquivo de checksums da release;
+  - *Decisão (responsável):* como toda a cadeia aninhada está por hash, a `trivy-action` fica, fixada na
+    v0.36.0 ou numa versão posterior que mantenha isso. Se uma versão tiver referência aninhada por tag
+    ou branch, a action é trocada pela instalação do binário oficial do Trivy, com o checksum conferido;
+  - *Revisão contínua:* todo PR do Dependabot que atualize uma action composta repete a verificação;
+  - *Impacto:* research R10, R12 e R13, plano (riscos) e T042, que também passa a aceitar `curl` na API
+    pública no lugar do `gh`.
+- **M2, `check-workflows.sh` sem o `yq`:**
+  - *Decisão (responsável):* sem o `yq` no `PATH`, o script termina com código 2 e uma mensagem clara,
+    sem pular nem passar sem verificar;
+  - a verificação oficial é a do job `workflow-policy` do pipeline;
+  - *Impacto:* T040 e T045.
+- **M3, T018(b):** a prova de que os dados já estão disponíveis passa a ser `totalElements` igual a 206,
+  porque a listagem devolve no máximo 100 itens por página.
+- **M4, base da sonda do `check-docker-context.sh`:**
+  - *Decisão (responsável):* a sonda usa a imagem do estágio de build, lida do próprio `Dockerfile`, e
+    não um `busybox` com digest próprio;
+  - *Motivo:* o Dependabot só atualiza os digests do `Dockerfile`, e um digest só no script ficaria
+    desatualizado sem aviso;
+  - *Impacto:* T033a e research R13 e R14.
+
+## 2026-11-23 — Correções do `/speckit-analyze` da spec 002
+
+- **Origem:** análise cruzada de spec, plano e tarefas da spec 002, antes da implementação. O
+  responsável aprovou as correções de C1, G1, G2, A1, A2, A3, I1 e G3. A U1 tem entrada própria, abaixo.
+  Os achados de nível LOW ficaram de fora.
+- **C1, comprovação do workflow pelo pipeline (crítico, sem emenda):**
+  - *Problema:* parte da FR-028b (permissões, nenhum segredo, nenhuma publicação) e a FR-029
+    (Dependabot) eram comprovadas pela revisão do PR. Para requisitos de pipeline, o Princípio VI pede a
+    execução do pipeline;
+  - *Decisão (responsável):* estender o script da T040, que passa a ser o `check-workflows.sh`. Ele
+    verifica hash de commit, `permissions`, `secrets.`, `push: true` e `docker push`, e a configuração
+    do Dependabot. O job `pinning` vira `workflow-policy`;
+  - *Alternativa rejeitada:* emendar o Princípio VI para aceitar a revisão.
+- **G1, conteúdo da imagem e `.dockerignore`:** dois passos novos no teste de fumaça. O passo 10 confere
+  que não há código-fonte, Maven nem compilador na imagem final. O passo 11 roda o
+  `check-docker-context.sh`, que constrói uma imagem descartável com o mesmo contexto e confere a lista de
+  permissão (FR-021 e FR-026).
+- **G2, CodeQL reprova o pipeline:**
+  - *Decisão (responsável):* o defeito que prova a regra (uma classe com SQL concatenado, regra
+    `java/sql-injection`) **não pode ficar no código do marco**;
+  - a prova acontece no branch temporário da T050, que nunca é mergeado e é apagado depois, local e
+    remotamente, sem cherry-pick, merge nem rebase a partir dele;
+  - entra no marco só o registro do resultado: branch, links das execuções, job vermelho por defeito e a
+    confirmação de que o branch foi apagado;
+  - a SC-008 ganhou as categorias "achado alto na análise de código" e "workflow fora da política".
+- **G3, arquivo montado sem permissão de leitura:**
+  - *Decisão (responsável):* o teste precisa funcionar no Windows e no Linux, ou ser pulado com motivo
+    explícito onde a permissão não se aplica;
+  - *Como:*
+    - o `smoke-test.sh` converte os caminhos dos bind mounts no Git Bash (`cygpath -w`,
+      `MSYS_NO_PATHCONV=1`);
+    - o passo 13 começa com uma sonda: um container com o usuário 10001 tenta ler o arquivo com
+      `chmod 000`. Se não lê, o passo roda. Se lê, a permissão do host não vale no container (NTFS no
+      Git Bash, Docker Desktop), e o passo é pulado com `PULADO`, o motivo, o sistema e a versão do
+      Docker;
+    - no pipeline (`CI=true`), no runner Linux, uma sonda que lê é falha, e o caso de borda nunca fica
+      sem prova;
+  - *Motivo da sonda:* o critério é o comportamento observado, e não o nome do sistema. Um Linux em que
+    a permissão não valha também é detectado.
+- **A1, sobrescrever o formato do log no container:** a T037 verifica se um
+  `LOGGING_STRUCTURED_FORMAT_CONSOLE` vazio volta o log para texto, e o passo 12 do teste de fumaça
+  comprova. Se o valor vazio falhar, a alternativa vai ao responsável antes de qualquer mudança na spec.
+- **A2, A3 e I1 (redação e alinhamento):**
+  - FR-015 e US3-5: o valor fixo da rota de caminhos inexistentes pode ser compartilhado com os recursos
+    estáticos, e o status 404 distingue os dois casos;
+  - US1-7: arquivos "de resultados diferentes" dão ETags diferentes;
+  - estrutura e matriz do plano alinhadas às tarefas (`EtagEmptyIT`, `ReadinessInvalidLinesIT`,
+    `PrometheusText` e os scripts novos).
+- **Impacto:** spec 002 (FR-015, FR-032, US1-7, US3-5, SC-008 e casos de borda), plano (estrutura, matriz
+  e riscos), research R3, R9, R12 e R14, `contracts/ci-pipeline.md`, quickstart e `tasks.md` (T023,
+  T033, T033a novo, T034, T037, T039, T040, T043, T045, T047, T049 e T050).
+
+## 2026-11-23 — Resposta 500 fora da FR-006 (achado U1 do `/speckit-analyze` da spec 002)
+
+- **Origem:** achado U1 da análise da spec 002. A FR-006 exigia que as respostas 400, 405 **e 500**
+  ficassem sem `ETag`, e um caso de borda exigia que um 500 aparecesse nas métricas e no log. Nenhuma
+  tarefa comprovava o 500, porque a API não tem caminho que produza esse status sem um defeito ou um
+  mock.
+- **Decisão (responsável):** opção A da análise. A FR-006 passa a cobrir só 400 e 405, e o caso de
+  borda do 500 saiu da spec. A research R4 registra que:
+  - o filtro de ETag só age em respostas 2xx;
+  - as métricas registram qualquer status, inclusive 500, pelo comportamento do próprio Spring;
+  - não há requisito próprio para o 500.
+- **Motivo:** um requisito sem comprovação não é entregue (Princípio VI). Provocar um 500 só para
+  testá-lo exigiria um defeito ou um mock, contra o Princípio I. O comportamento continua garantido pelo
+  framework.
+- **Alternativas rejeitadas:**
+  - B, manter o 500 como "garantido por construção", sem teste: violaria o Princípio VI;
+  - C, provocar um 500 real com `SHUTDOWN` no H2 num IT próprio: comprovaria o 500, mas com um teste que
+    derruba o banco para forçar um estado que a API não produz em uso normal.
+- **Impacto:** spec 002 (clarificação, FR-006 e casos de borda), research R4 e data-model. As tarefas não
+  mudam: o T002(i) e o T003(e) já cobrem 405 e 400.
+
+## 2026-11-23 — Plano 002: um bolt por marco, falha de inicialização no JSON e Princípio V
+
+Três decisões do responsável na revisão do plano 002, antes das tarefas.
+
+### 1. Um bolt por marco, com etapas por assunto
+
+- **Origem:** a research R16 do plano 002 dividia o Marco 2 em seis bolts, cada um com branch e PR, um
+  por papel e assunto.
+- **Decisão (responsável):** um único bolt por marco. O Marco 2 é entregue no branch
+  `marco/2-operacao`, com um único PR, dividido em seis etapas por assunto e com um commit por etapa.
+  Os papéis (implementador, infraestrutura e documentação) são os responsáveis por etapa, e não bolts
+  separados.
+- **Motivo:**
+  - um extra só entra completo, e o pipeline só serve de portão de merge quando tudo o que ele verifica
+    já existe;
+  - PRs intermediários deixariam o marco pela metade na `main`;
+  - um commit por etapa mantém a revisão por assunto dentro do PR único, como nos bolts 5 e 6 do Marco 1
+    (entrada "Bolts 5 e 6 entregues juntos").
+- **Alternativa rejeitada:** seis bolts com branch e PR próprios, como na primeira versão da R16.
+- **Regras mantidas:** cada etapa começa pelos testes e termina com `./mvnw verify` verde; o limite de
+  três agentes e o dono único de cada arquivo compartilhado valem por etapa; PR, merge e tag continuam
+  com o responsável.
+- **Impacto:** research R16, plano 002 (resumo e riscos), quickstart e a história 6 da spec ("portão de
+  merge do bolt do marco").
+
+### 2. Evento JSON da falha de inicialização sem rastro obrigatório
+
+- **Origem:** a US4-3 da spec 002 pedia a mensagem **e a pilha** da exceção no mesmo evento JSON, usando
+  a falha por arquivo ausente como exemplo. O plano apontou que o Boot não registra a pilha quando um
+  `FailureAnalyzer` trata a falha, que é o caso do `MovieFileFailureAnalyzer`, e previa procurar outra
+  falha, sem analisador, só para ter uma pilha.
+- **Decisão (responsável):** o evento JSON da falha de inicialização traz a mensagem de erro. O rastro
+  da exceção só aparece quando existe, no mesmo evento, porque o analisador de falhas o substitui por uma
+  mensagem clara.
+- **Motivo:** a mensagem clara do Marco 1 (spec 001, FR-005 e SC-006) é o comportamento desejado.
+  Provocar uma falha artificial só para mostrar uma pilha testaria o formato do Boot, e não a aplicação.
+- **Alternativa rejeitada:** manter a pilha obrigatória e testar com uma falha que nenhum analisador
+  trata.
+- **Impacto:** spec 002 (clarificação, US4-3 e FR-017), research R6 e o risco correspondente do plano,
+  que saiu.
+
+### 3. Princípio V: ETag, health e métricas ligados no `./mvnw` (emenda 1.4.1)
+
+- **Origem:** o plano 002 deixou ETag, health e métricas ligados no modo padrão, sem perfil nem chave, e
+  registrou isso como uma leitura do Princípio V. O texto do princípio listava o ETag entre os extras que
+  "MUST ser ativados só pelo seu perfil ou pela sua configuração".
+- **Decisão (responsável):** aceitar a leitura do plano e emendar o texto (PATCH, 1.4.0 → 1.4.1):
+  - extras com infraestrutura própria (PostgreSQL, Kafka, Prometheus e Grafana em execução, front-end,
+    imagem e deploy) continuam ativados só pelo seu perfil ou pela sua configuração;
+  - extras da API sem infraestrutura própria (listagem, Swagger UI, ETag, health e métricas) podem ficar
+    ligados no modo padrão, desde que não alterem o comportamento avaliado;
+  - a autenticação continua desligada por padrão (Princípio VII).
+- **Motivo:**
+  - ETag, health e métricas não mudam o contrato de intervalos, os resultados nem os testes do
+    enunciado. A suíte do Marco 1 passa sem alteração (SC-002 da spec 002);
+  - o briefing já põe esses itens na camada "Extra na API", que roda no `./mvnw`;
+  - o objetivo do isolamento é não exigir infraestrutura no modo padrão, e esses extras não têm nenhuma.
+- **Por que PATCH:** a emenda esclarece a intenção do texto, sem princípio novo nem regra removida. A
+  listagem e o Swagger UI do Marco 1 já ficavam ligados no modo padrão.
+- **Alternativa rejeitada:** uma propriedade de liga e desliga para cada extra da API: configuração sem
+  uso, contra a regra de simplicidade do próprio Princípio V.
+- **Impacto:** constituição 1.4.1, com o Sync Impact Report atualizado, e o Constitution Check do plano
+  002. Spec 001 e `AGENTS.md` sem mudança.
+
+### 4. README no escopo do Marco 2, como etapa 6 do bolt
+
+- **Origem:** o pedido de tarefas do responsável ordena as etapas como ETag, observabilidade,
+  Dockerfile, pipeline e Dependabot, ADRs e atualização do README. A spec 002 deixava o README fora do
+  escopo, e a R16 juntava logs e JaCoCo numa etapa própria.
+- **Decisão (responsável, aplicada pelo implementador antes das tarefas, Princípio IV):**
+  - a spec ganhou a FR-034 (o que o README passa a documentar), comprovada por revisão, com a seção
+    "Revisão do README" no checklist (Princípio VI, 1.4.0);
+  - a R16 passou a ter as seis etapas do pedido: os logs entram na etapa de observabilidade, e o JaCoCo
+    na de pipeline, com o implementador como responsável pelo `pom.xml`.
+- **Impacto:** spec 002 (FR-032, FR-034 e premissas), checklist, research R16, plano (resumo e matriz) e
+  `tasks.md`.
+
+## 2026-11-23 — Emenda 1.4.0 da constituição: comprovação por tipo de requisito (Princípio VI)
+
+- **Origem:** clarificação da spec 002. O Princípio VI exigia que todo requisito apontasse para um
+  teste de integração. A spec 002 tem requisitos que não são comportamento da aplicação: ADRs (FR-030 e
+  FR-031), imagem e pipeline (FR-021 a FR-029). A decisão de comprovar os ADRs por revisão (entrada
+  abaixo) deixava a spec em desacordo com o princípio.
+- **Decisão (responsável):** emenda MINOR no Princípio VI. Cada requisito aponta para a forma de
+  comprovação adequada ao seu tipo:
+  - **comportamento da aplicação:** teste de integração, como antes (Princípio I);
+  - **documentação** (README, ADRs e guias): revisão no pull request, com item no checklist da spec;
+  - **pipeline e imagem** (teste de fumaça do container, análise de segurança, cobertura mínima e lint
+    do Dockerfile): execução do pipeline no GitHub Actions.
+
+  Requisito de comportamento da aplicação continua exigindo teste de integração e não pode ser
+  comprovado só por revisão ou pelo pipeline.
+- **Motivo:**
+  - o conteúdo de um documento só uma leitura avalia, e um teste confirmaria só que as seções existem;
+  - o container e o pipeline só existem no GitHub Actions. Um teste de integração no `./mvnw verify`
+    não os exercita, e trazê-los para lá exigiria Docker no modo padrão, contra o Princípio II;
+  - sem a emenda, a spec teria de criar testes de fachada ou deixar requisitos sem comprovação.
+- **Alternativas rejeitadas:**
+  - manter o Princípio VI e abrir exceções em cada spec: a spec não pode abrir exceção a um princípio,
+    o mesmo problema que levou à emenda 1.2.0;
+  - verificar ADRs por um estágio do pipeline: teste de forma, não de conteúdo (entrada abaixo).
+- **Impacto:**
+  - constituição 1.3.0 → 1.4.0 (MINOR, compatível: todo requisito que cumpria a versão anterior
+    continua cumprindo), com o Sync Impact Report atualizado;
+  - `AGENTS.md`, regra de rastreabilidade do fluxo de trabalho;
+  - spec 002: a FR-032 cita o Princípio VI;
+  - spec 001: nenhuma mudança, porque todos os seus requisitos são de comportamento.
+
+## 2026-11-23 — ADRs comprovados por revisão (spec 002)
+
+- **Origem:** clarificação da spec 002. O Princípio VI pede que cada requisito aponte para um teste, e
+  os ADRs (FR-030 e FR-031) são documentos, sem comportamento a testar.
+- **Decisão (responsável):** os ADRs são comprovados por revisão no pull request, pela seção "Revisão
+  dos ADRs" do checklist da spec (`specs/002-operacao/checklists/requirements.md`). Ela confere três
+  pontos:
+  - cada ADR tem contexto, decisão, alternativas consideradas e consequências;
+  - cada ADR cita a entrada correspondente neste arquivo;
+  - há um ADR para cada decisão de arquitetura listada na FR-030.
+
+  Não há verificação automatizada no pipeline.
+- **Motivo:** o que importa num ADR é o conteúdo, e só uma leitura avalia isso. Um teste no pipeline só
+  confirmaria que as seções existem.
+- **Alternativas rejeitadas:**
+  - estágio do pipeline que confere a existência e as seções dos ADRs: um teste de forma, não de
+    conteúdo;
+  - registrar a decisão só aqui, sem emenda: deixaria a spec em desacordo com o Princípio VI. Foi
+    substituída pela emenda 1.4.0 (entrada acima).
+- **Efeito:** as decisões da FR-030 que ainda não têm entrada aqui (por exemplo, a stack e o Problem
+  Details, decididos no plano 001) ganham a entrada junto com o ADR (FR-031).
+- **Impacto:** spec 002 (clarificação de 2026-11-23, história 7, FR-031, FR-032 e SC-009) e o checklist
+  da spec.
+
+## 2026-11-23 — Critérios de reprovação do pipeline: segurança e cobertura (spec 002)
+
+- **Origem:** clarificação da spec 002. A FR-028 pedia análise de segurança e cobertura no pipeline,
+  sem dizer o que reprova.
+- **Decisão (responsável):**
+  - **segurança:** achados de severidade alta ou crítica reprovam o pipeline. Na análise de
+    dependências e na da imagem, contam só as vulnerabilidades com versão corrigida disponível. Achados
+    médios e baixos aparecem no relatório, sem reprovar;
+  - **cobertura:** medida pelos testes de integração (JaCoCo sobre a execução do Failsafe), com um
+    mínimo de linhas abaixo da cobertura atual medida, com piso de 80% (valor final de 90%, abaixo).
+- **Medição (implementador):**
+  - commit `39b3188` (fim do Marco 1, `main`), JaCoCo 0.8.14 chamado pela linha de comando
+    (`prepare-agent-integration`, `verify` e `report-integration`), sem alterar o `pom.xml`;
+  - 136 ITs, sem falhas nem testes pulados;
+  - **linhas: 330 de 340, 97,06%**; ramos: 109 de 115, 94,78%;
+  - as 10 linhas não cobertas estão no `main` da `AwardsApplication`, em construtores e métodos
+    exigidos pelo JPA nas entidades `Movie` e `Producer` e em uma linha de cada um de
+    `InvalidParameterException`, `MovieCsvReader`, `MovieFileProperties` e `MovieFileLoader`.
+- **Valor escolhido (responsável):** **90% de linhas**, acima do piso de 80%. O implementador havia
+  proposto 95%, e o responsável ajustou para 90% porque:
+  - uma margem de 2 pontos é pequena para 340 linhas: 7 linhas novas sem cobertura já bastariam para
+    reprovar;
+  - o Marco 3 acrescenta código que só roda no perfil Docker (PostgreSQL e Kafka), fora do `./mvnw
+    verify` padrão, e que portanto reduz a cobertura medida.
+- **Motivo:**
+  - uma vulnerabilidade alta sem versão corrigida não tem ação possível no bolt, e reprovar por ela
+    travaria o merge sem ganho;
+  - os achados médios e baixos ficam visíveis no relatório, para decisão caso a caso;
+  - a cobertura vem dos testes de integração porque, pelo Princípio I, eles são os únicos testes do
+    back-end. Um mínimo tirado da medição evita um número arbitrário.
+- **Alternativas rejeitadas:**
+  - cobertura só relatada: não impediria que um bolt entregasse código sem teste, contra o Princípio VI;
+  - mínimo fixo de 80%: deixaria cair 17 pontos sem nenhum aviso;
+  - mínimo de 95%, proposto pelo implementador: margem pequena demais, pelos motivos acima;
+  - reprovar também por vulnerabilidades sem correção: bloquearia por algo que o projeto não consegue
+    resolver.
+- **Impacto:** spec 002 (clarificação de 2026-11-23, história 6, FR-028, FR-028a e SC-008). O plugin
+  entra no `pom.xml` no bolt do pipeline, pelo plano.
+
+## 2026-11-23 — Emenda 1.3.0 da constituição: log em texto no `./mvnw`, JSON no container
+
+- **Origem:** clarificação da spec 002 (Marco 2, operação). A constituição 1.1.0 dizia que, a partir do
+  Marco 2, "valem os logs estruturados em JSON", sem separar a execução local da execução em container.
+  Com isso, o `./mvnw spring-boot:run` do avaliador passaria a mostrar JSON no terminal.
+- **Decisão (responsável):**
+  - na execução local padrão (`./mvnw spring-boot:run`), o log continua no texto padrão do framework;
+  - o JSON é ligado por uma variável de ambiente. O Dockerfile define essa variável na imagem, e ela
+    também liga o JSON em qualquer outra execução;
+  - a constituição foi emendada: os logs em JSON valem para a execução em container e para os ambientes
+    operacionais, e a execução local padrão usa texto.
+- **Motivo:**
+  - quem avalia roda o `./mvnw` e lê o log no terminal, onde o texto é legível e o JSON não é;
+  - o JSON existe para ser lido por coletores de log, que só estão presentes no container e nos
+    ambientes operacionais;
+  - com uma só variável, o mesmo artefato serve aos dois usos, e o formato é escolhido no ambiente, e
+    não no build.
+- **Alternativas rejeitadas:**
+  - JSON sempre, com texto opcional por variável: cumpria a redação anterior, mas piorava a leitura do
+    terminal justamente no modo que o avaliador usa;
+  - JSON sempre, sem opção de texto: mesmo problema, e sem como voltar ao texto;
+  - formato escolhido por perfil do Spring: misturaria o formato do log com a escolha de banco e de
+    ingestão, que é o papel dos perfis.
+- **Impacto:**
+  - constituição 1.2.0 → 1.3.0 (MINOR), seção "Restrições técnicas e de segurança" > Observabilidade;
+  - `AGENTS.md`, linha "Logs" da tabela de stack;
+  - spec 002: clarificação de 2026-11-23, história 4, FR-017, FR-018, FR-020, FR-024a, FR-030 e SC-005.
+    Os testes que verificam o log passam a valer nos dois formatos;
+  - spec 001: nenhuma mudança.
+
 ## 2026-11-22 — Três ambiguidades apontadas pelo testador adversário
 
 - **Origem:** rodada do Codex como testador adversário do Marco 1, com os casos em
