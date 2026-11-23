@@ -35,7 +35,11 @@ public class MovieCsvReader {
     static final String EXPECTED_HEADER_TEXT = String.join(";", EXPECTED_HEADER);
 
     private static final char BOM = '﻿';
-    private static final Pattern YEAR = Pattern.compile("\\d{1,9}");
+    private static final Pattern YEAR = Pattern.compile("\\d+");
+    private static final Pattern LEADING_ZEROS = Pattern.compile("^0+");
+    /** Faixa válida de ano (FR-006, sessão 2026-11-22 da spec). */
+    private static final int MIN_YEAR = 1;
+    private static final int MAX_YEAR = 9999;
 
     private static final CSVFormat FORMAT = CSVFormat.DEFAULT.builder()
             .setDelimiter(';')
@@ -160,6 +164,9 @@ public class MovieCsvReader {
         if (!YEAR.matcher(year).matches()) {
             return new Rejection(lineNumber, RejectionReason.YEAR_NOT_NUMERIC, year);
         }
+        if (!isYearInRange(year)) {
+            return new Rejection(lineNumber, RejectionReason.YEAR_OUT_OF_RANGE, year);
+        }
         String title = record.get(1);
         if (title.isEmpty()) {
             return new Rejection(lineNumber, RejectionReason.TITLE_MISSING, null);
@@ -176,6 +183,20 @@ public class MovieCsvReader {
             return new Rejection(lineNumber, RejectionReason.DUPLICATE, "mesmo ano e título da linha " + original);
         }
         return null;
+    }
+
+    /**
+     * Se o ano, já só com dígitos, está entre {@link #MIN_YEAR} e {@link #MAX_YEAR}. Os zeros à esquerda
+     * são descartados antes, e o tamanho é conferido antes da conversão, para que uma sequência longa de
+     * dígitos não estoure o {@code int}.
+     */
+    private static boolean isYearInRange(String digits) {
+        String significant = LEADING_ZEROS.matcher(digits).replaceFirst("");
+        if (significant.length() > String.valueOf(MAX_YEAR).length()) {
+            return false;
+        }
+        int value = significant.isEmpty() ? 0 : Integer.parseInt(significant);
+        return value >= MIN_YEAR && value <= MAX_YEAR;
     }
 
     private static MovieRow toRow(CSVRecord record, long lineNumber) {

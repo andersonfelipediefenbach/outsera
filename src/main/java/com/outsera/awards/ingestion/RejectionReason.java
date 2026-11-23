@@ -8,6 +8,7 @@ public enum RejectionReason {
     COLUMN_COUNT("número de colunas diferente de 5"),
     YEAR_MISSING("ano vazio"),
     YEAR_NOT_NUMERIC("ano não numérico"),
+    YEAR_OUT_OF_RANGE("ano fora da faixa de 1 a 9999"),
     TITLE_MISSING("título vazio"),
     PRODUCERS_MISSING("produtores vazios"),
     WINNER_INVALID("winner diferente de yes ou vazio"),
