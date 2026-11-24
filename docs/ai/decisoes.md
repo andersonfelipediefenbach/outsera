@@ -3,6 +3,30 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-24 — Teste de fumaça local e correções do script
+
+Com o Docker ligado, a imagem foi construída e o `smoke-test.sh` rodou no Git Bash do Windows (Docker
+26.0.0). A primeira execução expôs defeitos do próprio script, e não da imagem:
+
+- **Porta fixa no host:** havia um processo Java local na 8080 do host. O passo 1 falhou, e os passos 2
+  e 3 "passaram" chamando esse processo, e não o container: falso positivo. **Correção:** cada container
+  publica a porta numa porta aleatória do host, só em `127.0.0.1`, lida com `docker port`.
+- **Passos dependentes sem o container:** os passos 4 e 6 também passaram com o container parado. O 4
+  aceitou um `id -u` vazio, e o 6 "parou" um container que não rodava. **Correção:** os passos 2 a 6
+  exigem o container do passo 1 rodando e falham com esse motivo. O passo 4 exige um uid numérico
+  diferente de 0. Com uma imagem inexistente, os passos 1 a 6 agora falham.
+- **Contexto de build no Git Bash:** o `check-docker-context.sh` exporta `MSYS_NO_PATHCONV=1` e passava
+  o caminho POSIX ao `docker.exe`, que não o encontra. **Correção:** no Git Bash, o contexto é convertido
+  com `cygpath -w`, como já era feito nos bind mounts.
+
+A spec mudou antes do código (research R14). Depois das correções, o teste de fumaça deu 12 OK, 0 FALHA
+e 1 PULADO, com o mesmo processo ainda ocupando a 8080. O passo 13 foi pulado porque o `chmod 000` não
+vale no bind mount do Docker Desktop; no pipeline, ele precisa rodar (T047). O log do container saiu em
+JSON (33 linhas, todas válidas no `jq`), no formato ECS aninhado, com
+`LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs` vindo da imagem. Com a variável vazia, saiu em texto (passo 12).
+O `jq` 1.8.1 veio da release oficial, com o checksum conferido, para o diretório temporário da sessão,
+fora do repositório.
+
 ## 2026-11-24 — Fechamento do bolt do Marco 2 (etapa 6)
 
 - **README (FR-034):** atualizado com o formato do log, a imagem Docker, o ETag e o 304, os endpoints

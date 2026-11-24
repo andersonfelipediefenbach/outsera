@@ -63,10 +63,19 @@ skip_step() { # passo, descrição, motivo
   fi
 }
 
-start_container() { # nome, porta no host, porta no container, argumentos extras...
-  local name="$1" host_port="$2" container_port="$3"; shift 3
+# A porta do container é publicada numa porta aleatória do host, só em 127.0.0.1, para que nenhum
+# processo que já ocupe uma porta fixa do host responda no lugar do container (research R14).
+start_container() { # nome, porta no container, argumentos extras...
+  local name="$1" container_port="$2"; shift 2
   CONTAINERS+=("$name")
-  docker run -d --name "$name" -p "$host_port:$container_port" "$@" "$IMAGE" >/dev/null
+  docker run -d --name "$name" -p "127.0.0.1::$container_port" "$@" "$IMAGE" >/dev/null
+}
+url_of() { # nome, porta no container
+  local mapping
+  mapping="$(docker port "$1" "$2/tcp")" || return 1
+  mapping="$(sed -n '1p' <<<"$mapping")"
+  [[ -n "$mapping" ]] || { echo "    o container $1 não publicou a porta $2"; return 1; }
+  printf 'http://127.0.0.1:%s' "${mapping##*:}"
 }
 wait_healthy() { # nome, segundos
   local name="$1" limit="$2" status
@@ -91,11 +100,26 @@ logs_of() { docker logs "$1" 2>&1; }
 REFERENCE='{"min":[{"producer":"Joel Silver","interval":1,"previousWin":1990,"followingWin":1991}],"max":[{"producer":"Matthew Vaughn","interval":13,"previousWin":2002,"followingWin":2015}]}'
 SCENARIO_EXPECTED='{"min":[{"producer":"Producer A","interval":2,"previousWin":1950,"followingWin":1952}],"max":[{"producer":"Producer B","interval":50,"previousWin":1925,"followingWin":1975}]}'
 MAIN=awards-smoke-main
+MAIN_URL=""
 
-step1() { start_container "$MAIN" 8080 8080 && wait_healthy "$MAIN" 90; }
+# Os passos 2 a 6 usam o container do passo 1. Sem ele rodando, falham sem chamar nada.
+require_main() {
+  if [[ -n "$MAIN_URL" && "$(docker inspect --format '{{.State.Running}}' "$MAIN" 2>/dev/null)" == "true" ]]; then
+    return 0
+  fi
+  echo "    o container do passo 1 não está rodando"
+  return 1
+}
+
+step1() {
+  start_container "$MAIN" 8080 && wait_healthy "$MAIN" 90 || return 1
+  MAIN_URL="$(url_of "$MAIN" 8080)" || return 1
+  echo "    API em $MAIN_URL"
+}
 step2() {
   local body elapsed_ms
-  body="$(curl -fsS http://127.0.0.1:8080/api/producers/intervals)" || return 1
+  require_main || return 1
+  body="$(curl -fsS "$MAIN_URL/api/producers/intervals")" || return 1
   same_json "$REFERENCE" "$body" || { echo "    resposta: $body"; return 1; }
   elapsed_ms=$(( ($(date +%s%N) - START_NS) / 1000000 ))
   echo "    resultado de referência em ${elapsed_ms} ms desde o início do teste (SC-006: < 120000)"
@@ -103,21 +127,24 @@ step2() {
 }
 step3() {
   local etag code
-  etag="$(curl -fsS -D - -o /dev/null http://127.0.0.1:8080/api/producers/intervals \
+  require_main || return 1
+  etag="$(curl -fsS -D - -o /dev/null "$MAIN_URL/api/producers/intervals" \
     | awk 'tolower($1) == "etag:" { sub(/\r$/, "", $2); print $2 }')"
   [[ -n "$etag" ]] || { echo "    resposta sem ETag"; return 1; }
-  code="$(curl -s -o /dev/null -w '%{http_code}' -H "If-None-Match: $etag" http://127.0.0.1:8080/api/producers/intervals)"
+  code="$(curl -s -o /dev/null -w '%{http_code}' -H "If-None-Match: $etag" "$MAIN_URL/api/producers/intervals")"
   echo "    ETag $etag, revalidação $code"
   [[ "$code" == "304" ]]
 }
 step4() {
   local uid
-  uid="$(docker exec "$MAIN" id -u)"
+  require_main || return 1
+  uid="$(docker exec "$MAIN" id -u)" || return 1
   echo "    uid $uid"
-  [[ "$uid" != "0" ]]
+  [[ "$uid" =~ ^[0-9]+$ && "$uid" != "0" ]]
 }
 step5() {
   local logs
+  require_main || return 1
   logs="$(logs_of "$MAIN")"
   logs="$(grep -v '^[[:space:]]*$' <<<"$logs" || true)"
   [[ -n "$logs" ]] || { echo "    log vazio"; return 1; }
@@ -125,14 +152,17 @@ step5() {
 }
 step6() {
   local t0 t1 ms
+  require_main || return 1
   t0="$(date +%s%N)"; docker stop -t 30 "$MAIN" >/dev/null; t1="$(date +%s%N)"
   ms=$(( (t1 - t0) / 1000000 ))
   echo "    parada em ${ms} ms (limite 10000)"
   (( ms < 10000 ))
 }
 step7() {
-  start_container awards-smoke-port 9090 9090 -e PORT=9090 && wait_healthy awards-smoke-port 90 \
-    && [[ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:9090/api/producers/intervals)" == "200" ]]
+  local url
+  start_container awards-smoke-port 9090 -e PORT=9090 && wait_healthy awards-smoke-port 90 || return 1
+  url="$(url_of awards-smoke-port 9090)" || return 1
+  [[ "$(curl -s -o /dev/null -w '%{http_code}' "$url/api/producers/intervals")" == "200" ]]
 }
 step8() {
   local name=awards-smoke-missing code
@@ -143,11 +173,12 @@ step8() {
   [[ "$code" != "0" ]] && grep -q 'file:/nao-existe.csv' <<<"$(logs_of "$name")"
 }
 step9() {
-  local body
-  start_container awards-smoke-scenario 8081 8080 \
+  local body url
+  start_container awards-smoke-scenario 8080 \
     -v "$(host_path "$SCENARIO"):/data/movies.csv:ro" -e MOVIES_CSV_PATH=file:/data/movies.csv \
     && wait_healthy awards-smoke-scenario 90 || return 1
-  body="$(curl -fsS http://127.0.0.1:8081/api/producers/intervals)" || return 1
+  url="$(url_of awards-smoke-scenario 8080)" || return 1
+  body="$(curl -fsS "$url/api/producers/intervals")" || return 1
   same_json "$SCENARIO_EXPECTED" "$body" || { echo "    resposta: $body"; return 1; }
 }
 step10() {
@@ -157,7 +188,7 @@ step10() {
 step11() { "$SCRIPT_DIR/check-docker-context.sh"; }
 step12() {
   local first
-  start_container awards-smoke-text 8082 8080 -e LOGGING_STRUCTURED_FORMAT_CONSOLE= \
+  start_container awards-smoke-text 8080 -e LOGGING_STRUCTURED_FORMAT_CONSOLE= \
     && wait_healthy awards-smoke-text 90 || return 1
   first="$(grep -v '^[[:space:]]*$' <<<"$(logs_of awards-smoke-text)" | sed -n '1p' || true)"
   echo "    primeira linha: ${first:0:120}"

@@ -450,7 +450,7 @@ correspondente (R16) faz essa verificação, e o resultado volta para esta resea
 
 - **Decisão:** um script, `.github/scripts/smoke-test.sh` (bash, `set -euo pipefail`), chamado pelo job
   `image`, com a imagem construída e carregada localmente:
-  1. sobe o container com `-p 8080:8080` e espera o estado `healthy` do healthcheck (até 90 s);
+  1. sobe o container e espera o estado `healthy` do healthcheck (até 90 s);
   2. chama `GET /api/producers/intervals` e compara com `jq` com o resultado de referência (Joel Silver
      1990–1991 e Matthew Vaughn 2002–2015, sem nenhum item a mais);
   3. repete com `If-None-Match` igual ao `ETag` recebido e exige 304;
@@ -473,9 +473,14 @@ correspondente (R16) faz essa verificação, e o resultado volta para esta resea
       FR-025).
 
   Os containers e os arquivos temporários são removidos ao fim, mesmo com falha (`trap`).
+- **Portas e dependência entre passos:** cada container publica a porta da aplicação numa porta
+  aleatória do host, só em `127.0.0.1` (`-p 127.0.0.1::<porta>`), e o script lê a porta escolhida com
+  `docker port`. Assim, nenhum processo que já ocupe a 8080 do host atende no lugar do container. Os
+  passos 2 a 6 dependem do container do passo 1: se ele não está rodando, cada um falha com esse motivo,
+  sem chamar nada. O passo 4 exige que `id -u` devolva um número diferente de 0; saída vazia é falha.
 - **Portabilidade (Windows e Linux):** o script roda no runner Linux e também localmente, no Linux e no
-  Git Bash do Windows com Docker Desktop. No Git Bash, ele exporta `MSYS_NO_PATHCONV=1` e converte o
-  caminho de cada bind mount com `cygpath -w`.
+  Git Bash do Windows com Docker Desktop. No Git Bash, ele exporta `MSYS_NO_PATHCONV=1` e converte com
+  `cygpath -w` o caminho de cada bind mount e, no `check-docker-context.sh`, o do contexto de build.
 - **Passo 13 e permissões:** a permissão de arquivo do host nem sempre vale dentro do container. O
   `chmod 000` não tem efeito no NTFS pelo Git Bash, e o Docker Desktop pode expor os bind mounts com
   permissão aberta. Por isso, o passo começa com uma sonda: um container com o usuário 10001 tenta ler o

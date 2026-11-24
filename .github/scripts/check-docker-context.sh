@@ -11,8 +11,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 PROBE=awards-context-probe:local
 
+# No Git Bash, a conversão automática do MSYS fica desligada, então o caminho do contexto de build
+# precisa ir ao docker no formato do Windows.
+CONTEXT="$REPO_ROOT"
 case "$(uname -s)" in
-  MINGW*|MSYS*) export MSYS_NO_PATHCONV=1 ;;
+  MINGW*|MSYS*) export MSYS_NO_PATHCONV=1; CONTEXT="$(cygpath -w "$REPO_ROOT")" ;;
 esac
 
 if ! command -v docker >/dev/null 2>&1; then
@@ -33,7 +36,7 @@ fi
 cleanup() { docker rmi -f "$PROBE" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
-printf 'FROM %s\nCOPY . /ctx\n' "$BASE" | docker build -q -f - -t "$PROBE" "$REPO_ROOT" >/dev/null
+printf 'FROM %s\nCOPY . /ctx\n' "$BASE" | docker build -q -f - -t "$PROBE" "$CONTEXT" >/dev/null
 
 mapfile -t ENTRIES < <(docker run --rm --entrypoint find "$PROBE" /ctx -mindepth 1 | sed 's|^/ctx/||' | sort)
 
