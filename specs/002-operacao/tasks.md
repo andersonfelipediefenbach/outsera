@@ -220,16 +220,16 @@ revisão do PR.
 
 ### Verificação da etapa 5 (antes da escrita)
 
-- [ ] T051 [US7] Conferir que a seção "Revisão dos ADRs" de `specs/002-operacao/checklists/requirements.md` está toda desmarcada e que `docs/adr/` não existe. Essa seção é a comprovação da etapa (Princípio VI): nenhum item pode ser marcado antes de o ADR existir.
+- [X] T051 [US7] Conferir que a seção "Revisão dos ADRs" de `specs/002-operacao/checklists/requirements.md` está toda desmarcada e que `docs/adr/` não existe. Essa seção é a comprovação da etapa (Princípio VI): nenhum item pode ser marcado antes de o ADR existir.
 
 ### Implementação da etapa 5
 
-- [ ] T052 [US7] Em `docs/ai/decisoes.md`, criar uma entrada "2026-11-23 — Decisões de arquitetura sem entrada própria (ADRs)" com uma subseção para cada decisão da R15 marcada como "entrada nova": stack (0001), H2 com JPA e Flyway (0002), Problem Details (0006), ETag (0007), probes (0008), métricas (0009) e imagem (0011). Cada subseção resume a decisão, o motivo e as alternativas, a partir do plano 001, da research 001 e da research 002, sem repetir o ADR inteiro.
-- [ ] T053 [P] [US7] Criar os ADRs do Marco 1 em `docs/adr/`: `0001-stack-java-spring-boot-maven.md`, `0002-h2-jpa-flyway.md`, `0003-carga-do-csv-na-inicializacao.md`, `0004-somente-testes-de-integracao.md`, `0005-contrato-openapi-estatico.md` e `0006-problem-details.md`. Cada um com título, `Status: Aceito`, data da decisão original, e as seções Contexto, Decisão, Alternativas consideradas, Consequências e Origem, com link para a entrada correspondente em `docs/ai/decisoes.md` (FR-031). No máximo uma página cada.
-- [ ] T054 [P] [US7] Criar os ADRs do Marco 2 em `docs/adr/`: `0007-etag-pelo-conteudo.md`, `0008-liveness-e-readiness.md`, `0009-metricas-prometheus.md`, `0010-formato-do-log.md`, `0011-imagem-de-container.md` e `0012-pipeline-e-cadeia-de-entrega.md`, no mesmo formato do T053. O 0010 cita a emenda 1.3.0 e a decisão do banner desligado. O 0011 registra por que a memória vai no `ENTRYPOINT`, e não em `JAVA_TOOL_OPTIONS`. O 0012 cita as entradas dos critérios do pipeline e da cobertura e a verificação das referências aninhadas da `trivy-action`.
-- [ ] T055 [US7] Criar `docs/adr/README.md` com o índice (número, título com link, status e data) dos doze ADRs e um parágrafo sobre o formato e a numeração (data-model, "ADR").
-- [ ] T056 [US7] Percorrer a seção "Revisão dos ADRs" do checklist como autoverificação (sem marcar os itens, que são do revisor) e rodar `./mvnw verify`: verde.
-- [ ] T057 [US7] Commit `Etapa 5: ADRs do Marco 1 e do Marco 2` com T051 a T056.
+- [X] T052 [US7] Em `docs/ai/decisoes.md`, criar uma entrada "2026-11-23 — Decisões de arquitetura sem entrada própria (ADRs)" com uma subseção para cada decisão da R15 marcada como "entrada nova": stack (0001), H2 com JPA e Flyway (0002), Problem Details (0006), ETag (0007), probes (0008), métricas (0009) e imagem (0011). Cada subseção resume a decisão, o motivo e as alternativas, a partir do plano 001, da research 001 e da research 002, sem repetir o ADR inteiro.
+- [X] T053 [P] [US7] Criar os ADRs do Marco 1 em `docs/adr/`: `0001-stack-java-spring-boot-maven.md`, `0002-h2-jpa-flyway.md`, `0003-carga-do-csv-na-inicializacao.md`, `0004-somente-testes-de-integracao.md`, `0005-contrato-openapi-estatico.md` e `0006-problem-details.md`. Cada um com título, `Status: Aceito`, data da decisão original, e as seções Contexto, Decisão, Alternativas consideradas, Consequências e Origem, com link para a entrada correspondente em `docs/ai/decisoes.md` (FR-031). No máximo uma página cada.
+- [X] T054 [P] [US7] Criar os ADRs do Marco 2 em `docs/adr/`: `0007-etag-pelo-conteudo.md`, `0008-liveness-e-readiness.md`, `0009-metricas-prometheus.md`, `0010-formato-do-log.md`, `0011-imagem-de-container.md` e `0012-pipeline-e-cadeia-de-entrega.md`, no mesmo formato do T053. O 0010 cita a emenda 1.3.0 e a decisão do banner desligado. O 0011 registra por que a memória vai no `ENTRYPOINT`, e não em `JAVA_TOOL_OPTIONS`. O 0012 cita as entradas dos critérios do pipeline e da cobertura e a verificação das referências aninhadas da `trivy-action`.
+- [X] T055 [US7] Criar `docs/adr/README.md` com o índice (número, título com link, status e data) dos doze ADRs e um parágrafo sobre o formato e a numeração (data-model, "ADR").
+- [X] T056 [US7] Percorrer a seção "Revisão dos ADRs" do checklist como autoverificação (sem marcar os itens, que são do revisor) e rodar `./mvnw verify`: verde.
+- [X] T057 [US7] Commit `Etapa 5: ADRs do Marco 1 e do Marco 2` com T051 a T056.
 
 **Checkpoint**: US7 pronta para a revisão.
 

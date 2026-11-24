@@ -3,6 +3,81 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-24 — Decisões de arquitetura sem entrada própria (ADRs)
+
+Registro feito junto com os ADRs da etapa 5 do Marco 2 (FR-031). As decisões abaixo foram tomadas nos
+planos 001 e 002 e nas etapas do Marco 2, mas não tinham entrada aqui. Cada uma é resumida, e o detalhe
+fica no ADR e na research.
+
+### Stack: Java 25, Spring Boot 4.1.2 e Maven com wrapper (ADR 0001)
+
+- **Decisão (plano 001, research R1):** Java 25 (LTS), Spring Boot 4.1.2 e Maven 3.9.16 pelo Maven
+  Wrapper 3.3.4, na distribuição `only-script`.
+- **Motivo:** o Boot 4.1.2 era a última versão estável (a 4.2.0 estava em RC). O wrapper permite subir e
+  testar só com o JDK (Princípio II), sem um JAR binário no repositório.
+- **Alternativas rejeitadas:** Boot 4.2.0-RC2 e Maven 4 RC, que não eram estáveis; Boot 3.5.x, que não
+  era o "estável atual"; wrapper com JAR.
+
+### H2 com JPA e esquema por Flyway (ADR 0002)
+
+- **Decisão (plano 001, research R5):** H2 em memória no modo padrão, JPA com `ddl-auto=validate` e
+  esquema versionado pelo Flyway (`V1__create_schema.sql`), com três tabelas (`movie`, `producer` e
+  `movie_producer`) e consultas em JPQL, sem SQL nativo.
+- **Motivo:** o avaliador roda sem nada instalado, e o mesmo esquema e as mesmas consultas servem ao
+  PostgreSQL do Marco 3. A unicidade de ano + título também fica no banco.
+- **Alternativas rejeitadas:** tabela única com os produtores em texto; `ddl-auto=create`, que a
+  constituição proíbe.
+
+### Erros em Problem Details (ADR 0006)
+
+- **Decisão (plano 001, research R7):** os erros da API saem em Problem Details (RFC 9457), com
+  `spring.mvc.problemdetails.enabled` e um `@RestControllerAdvice` que converte o parâmetro inválido em
+  400 com a propriedade `invalidParams` (`[{name, reason}]`). O 405 também sai em Problem Details, com o
+  cabeçalho `Allow`.
+- **Motivo:** é o formato padrão para erros HTTP, que o próprio Spring produz, e a constituição o exige.
+- **Alternativas rejeitadas:** um corpo de erro próprio; o corpo de erro padrão do Boot, que não segue a
+  RFC.
+
+### ETag derivado do conteúdo (ADR 0007)
+
+- **Decisão (plano 002, research R4; etapa 1):** ETag forte, `"0"` mais o MD5 do corpo, nas respostas
+  2xx de GET dos dois endpoints de negócio, pelo filtro `ContentEtagFilter`, e 304 na revalidação,
+  inclusive com `If-None-Match: *`.
+- **Motivo:** os dados não mudam durante a execução, e os corpos são pequenos. Um ETag do corpo não exige
+  estado novo nem mudança nos controllers. O filtro próprio existe porque o `ShallowEtagHeaderFilter` do
+  Spring não trata o `*` (entrada da etapa 1, abaixo).
+- **Alternativas rejeitadas:** ETag por "versão" dos dados; ETag fraco; `Cache-Control` com `max-age`.
+
+### Liveness e readiness pelo Actuator (ADR 0008)
+
+- **Decisão (plano 002, research R1 e R2; etapa 2):** probes do Actuator em `/actuator/health/liveness` e
+  `/actuator/health/readiness`, na mesma porta da API, sem detalhes. A readiness fica positiva no
+  `ApplicationReadyEvent`, que o ciclo de vida do Boot garante depois da carga do CSV.
+- **Motivo:** é o caminho padrão do framework, sem código próprio. A ordem "carga → pronta" já é garantida
+  pelo ciclo de vida.
+- **Alternativas rejeitadas:** controllers próprios de saúde; um `HealthIndicator` com uma flag de "carga
+  concluída"; uma porta separada para o Actuator.
+
+### Métricas no formato do Prometheus (ADR 0009)
+
+- **Decisão (plano 002, research R3; etapa 2):** Micrometer com o registro do Prometheus, em
+  `/actuator/prometheus`. A métrica `http.server.requests` tem histograma de 1 ms a 10 s, e o rótulo
+  `application` vai em todas as séries.
+- **Motivo:** o histograma permite calcular percentis e a fração abaixo de um limite no Prometheus, que é
+  a base do SLO do Marco 4.
+- **Alternativas rejeitadas:** percentis calculados na aplicação, que não se agregam entre instâncias.
+
+### Imagem de container (ADR 0011)
+
+- **Decisão (plano 002, research R8; etapa 3):** Dockerfile multi-stage, com
+  `eclipse-temurin:25-jdk-alpine` no build e `eclipse-temurin:25-jre-alpine` na execução, fixados por
+  digest. O JAR é extraído em camadas, o usuário é 10001, o healthcheck usa a readiness, e o `ENTRYPOINT`
+  é em forma exec, com a memória no próprio `ENTRYPOINT` e não em `JAVA_TOOL_OPTIONS`.
+- **Motivo:** é a menor imagem JRE oficial que ainda tem shell para o healthcheck com `PORT`. O digest
+  torna o build reprodutível. A JVM como PID 1 recebe o `SIGTERM`.
+- **Alternativas rejeitadas:** distroless, que não tem shell; runtime por `jlink`; Buildpacks; rodar os
+  testes dentro do build da imagem.
+
 ## 2026-11-24 — Etapa 2 do Marco 2: `groups` na saúde geral, banner e formato ECS
 
 - **`groups` na saúde geral (FR-011):**
