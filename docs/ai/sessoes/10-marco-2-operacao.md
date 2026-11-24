@@ -11353,3 +11353,879 @@ um commit ao fim de cada etapa. Não faça push.
   - T047–T050, which need you to push the branch.
 
 ✻ Baked for 1m 26s · done 13:38
+
+❯ /export docs/ai/sessoes/10-marco-2-operacao.md                                
+  ⎿  Conversation exported to D:\Repo\PESSOAIS\outsera-test\outsera\docs\ai\sess
+     oes\10-marco-2-operacao.md
+
+❯ O job do hadolint falhou no pipeline com este erro:(Run                       
+  hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387) . Corrija  
+  o Dockerfile. Se a regra não se aplicar ao nosso caso, ignore-a com um        
+  comentário no Dockerfile explicando o motivo, em vez de desligá-la no         
+  pipeline inteiro. Faça um commit separado.                                    
+  Run hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387         
+  /usr/bin/docker run --name b04beeae14444a85b3581ccbda8174aa_703613 --label    
+  662052 --workdir /github/workspace --rm -e "INPUT_DOCKERFILE" -e              
+  "INPUT_FAILURE-THRESHOLD" -e "INPUT_CONFIG" -e "INPUT_RECURSIVE" -e           
+  "INPUT_OUTPUT-FILE" -e "INPUT_NO-COLOR" -e "INPUT_NO-FAIL" -e "INPUT_VERBOSE" 
+  -e "INPUT_FORMAT" -e "INPUT_OVERRIDE-ERROR" -e "INPUT_OVERRIDE-WARNING" -e    
+  "INPUT_OVERRIDE-INFO" -e "INPUT_OVERRIDE-STYLE" -e "INPUT_IGNORE" -e          
+  "INPUT_TRUSTED-REGISTRIES" -e "NO_COLOR" -e "HADOLINT_NOFAIL" -e              
+  "HADOLINT_VERBOSE" -e "HADOLINT_FORMAT" -e "HADOLINT_FAILURE_THRESHOLD" -e    
+  "HADOLINT_OVERRIDE_ERROR" -e "HADOLINT_OVERRIDE_WARNING" -e                   
+  "HADOLINT_OVERRIDE_INFO" -e "HADOLINT_OVERRIDE_STYLE" -e "HADOLINT_IGNORE" -e 
+  "HADOLINT_TRUSTED_REGISTRIES" -e "HADOLINT_CONFIG" -e "HADOLINT_RECURSIVE"    
+  -e "HADOLINT_OUTPUT" -e "HOME" -e "GITHUB_JOB" -e "GITHUB_REF" -e             
+  "GITHUB_SHA" -e "GITHUB_REPOSITORY" -e "GITHUB_REPOSITORY_OWNER" -e           
+  "GITHUB_REPOSITORY_OWNER_ID" -e "GITHUB_RUN_ID" -e "GITHUB_RUN_NUMBER" -e     
+  "GITHUB_RETENTION_DAYS" -e "GITHUB_RUN_ATTEMPT" -e "GITHUB_ACTOR_ID" -e       
+  "GITHUB_ACTOR" -e "GITHUB_WORKFLOW" -e "GITHUB_HEAD_REF" -e "GITHUB_BASE_REF" 
+  -e "GITHUB_EVENT_NAME" -e "GITHUB_SERVER_URL" -e "GITHUB_API_URL" -e          
+  "GITHUB_GRAPHQL_URL" -e "GITHUB_REF_NAME" -e "GITHUB_REF_PROTECTED" -e        
+  "GITHUB_REF_TYPE" -e "GITHUB_WORKFLOW_REF" -e "GITHUB_WORKFLOW_SHA" -e        
+  "GITHUB_REPOSITORY_ID" -e "GITHUB_TRIGGERING_ACTOR" -e "GITHUB_WORKSPACE" -e  
+  "GITHUB_ACTION" -e "GITHUB_EVENT_PATH" -e "GITHUB_ACTION_REPOSITORY" -e       
+  "GITHUB_ACTION_REF" -e "GITHUB_PATH" -e "GITHUB_ENV" -e "GITHUB_STEP_SUMMARY" 
+  -e "GITHUB_STATE" -e "GITHUB_OUTPUT" -e "GITHUB_ARTIFACTS" -e                 
+  "GITHUB_ARTIFACTS_LIST" -e "RUNNER_OS" -e "RUNNER_ARCH" -e "RUNNER_NAME" -e   
+  "RUNNER_ENVIRONMENT" -e "RUNNER_TOOL_CACHE" -e "RUNNER_TEMP" -e               
+  "RUNNER_WORKSPACE" -e "ACTIONS_RUNTIME_URL" -e "ACTIONS_RUNTIME_TOKEN" -e     
+  "ACTIONS_CACHE_URL" -e "ACTIONS_RESULTS_URL" -e "ACTIONS_CACHE_MODE" -e       
+  "ACTIONS_ORCHESTRATION_ID" -e GITHUB_ACTIONS=true -e CI=true -v               
+  "/var/run/docker.sock":"/var/run/docker.sock" -v                              
+  "/home/runner/work/_temp":"/github/runner_temp" -v                            
+  "/home/runner/work/_temp/_github_home":"/github/home" -v                      
+  "/home/runner/work/_temp/_github_workflow":"/github/workflow" -v              
+  "/home/runner/work/_temp/_runner_file_commands":"/github/file_commands" -v    
+  "/home/runner/work/outsera/outsera":"/github/workspace"                       
+  662052:b04beeae14444a85b3581ccbda8174aa  "Dockerfile"                         
+  Warning: Dockerfile:44 DL3025 warning: Use arguments JSON notation for CMD    
+  and ENTRYPOINT arguments                                                      
+  Hadolint output saved to: /dev/stdout                                         
+
+  Read 1 file (ctrl+o to expand)
+
+● The HEALTHCHECK on line 44 is the one in shell form, not the ENTRYPOINT, which
+  is already JSON. I'll check the spec's definition of "shell form" before I
+  fix it. · summary
+
+  Searched for 3 patterns, read 1 file (ctrl+o to expand)
+
+● Spec first: R8 and ADR 0011 say "forma shell", so I'll change both to the JSON
+  form with sh -c.
+● Update(specs\002-operacao\research.md)
+  ⎿  Added 4 lines, removed 2 lines
+      281      do teste de fumaça; achado H1 da segunda análise). Quem ro
+           dar o container e definir
+      282      `JAVA_TOOL_OPTIONS` por conta própria recebe essa linha po
+           r escolha própria.
+      283    - **Healthcheck:** `HEALTHCHECK --interval=10s --timeout=3s
+           --start-period=30s --retries=3`, com
+      284 -    `wget -q -O /dev/null "http://127.0.0.1:${PORT}/actuator/h
+          -ealth/readiness"` em forma shell, para                        
+      285 -    expandir o `PORT` (FR-023).                               
+      284 +    `wget -q -O /dev/null "http://127.0.0.1:${PORT}/actuator/h
+          +ealth/readiness"` (FR-023). O `CMD` fica                      
+      285 +    na notação JSON, com o shell explícito (`["sh", "-c", "wge
+          +t ... || exit 1"]`): o `sh -c` expande o                      
+      286 +    `PORT` a cada verificação, e a notação JSON atende à regra
+          + DL3025 do hadolint, que reprova o `CMD`                      
+      287 +    em forma shell, inclusive o do `HEALTHCHECK`.             
+      288    - **Processo:** `ENTRYPOINT` em forma exec
+      289      (`["java", "-XX:MaxRAMPercentage=75", "org.springframework
+           .boot.loader.launch.JarLauncher"]`),
+      290      então a JVM é o PID 1 e recebe o `SIGTERM` direto. O desli
+           gamento gracioso do servidor é o padrão do
+
+● Update(docs\adr\0011-imagem-de-container.md)
+  ⎿  Added 2 lines, removed 1 line
+      18  - O JAR é extraído em camadas para o `JarLauncher`. Os testes n
+          ão rodam no build da imagem, e sim no
+      19    pipeline.
+      20  - Usuário 10001, sem shell de login. `PORT=8080` e `LOGGING_STR
+          UCTURED_FORMAT_CONSOLE=ecs` definidos.
+      21 -- Healthcheck na readiness, com o `wget` da imagem, em forma sh
+         -ell para expandir o `PORT`.                                    
+      21 +- Healthcheck na readiness, com o `wget` da imagem, em notação 
+         +JSON com `sh -c` explícito, que expande                        
+      22 +  o `PORT` e atende à regra DL3025 do hadolint.                
+      23  - `ENTRYPOINT` em forma exec, com `-XX:MaxRAMPercentage=75` no
+          próprio `ENTRYPOINT`. Com
+      24    `JAVA_TOOL_OPTIONS`, a JVM escreveria uma linha fora do log,
+          e o JSON quebraria.
+      25  - `.dockerignore` por lista de permissão: só `mvnw`, `.mvn/`, `
+          pom.xml` e `src/main/`.
+
+● Update(Dockerfile)
+  ⎿  Added 3 lines, removed 3 lines
+      39 
+      40  USER 10001:10001
+      41 
+      42 -# Saudável só quando a readiness responde 200, ou seja, depois 
+         -da carga do CSV (FR-009, FR-023). Forma                        
+      43 -# shell para expandir o PORT.                                  
+      42 +# Saudável só quando a readiness responde 200, ou seja, depois 
+         +da carga do CSV (FR-009, FR-023). Notação                      
+      43 +# JSON com o shell explícito: o sh -c expande o PORT a cada ver
+         +ificação (hadolint DL3025).                                    
+      44  HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --re
+          tries=3 \
+      45 -    CMD wget -q -O /dev/null "http://127.0.0.1:${PORT}/actuator
+         -/health/readiness" || exit 1                                   
+      45 +    CMD ["sh", "-c", "wget -q -O /dev/null \"http://127.0.0.1:$
+         +{PORT}/actuator/health/readiness\" || exit 1"]                 
+      46 
+      47  # Forma exec: a JVM é o PID 1 e recebe o SIGTERM direto, com de
+          sligamento gracioso (FR-025). A memória
+      48  # vai aqui, e não em JAVA_TOOL_OPTIONS, que faria a JVM escreve
+          r uma linha fora do log (research R8).
+
+● Now I'll run hadolint locally with the same image the action uses. First, the
+  action's image reference at the pinned commit:
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● The warning disappears on the new Dockerfile and shows up on the old one,
+  matching the pipeline. I'm rebuilding the image and rerunning the smoke test
+  to confirm the healthcheck still expands PORT. · summary
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Step 7 (with PORT=9090) going healthy confirms the expansion. Recording it in
+  decisoes.md and committing:
+
+● Update(docs\ai\decisoes.md)
+  ⎿  Added 15 lines
+       3  Sugestões e decisões relevantes, aceitas ou rejeitadas, com o m
+          otivo (item 5.2 do enunciado). As
+       4  decisões de arquitetura ficam em ADRs, em `docs/adr/`.
+       5 
+       6 +## 2026-11-24 — hadolint DL3025 no `CMD` do healthcheck        
+       7 +                                                               
+       8 +- **Falha:** o job `dockerfile-lint` reprovou o `Dockerfile:44`
+         + com a regra DL3025 ("Use arguments JSON                       
+       9 +  notation for CMD and ENTRYPOINT arguments"). O alvo era o `CM
+         +D` do `HEALTHCHECK`, em forma shell; o                         
+      10 +  `ENTRYPOINT` já estava em forma exec.                        
+      11 +- **Decisão:** corrigir, e não ignorar a regra. Ela se aplica a
+         +o nosso caso: a notação JSON com o shell                       
+      12 +  explícito (`["sh", "-c", "wget ... || exit 1"]`) mantém a exp
+         +ansão do `PORT` a cada verificação, que                        
+      13 +  era o único motivo da forma shell. Nenhum `# hadolint ignore`
+         + foi necessário, e o pipeline continua                         
+      14 +  sem regra desligada.                                         
+      15 +- **Verificação local:** com a mesma imagem do hadolint que a a
+         +ction fixada usa                                               
+      16 +  (`ghcr.io/hadolint/hadolint:v2.15.1-debian`, pelo digest) e `
+         +--failure-threshold warning`, o                                
+      17 +  `Dockerfile` anterior reprova com a DL3025, e o novo passa. D
+         +epois do rebuild, o teste de fumaça deu                        
+      18 +  12 OK, 0 FALHA e o passo 13 PULADO. O passo 7 (`PORT=9090`) f
+         +icou `healthy`, o que prova a expansão.                        
+      19 +- A spec mudou antes do código: research R8 e ADR 0011.        
+      20 +                                                               
+      21  ## 2026-11-24 — Teste de fumaça local e correções do script
+      22 
+      23  Com o Docker ligado, a imagem foi construída e o `smoke-test.sh
+          ` rodou no Git Bash do Windows (Docker
+
+  Made 1 scratchpad edit +15, ran 1 shell command (ctrl+o to expand)
+
+● I fixed the Dockerfile without ignoring any rule, and committed it separately
+  as 04b10a7. Nothing was pushed.
+
+  What the warning hit. Line 44 is the CMD of the HEALTHCHECK, not the
+  ENTRYPOINT, which was already in JSON form. That CMD was in shell form so that
+  ${PORT} would expand. Rule DL3025 does apply to our case: the JSON form with
+  an explicit shell keeps that expansion, so the right move was to fix it.
+
+  HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 \
+      CMD ["sh", "-c", "wget -q -O /dev/null 
+  \"http://127.0.0.1:${PORT}/actuator/health/readiness\" || exit 1"]
+
+  The comment above it now gives the reason for the form.
+
+  Checks run locally:
+  - hadolint: I used the same hadolint image the pinned action uses
+    (ghcr.io/hadolint/hadolint:v2.15.1-debian, by digest) and the same
+    --failure-threshold warning. The old Dockerfile fails with the same DL3025
+    on line 44, and the new one passes.
+  - Smoke test after rebuilding the image: 12 OK, 0 FALHA, step 13 PULADO as
+    before. Step 7 (PORT=9090) went healthy, which shows PORT still expands
+    inside sh -c.
+
+  In the same commit:
+  - Research R8 and ADR 0011 changed before the code; both said "forma shell".
+  - Entry added to docs/ai/decisoes.md.
+
+  I didn't mark T037 as done: the healthcheck's behavior when readiness answers
+  503 is still unchecked. The dockerfile-lint job will confirm the fix on your
+  next push. Commit 7de7a75 (the session export) is yours, and I left it alone.
+
+✻ Churned for 2m 30s · done 13:47
+
+❯ Comprove a T037: mostre que o comando do healthcheck da imagem termina com    
+  código diferente de zero quando o endpoint de readiness responde 503. Use um  
+  experimento local simples, sem alterar o código da aplicação, por exemplo     
+  apontando o mesmo comando para um servidor temporário que responda 503.       
+  Registre o resultado na T037 e marque-a como concluída se passar.             
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Two of the three checks already passed (hadolint and the text log), so only
+  the 503 case remains. I'm starting a temporary server from the same image and
+  a second container running the healthcheck command, then checking which
+  BusyBox tools the image has. · summary
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● BusyBox nc supports -lk -e, which is enough for a persistent server. The
+  experiment script:
+
+  Made 1 scratchpad edit +46, ran 1 shell command (ctrl+o to expand)
+
+● The healthcheck test passed: a 503 makes the image's command exit with code 1,
+  while a 200 exits 0, confirming the image's PORT expansion was used. I'm
+  recording that in T037 and closing the R8 "Verificar" item next. · summary
+
+● Update(specs\002-operacao\tasks.md)
+  ⎿  Added 1 line, removed 1 line
+      155 
+      156  - [X] T035 [P] [US5] Criar `.dockerignore` por lista de permis
+           são (FR-026): primeira linha `*`, depois `!mvnw`, `!.mvn/`, `!
+           pom.xml` e `!src/main/`. Nada de `src/test/`, `docs/`, `specs/
+           `, `.git/` nem `target/` no contexto.
+      157  - [X] T036 [US5] Criar `Dockerfile` na raiz (research R8, cont
+           racts/container.md): estágio `build` em `eclipse-temurin:25-jd
+           k-alpine@sha256:<digest>` (digest resolvido com `docker buildx
+            imagetools inspect` e a tag num comentário; **resolvido pela
+           API do registro do Docker Hub, sem o daemon**: `25-jdk-alpine`
+            = `sha256:22edbb10…fa78`, `25-jre-alpine` = `sha256:69c2a26e…
+           bd89`, índices para linux/amd64 e linux/arm64); `WORKDIR /buil
+           d`; `COPY mvnw pom.xml ./` e `COPY .mvn .mvn`; `RUN --mount=ty
+           pe=cache,target=/root/.m2 sh ./mvnw -B -q dependency:go-offlin
+           e`; `COPY src/main src/main`; `RUN --mount=type=cache,target=/
+           root/.m2 sh ./mvnw -B -Dmaven.test.skip=true package`; extraçã
+           o em camadas com `java -Djarmode=tools -jar target/awards-*.ja
+           r extract --layers --launcher --destination extracted`. Estági
+           o final em `eclipse-temurin:25-jre-alpine@sha256:<digest>`: `a
+           ddgroup -S -g 10001 app` e `adduser -S -D -H -u 10001 -G app -
+           s /sbin/nologin app`; `WORKDIR /app`; `COPY --from=build` das
+           camadas `dependencies`, `spring-boot-loader`, `snapshot-depend
+           encies` e `application`, nessa ordem; `ENV PORT=8080 LOGGING_S
+           TRUCTURED_FORMAT_CONSOLE=ecs`; `EXPOSE 8080`; `USER 10001:1000
+           1`; `HEALTHCHECK --interval=10s --timeout=3s --start-period=30
+           s --retries=3 CMD wget -q -O /dev/null "http://127.0.0.1:${POR
+           T}/actuator/health/readiness" || exit 1`; `ENTRYPOINT ["java",
+            "-XX:MaxRAMPercentage=75", "org.springframework.boot.loader.l
+           aunch.JarLauncher"]`. Sem `MOVIES_CSV_PATH` (FR-024) e **sem `
+           JAVA_TOOL_OPTIONS`**: com ela definida, a JVM escreve `Picked
+           up JAVA_TOOL_OPTIONS` no stderr, fora do log, e o passo 5 do t
+           este de fumaça falharia (research R8).
+      158 -- [ ] T037 [US5] **Pendente: sem o daemon do Docker local; vai
+          - para os jobs `dockerfile-lint` e `image` da etapa 4 (T047).**
+          - Se houver Docker local: rodar o hadolint (`docker run --rm -i
+          - hadolint/hadolint < Dockerfile`) sem nenhum aviso de nível `w
+          -arning` ou `error` (exceções só com `# hadolint ignore=DLxxxx`
+          - e o motivo); **verificar (research R8)** que o `wget` da imag
+          -em devolve código diferente de zero para uma resposta de erro 
+          -(por exemplo, `docker exec <id> wget -q -O /dev/null http://12
+          -7.0.0.1:8080/actuator/nao-existe; echo $?`); se não devolver, 
+          -trocar o healthcheck conforme a R8 e registrar. **Verificar (F
+          -R-024a, research R6):** `docker run --rm -e LOGGING_STRUCTURED
+          -_FORMAT_CONSOLE= awards:local` sobe e escreve o log em texto. 
+          -Se o valor vazio falhar (por exemplo, como formato desconhecid
+          -o), não alterar a spec por conta própria: registrar o erro obs
+          -ervado na R6 e levar ao Anderson as alternativas (definir o fo
+          -rmato na imagem por `ARG` de build em vez de `ENV`, ou documen
+          -tar outro valor que o Boot aceite como texto), e ajustar o pas
+          -so 12 do T033 e o `contracts/container.md` conforme a decisão.
+      158 +- [X] T037 [US5] **Feito localmente em 2026-11-24 (Git Bash, D
+          +ocker 26.0.0), com a imagem do `Dockerfile` do commit `04b10a7
+          +`. (1) hadolint `v2.15.1-debian` (o mesmo digest da action fix
+          +ada), `--failure-threshold warning`: sem avisos, depois da cor
+          +reção da DL3025 no `CMD` do healthcheck (`04b10a7`), sem nenhu
+          +m `ignore`. (2) `wget` com 503 (R8): um servidor temporário (B
+          +usyBox `nc`, num container da própria imagem) respondeu um sta
+          +tus fixo, e um segundo container da imagem, na mesma rede (`--
+          +network container:`), rodou o comando do `HEALTHCHECK` lido da
+          + imagem com `docker inspect`. Com 503, o código de saída foi 1
+          + (`wget: server returned error: HTTP/1.1 503`); no controle co
+          +m 200, foi 0. Nos dois casos, a requisição chegou em `GET /act
+          +uator/health/readiness`, pelo `PORT` da imagem. O healthcheck 
+          +não precisa mudar. (3) Variável de log vazia: o container subi
+          +u `healthy` com o log em texto (passo 12 do teste de fumaça).*
+          +* Se houver Docker local: rodar o hadolint (`docker run --rm -
+          +i hadolint/hadolint < Dockerfile`) sem nenhum aviso de nível `
+          +warning` ou `error` (exceções só com `# hadolint ignore=DLxxxx
+          +` e o motivo); **verificar (research R8)** que o `wget` da ima
+          +gem devolve código diferente de zero para uma resposta de erro
+          + (por exemplo, `docker exec <id> wget -q -O /dev/null http://1
+          +27.0.0.1:8080/actuator/nao-existe; echo $?`); se não devolver,
+          + trocar o healthcheck conforme a R8 e registrar. **Verificar (
+          +FR-024a, research R6):** `docker run --rm -e LOGGING_STRUCTURE
+          +D_FORMAT_CONSOLE= awards:local` sobe e escreve o log em texto.
+          + Se o valor vazio falhar (por exemplo, como formato desconheci
+          +do), não alterar a spec por conta própria: registrar o erro ob
+          +servado na R6 e levar ao Anderson as alternativas (definir o f
+          +ormato na imagem por `ARG` de build em vez de `ENV`, ou docume
+          +ntar outro valor que o Boot aceite como texto), e ajustar o pa
+          +sso 12 do T033 e o `contracts/container.md` conforme a decisão
+          +.                                                             
+      159  - [X] T038 [US5] **Feito localmente em 2026-11-24 (Git Bash, D
+           ocker 26.0.0): 12 OK, 0 FALHA e o passo 13 PULADO (o `chmod 00
+           0` não vale no bind mount do Docker Desktop; roda no job `imag
+           e`, T047). A primeira execução expôs defeitos do script (porta
+            fixa no host, passos dependentes sem o container e o contexto
+            de build no Git Bash), corrigidos num commit separado (`docs/
+           ai/decisoes.md`). `./mvnw verify` verde, sem nenhum container
+           iniciado.** Se houver Docker local, rodar `docker build -t awa
+           rds:local .` e `.github/scripts/smoke-test.sh awards:local` at
+           é passar. Rodar `./mvnw verify`: verde e sem nenhum container
+           iniciado (FR-027).
+      160  - [X] T039 [US5] Commit `Etapa 3: Dockerfile, .dockerignore e
+           teste de fumaça` com T033 a T038 (inclusive o T033a). Se o pas
+           so 13 foi pulado localmente, registrar na descrição do commit
+           a mensagem de `PULADO` e que ele roda no job `image` da etapa
+           4.
+      161 
+
+● Update(specs\002-operacao\research.md)
+  ⎿  Added 3 lines, removed 2 lines
+      305      do Maven;
+      306    - rodar `./mvnw verify` dentro do build da imagem: duplicari
+           a os testes do pipeline e deixaria o build
+      307      lento.
+      308 -- **Verificar:** se o `wget` do BusyBox da imagem base atual r
+          -esponde código diferente de zero para um                      
+      309 -  503, que é o que faz o healthcheck falhar enquanto a aplicaç
+          -ão não está pronta.                                           
+      308 +- **Verificado (T037, 2026-11-24):** o `wget` do BusyBox 1.37.
+          +0 da imagem base termina com código                           
+      309 +  diferente de zero para um 503. O comando do healthcheck, lid
+          +o da imagem, saiu com 1 contra um servidor                    
+      310 +  temporário que respondia 503 na readiness, e com 0 contra 20
+          +0. O healthcheck fica como está.                              
+      311 
+      312  ## R9. Estrutura do pipeline
+      313 
+
+● Update(docs\ai\decisoes.md)
+  ⎿  Added 16 lines
+       3  Sugestões e decisões relevantes, aceitas ou rejeitadas, com o m
+          otivo (item 5.2 do enunciado). As
+       4  decisões de arquitetura ficam em ADRs, em `docs/adr/`.
+       5 
+       6 +## 2026-11-24 — T037: healthcheck com readiness em 503         
+       7 +                                                               
+       8 +- **Pergunta (research R8):** o `wget` do BusyBox da imagem ter
+         +mina com código diferente de zero quando                       
+       9 +  a readiness responde 503? Se não terminasse, o container fica
+         +ria `healthy` antes da carga do CSV.                           
+      10 +- **Experimento, sem alterar a aplicação:** um container da pró
+         +pria imagem rodou um servidor temporário                       
+      11 +  com o `nc` do BusyBox, respondendo um status fixo na 8080. Um
+         + segundo container da imagem entrou na                         
+      12 +  rede do primeiro (`--network container:`) e rodou o comando d
+         +o `HEALTHCHECK` exatamente como                                
+      13 +  `docker inspect` o lê da imagem.                             
+      14 +- **Resultado:** com 503, o código de saída foi 1 (`wget: serve
+         +r returned error: HTTP/1.1 503`). Com                          
+      15 +  200, foi 0. Nos dois casos, o servidor registrou `GET /actuat
+         +or/health/readiness`, então o `PORT` da                        
+      16 +  imagem foi expandido. O healthcheck não muda, e a T037 foi co
+         +ncluída (hadolint e variável de log vazia                      
+      17 +  já verificados antes).                                       
+      18 +- O script do experimento ficou fora do repositório: é uma veri
+         +ficação única de uma premissa da imagem                        
+      19 +  base. Se o Dependabot trocar a base, os passos 1 e 7 do teste
+         + de fumaça continuam provando o                                
+      20 +  `healthy`, mas não o caso do 503.                            
+      21 +                                                               
+      22  ## 2026-11-24 — hadolint DL3025 no `CMD` do healthcheck
+      23 
+      24  - **Falha:** o job `dockerfile-lint` reprovou o `Dockerfile:44`
+           com a regra DL3025 ("Use arguments JSON
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● T037 passed and is now marked done in tasks.md: with readiness answering 503,
+  the image's healthcheck command exits with code 1. With 200 it exits 0. The
+  healthcheck doesn't need to change.
+
+  How I tested it (application code unchanged):
+  - A container from the image itself ran a temporary server with BusyBox nc,
+    answering a fixed status on port 8080.
+  - A second container from the image joined the first one's network and ran the
+    healthcheck command exactly as docker inspect reads it from the image:
+    ["CMD","sh","-c","wget -q -O /dev/null 
+    \"http://127.0.0.1:${PORT}/actuator/health/readiness\" || exit 1"]
+  - The image was built from the Dockerfile in commit 04b10a7 (the DL3025 fix).
+
+  ┌─────────────┬─────────────────────────┬─────────────────────────────────┐
+  │   Server    │        Exit code        │    What the server received     │
+  │   answers   │                         │                                 │
+  ├─────────────┼─────────────────────────┼─────────────────────────────────┤
+  │             │ 1 (wget: server         │ GET /actuator/health/readiness  │
+  │ 503         │ returned error:         │ HTTP/1.1                        │
+  │             │ HTTP/1.1 503 X)         │                                 │
+  ├─────────────┼─────────────────────────┼─────────────────────────────────┤
+  │ 200         │ 0                       │ GET /actuator/health/readiness  │
+  │ (control)   │                         │ HTTP/1.1                        │
+  └─────────────┴─────────────────────────┴─────────────────────────────────┘
+
+  The control rules out a command that fails for any reason. The path the server
+  received shows ${PORT} was expanded inside sh -c. No test containers were
+  left behind.
+
+  The task's other two checks had already passed in this session: hadolint with
+  no warnings after 04b10a7, and the empty log variable giving a text log
+  (smoke-test step 12).
+
+  Where it's recorded:
+  - specs/002-operacao/tasks.md: T037 is [X], with the method and result.
+  - specs/002-operacao/research.md: the R8 "Verificar" item is now "Verificado".
+  - docs/ai/decisoes.md: a new entry with the experiment and its result.
+
+  The experiment script is outside the repository:
+  C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\4420248e-d2ed-4397-a
+  a6d-59a26403b657\scratchpad\t037-healthcheck-503.sh. The smoke test still
+  checks that the container becomes healthy, but nothing in the pipeline checks
+  the 503 case again. If you want that coverage when Dependabot updates the base
+  image, the script could become a step in the smoke test.
+
+  I didn't commit this time because you didn't ask. The changes are in the
+  working tree; if you want them committed, I'll leave docs/ai/prompts.md out as
+  usual. Still pending: T047–T050, which need the push.
+
+✻ Churned for 1m 35s · done 13:51
+
+❯ O Codex apontou no PR que o EtagAcrossRunsIT e o ReadinessAfterLoadIT usam    
+  SpringApplication em execuções bem-sucedidas, o que a constituição só permite 
+  para falha de inicialização. Os dois precisam controlar o ciclo de vida       
+  (comparar duas execuções e observar a ordem da subida), então emende o        
+  Princípio I: SpringApplication é permitido quando o teste precisa controlar o 
+  ciclo de vida da aplicação real, como falha de inicialização, múltiplas       
+  execuções ou a ordem da subida; continua sem mocks e com chamadas HTTP reais. 
+  Atualize o AGENTS.md (linhas 20 a 23), o Sync Impact Report, o javadoc dos    
+  dois testes citando a cláusula e registre em docs/ai/decisoes.md citando a    
+  revisão do Codex. Commit separado.                                            
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● Before writing the amendment, I'll check the rest of ReadinessAfterLoadIT: the
+  clause you described requires real HTTP calls, and the part I've read so far
+  only checks the order in the log.
+
+  Searched for 1 pattern, ran 1 shell command (ctrl+o to expand)
+
+● Before amending, I need to ask you about two things. Writing the clause as you
+  worded it would leave tests failing the new rule.
+
+● Answered Claude's questions:
+  ⎿  · ReadinessAfterLoadIT makes no HTTP calls: it checks the startup order 
+     through real lifecycle events written to the console (load summary, then 
+     readiness passing to ACCEPTING_TRAFFIC). HTTP can't observe that order, 
+     because the probe only answers once the server is up. With 'continua com 
+     chamadas HTTP reais', this test would break the new clause. How should the 
+     clause read? → HTTP when observable (Recommended)
+     · Besides the two tests Codex named, JsonLogFormatIT and TextLogFormatIT 
+     also use SpringApplication for successful startups (with movielist.csv and 
+     invalid-lines.csv), to capture the whole startup log in a JVM where the log
+     format is controlled. They make no HTTP calls either. Should the amendment
+     cover them too? → Cover them too (Recommended)
+
+● I'll write the amendment with your two answers. First, where else the old rule
+  ("SpringApplication só para falha de inicialização") appears:
+  Searched for 1 pattern (ctrl+o to expand)
+
+● I'll write the amendment now. It is MINOR (1.4.1 → 1.5.0): it widens what's
+  allowed without banning anything that was allowed before.
+
+● Update(.specify\memory\constitution.md)
+  ⎿  Added 16 lines, removed 3 lines
+      111    - A verificação por log ou banco só é permitida enquanto o c
+           omportamento ainda não tem endpoint
+      112      exposto.
+      113    - Quando o endpoint passar a existir, o teste MUST ganhar a
+           verificação por HTTP.
+      114 -- **Testes de falha de inicialização:** um contexto que não so
+          -be não pode ser verificado por                                
+      115 -  `@SpringBootTest`. Por isso, esses testes executam a aplicaç
+          -ão real com `SpringApplication`, sem                          
+      116 -  mocks, e verificam a exceção e o log.                       
+      114 +- **Testes que controlam o ciclo de vida da aplicação:** quand
+          +o o teste precisa controlar o ciclo de                        
+      115 +  vida da aplicação real, ele MAY executá-la com `SpringApplic
+          +ation` em vez de `@SpringBootTest`. Os                        
+      116 +  casos são:                                                  
+      117 +  - **falha de inicialização:** um contexto que não sobe não p
+          +ode ser verificado por                                        
+      118 +    `@SpringBootTest`; o teste verifica a exceção e o log;    
+      119 +  - **múltiplas execuções:** o teste compara o resultado de du
+          +as ou mais subidas da aplicação, por                          
+      120 +    exemplo com arquivos diferentes;                          
+      121 +  - **ordem da subida:** o teste observa, com ouvintes reais d
+          +os eventos do ciclo de vida, a ordem em                       
+      122 +    que as etapas da subida acontecem;                        
+      123 +  - **saída completa da subida:** o teste captura o log desde 
+          +a primeira linha, num formato que ele                         
+      124 +    controla.                                                 
+      125 +                                                              
+      126 +  Esses testes MUST continuar sem mocks nem dublês: sobem a ap
+          +licação completa. O resultado MUST ser                        
+      127 +  verificado por chamadas HTTP reais sempre que o comportament
+          +o for observável por HTTP. A ordem da                         
+      128 +  subida e o próprio log, que o HTTP não observa, são verifica
+          +dos pelos eventos reais e pela saída                          
+      129 +  capturada.                                                  
+      130  - Todo comportamento novo ou alterado MUST chegar com o seu te
+           ste de integração, no mesmo bolt.
+      131  - O resultado de referência com o arquivo fornecido MUST ser t
+           estado: Joel Silver em `min`
+      132    (1990–1991) e Matthew Vaughn em `max` (2002–2015).
+
+● Update(.specify\memory\constitution.md)
+  ⎿  Added 1 line, removed 1 line
+      301    conformidade com os princípios I a VII. Os sete princípios s
+           ão inegociáveis e não admitem
+      302    exceção em "Complexity Tracking". Qualquer outra divergência
+            MUST ser justificada no plano.
+      303 
+      304 -**Version**: 1.4.1 | **Ratified**: 2026-11-18 | **Last Amended
+          -**: 2026-11-23                                                
+          \ No newline at end of file
+      304 +**Version**: 1.5.0 | **Ratified**: 2026-11-18 | **Last Amended
+          +**: 2026-11-24                                                
+          \ No newline at end of file
+
+● Update(.specify\memory\constitution.md)
+  ⎿  Added 32 lines
+       1  <!--
+       2 +Sync Impact Report (1.5.0)                                     
+       3 +- Version change: 1.4.1 → 1.5.0                                
+       4 +  Justificativa: MINOR. A cláusula do Princípio I sobre `Spring
+         +Application` foi ampliada de forma                             
+       5 +  compatível. Antes, ela valia só para os testes de falha de in
+         +icialização. Agora vale sempre que o                           
+       6 +  teste precisa controlar o ciclo de vida da aplicação real:   
+       7 +  - falha de inicialização (sem mudança);                      
+       8 +  - múltiplas execuções;                                       
+       9 +  - ordem da subida;                                           
+      10 +  - saída completa da subida.                                  
+      11 +                                                               
+      12 +  Continua proibido usar mocks ou dublês. O resultado é verific
+         +ado por HTTP real sempre que o                                 
+      13 +  comportamento é observável por HTTP; a ordem da subida e o pr
+         +óprio log são verificados pelos eventos                        
+      14 +  reais e pela saída capturada. Nenhum teste que cumpria a vers
+         +ão anterior deixa de cumprir.                                  
+      15 +  Origem: revisão do Codex no PR do Marco 2, que apontou o `Eta
+         +gAcrossRunsIT` e o                                             
+      16 +  `ReadinessAfterLoadIT` usando `SpringApplication` em execuçõe
+         +s bem-sucedidas. O `JsonLogFormatIT` e o                       
+      17 +  `TextLogFormatIT`, que a revisão não citou, estavam na mesma 
+         +situação e ficaram cobertos pelo caso                          
+      18 +  "saída completa da subida".                                  
+      19 +- Modified principles: I. Somente testes de integração no back-
+         +end (cláusula de `SpringApplication`)                          
+      20 +- Added sections: nenhuma                                      
+      21 +- Removed sections: nenhuma                                    
+      22 +- Impacto:                                                     
+      23 +  - AGENTS.md ✅ regras invioláveis, item dos testes de integra
+         +ção;                                                           
+      24 +  - src/test ✅ javadoc do `EtagAcrossRunsIT`, do `ReadinessAft
+         +erLoadIT`, do `JsonLogFormatIT`, do                            
+      25 +    `TextLogFormatIT` e do `ApplicationStarter` citando a cláus
+         +ula;                                                           
+      26 +  - docs/ai/decisoes.md ✅ emenda registrada;                  
+      27 +  - specs/002-operacao: nenhuma mudança (o Constitution Check d
+         +o plano já descrevia esses testes);                            
+      28 +  - specs/001-producer-intervals-api: nenhuma mudança (os teste
+         +s de falha continuam no caso original);                        
+      29 +  - ⚠ pendente, papel de documentação: README.md (seção de test
+         +es e tabela de rastreabilidade) e                              
+      30 +    ADR 0004 ainda dizem que só os testes de falha de inicializ
+         +ação usam `SpringApplication`.                                 
+      31 +- Templates requiring updates: nenhum                          
+      32 +- Follow-up TODOs: README.md e ADR 0004 (acima)                
+      33 +                                                               
+      34  Sync Impact Report (1.4.1)
+      35  - Version change: 1.4.0 → 1.4.1
+      36    Justificativa: PATCH. Esclarecimento do Princípio V. O texto
+          anterior listava o ETag entre os
+
+● Now AGENTS.md and the javadocs:
+
+● Update(AGENTS.md)
+  ⎿  Added 1 line, removed 1 line
+      20  - **No back-end, só testes de integração** (item 4.2). Nada de
+          testes unitários na API.
+      21    - Todo teste usa `@SpringBootTest` com o contexto completo da
+           aplicação, sem mocks.
+      22    - O resultado é verificado preferencialmente por HTTP. Log ou
+           banco só valem enquanto o comportamento não tem endpoint expos
+          to.
+      23 -  - Os testes de falha de inicialização rodam a aplicação real 
+         -com `SpringApplication` (Princípio I da constituição).         
+      23 +  - Quando o teste precisa controlar o ciclo de vida da aplicaç
+         +ão real, ele a roda com `SpringApplication` (Princípio I, const
+         +ituição 1.5.0). Os casos são falha de inicialização, múltiplas 
+         +execuções, ordem da subida e saída completa da subida. Continua
+         + sem mocks, e o resultado é verificado por HTTP real sempre que
+         + o HTTP o observa.                                             
+      24    - Testes unitários só existem no front-end.
+      25  - **Um extra só entra completo.** Extra pela metade não é merge
+          ado. O marco 1 nunca é reduzido.
+      26 
+
+● Update(src\test\java\com\outsera\awards\etag\EtagAcrossRunsIT.java)
+  ⎿  Added 4 lines
+      16   * O ETag é derivado do conteúdo: o mesmo arquivo dá o mesmo ET
+          ag em execuções separadas, e arquivos com
+      17   * resultados diferentes dão ETags diferentes (FR-002, US1-7).
+          Cada execução é a aplicação real, subida
+      18   * com {@code SpringApplication} e chamada por HTTP.
+      19 + *                                                             
+      20 + * <p>Usa {@code SpringApplication}, e não {@code @SpringBootTe
+         +st}, pela cláusula de controle do ciclo de                     
+      21 + * vida do Princípio I (constituição 1.5.0), caso "múltiplas ex
+         +ecuções": o teste precisa de duas subidas                      
+      22 + * separadas da aplicação para comparar os ETags. Sem mocks, e 
+         +o ETag é lido da resposta HTTP real.                           
+      23   */
+      24  class EtagAcrossRunsIT {
+      25 
+
+● Update(src\test\java\com\outsera\awards\health\ReadinessAfterLoadIT.java)
+  ⎿  Added 6 lines
+      20   * <p>Roda a aplicação real com {@code SpringApplication} e um
+          ouvinte real dos eventos do ciclo de vida.
+      21   * No momento de cada evento, o ouvinte escreve um marcador no
+          console. Como a saída é capturada na
+      22   * ordem em que é escrita, o teste confere a ordem entre o resu
+          mo da carga e a passagem para "pronta".
+      23 + *                                                             
+      24 + * <p>Usa {@code SpringApplication}, e não {@code @SpringBootTe
+         +st}, pela cláusula de controle do ciclo de                     
+      25 + * vida do Princípio I (constituição 1.5.0), caso "ordem da sub
+         +ida": o ouvinte precisa estar registrado                       
+      26 + * antes do {@code run}. Sem mocks. A ordem não é observável po
+         +r HTTP, porque a probe só responde depois                      
+      27 + * que o servidor sobe; por isso, é verificada pelos eventos re
+         +ais. A resposta HTTP da readiness é                            
+      28 + * verificada no {@code HealthProbesIT} e no {@code ProbeStates
+         +IT}.                                                           
+      29   */
+      30  class ReadinessAfterLoadIT {
+      31 
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Both log tests extend ScenarioIT (@SpringBootTest) and use ApplicationStarter
+  only in the methods that read the startup log. The javadocs will say exactly
+  that:
+
+● Update(src\test\java\com\outsera\awards\logging\JsonLogFormatIT.java)
+  ⎿  Added 6 lines
+      21  /**
+      22   * Com {@code LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs}, cada even
+          to é uma linha JSON no formato ECS
+      23   * (spec 002, FR-017 a FR-020, SC-005; história 4). Roda só na
+          execução {@code json-logs} do Failsafe.
+      24 + *                                                             
+      25 + * <p>Os testes que leem o log da subida usam {@code SpringAppl
+         +ication} (pelo {@link ApplicationStarter}),                    
+      26 + * pela cláusula de controle do ciclo de vida do Princípio I (c
+         +onstituição 1.5.0), caso "saída completa da                    
+      27 + * subida": o log precisa ser capturado desde a primeira linha,
+         + o que o contexto compartilhado do                             
+      28 + * {@code @SpringBootTest} não garante. Sem mocks. O teste do c
+         +abeçalho {@code Authorization} faz uma                         
+      29 + * chamada HTTP real ao contexto do {@code @SpringBootTest}.   
+      30   */
+      31  @Tag("log")
+      32  @EnabledIfEnvironmentVariable(named = "LOGGING_STRUCTURED_FORMA
+          T_CONSOLE", matches = "ecs")
+
+● Update(src\test\java\com\outsera\awards\logging\TextLogFormatIT.java)
+  ⎿  Added 6 lines
+      16  /**
+      17   * Sem a variável de formato, o log é o texto padrão do Boot, c
+          omo no Marco 1, e sem o banner (spec 002,
+      18   * FR-019, FR-020, US4-5). Roda só na execução padrão do Failsa
+          fe.
+      19 + *                                                             
+      20 + * <p>Os testes que leem o log da subida usam {@code SpringAppl
+         +ication} (pelo {@link ApplicationStarter}),                    
+      21 + * pela cláusula de controle do ciclo de vida do Princípio I (c
+         +onstituição 1.5.0), caso "saída completa da                    
+      22 + * subida": o resumo da carga e a ausência do banner só aparece
+         +m no log desde a primeira linha. Sem mocks.                    
+      23 + * O teste do cabeçalho {@code Authorization} faz uma chamada H
+         +TTP real ao contexto do                                        
+      24 + * {@code @SpringBootTest}.                                    
+      25   */
+      26  @DisabledIfEnvironmentVariable(named = "LOGGING_STRUCTURED_FORM
+          AT_CONSOLE", matches = ".+")
+      27  class TextLogFormatIT extends ScenarioIT {
+
+● Update(src\test\java\com\outsera\awards\support\ApplicationStarter.java)
+  ⎿  Added 4 lines, removed 3 lines
+      11  import org.springframework.context.ConfigurableApplicationConte
+          xt;
+      12 
+      13  /**
+      14 - * Executa a {@link AwardsApplication} real com {@link SpringAp
+         -plication}, para os testes de falha de                         
+      15 - * inicialização (cláusula própria do Princípio I). Não é um du
+         -blê: é a aplicação completa subindo com                        
+      16 - * o CSV indicado.                                             
+      14 + * Executa a {@link AwardsApplication} real com {@link SpringAp
+         +plication}, para os testes que controlam o                     
+      15 + * ciclo de vida da aplicação (cláusula do Princípio I, constit
+         +uição 1.5.0): falha de inicialização,                          
+      16 + * múltiplas execuções, ordem da subida e saída completa da sub
+         +ida. Não é um dublê: é a aplicação                             
+      17 + * completa subindo com o CSV indicado.                        
+      18   *
+      19   * <p>A saída do console é duplicada durante a execução: contin
+          ua aparecendo no log do build e também
+      20   * fica guardada no resultado, para o teste verificar a mensage
+          m do {@code FailureAnalyzer}.
+
+● I'll confirm the javadoc's claim that the Authorization test makes a real HTTP
+  call:
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Confirmed. Now the record in decisoes.md:
+
+● Update(docs\ai\decisoes.md)
+  ⎿  Added 26 lines
+       3  Sugestões e decisões relevantes, aceitas ou rejeitadas, com o m
+          otivo (item 5.2 do enunciado). As
+       4  decisões de arquitetura ficam em ADRs, em `docs/adr/`.
+       5 
+       6 +## 2026-11-24 — Emenda 1.5.0 da constituição: `SpringApplicatio
+         +n` para controlar o ciclo de vida                              
+       7 +                                                               
+       8 +- **Origem:** revisão do Codex no PR do Marco 2. O `EtagAcrossR
+         +unsIT` e o `ReadinessAfterLoadIT` usam                         
+       9 +  `SpringApplication` em execuções bem-sucedidas, e a constitui
+         +ção 1.4.1 só permitia isso para falha de                       
+      10 +  inicialização. **Aceito:** o apontamento estava correto.     
+      11 +- **Decisão do responsável:** emendar o Princípio I, em vez de 
+         +reescrever os testes. Os dois precisam                         
+      12 +  controlar o ciclo de vida: o primeiro compara duas execuções,
+         + o segundo observa a ordem da subida, e                        
+      13 +  nenhum dos dois cabe num `@SpringBootTest`. A cláusula passa 
+         +a valer sempre que o teste precisa                             
+      14 +  controlar o ciclo de vida da aplicação real: falha de inicial
+         +ização, múltiplas execuções, ordem da                          
+      15 +  subida e saída completa da subida. Continua sem mocks. MINOR 
+         +(1.4.1 → 1.5.0): amplia o permitido e não                      
+      16 +  proíbe nada que valia antes.                                 
+      17 +- **Dois pontos levados ao responsável antes da redação:**     
+      18 +  - *HTTP real:* o pedido dizia "continua com chamadas HTTP rea
+         +is", mas o `ReadinessAfterLoadIT` não faz                      
+      19 +    chamada HTTP, e a ordem da subida não é observável por HTTP
+         + (a probe só responde depois que o                             
+      20 +    servidor sobe). **Escolhido:** o resultado é verificado por
+         + HTTP real sempre que o comportamento é                        
+      21 +    observável por HTTP; a ordem da subida e o próprio log são 
+         +verificados pelos eventos reais e pela                         
+      22 +    saída capturada. O teste não muda.                         
+      23 +  - *Testes não citados na revisão:* o `JsonLogFormatIT` e o `T
+         +extLogFormatIT` também usam                                    
+      24 +    `SpringApplication` em subidas bem-sucedidas, para ler o lo
+         +g desde a primeira linha. **Escolhido:**                       
+      25 +    cobri-los com o caso "saída completa da subida" e citar a c
+         +láusula no javadoc deles.                                      
+      26 +- **Mudanças:** constituição (cláusula e Sync Impact Report), `
+         +AGENTS.md` (regras invioláveis) e o                            
+      27 +  javadoc do `EtagAcrossRunsIT`, do `ReadinessAfterLoadIT`, do 
+         +`JsonLogFormatIT`, do `TextLogFormatIT` e                      
+      28 +  do `ApplicationStarter`. Nenhuma linha de código de teste ou 
+         +de produção mudou.                                             
+      29 +- **Pendente (papel de documentação):** o README (seção de test
+         +es e tabela de rastreabilidade) e o ADR                        
+      30 +  0004 ainda dizem que só os testes de falha de inicialização u
+         +sam `SpringApplication`.                                       
+      31 +                                                               
+      32  ## 2026-11-24 — T037: healthcheck com readiness em 503
+      33 
+      34  - **Pergunta (research R8):** o `wget` do BusyBox da imagem ter
+          mina com código diferente de zero quando
+
+● The working tree has uncommitted T037 changes, so I'm staging only the
+  amendment section of decisoes.md, built from HEAD plus that block, to keep
+  this commit clean. · summary
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● The staged diff of decisoes.md drops one line it shouldn't. I'll look at
+  where:
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Only the final newline, which awk added. I'll restore the file without it:
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● The index is correct now: 26 lines of the amendment, and the T037 entry stays
+  unstaged. The edits only touch javadoc, but I'll run ./mvnw verify before
+  committing:
+
+  Made 1 scratchpad edit +23, ran 2 shell commands (ctrl+o to expand)
+
+● I amended the constitution and committed it as 09f8705; nothing was pushed.
+  ./mvnw verify passed before the commit: 189 tests in the default run (5
+  skipped) and 51 in the JSON-log run, with 0 failures.
+
+  Principle I (constitution 1.4.1 → 1.5.0). This is a MINOR bump: it allows more
+  and bans nothing that was allowed before. A test can now run the real
+  application with SpringApplication when it needs to control the lifecycle, in
+  four cases:
+  - startup failure (the case that already existed);
+  - multiple runs;
+  - startup order;
+  - the full startup output.
+
+  It still bans mocks. The result is checked by real HTTP whenever HTTP can see
+  it. The startup order and the log itself, which HTTP can't see, are checked
+  through the real events and the captured output. This wording follows your
+  answer to the HTTP question.
+
+  What changed in the commit:
+  - Constitution: the clause, a Sync Impact Report for 1.5.0, and the version
+    footer.
+  - AGENTS.md: the item on lines 20–23 now states the four cases and the HTTP
+    rule.
+  - Javadocs cite the clause and say which case applies:
+    - EtagAcrossRunsIT: multiple runs;
+    - ReadinessAfterLoadIT: startup order; it also explains that the readiness
+      HTTP response is covered by HealthProbesIT and ProbeStatesIT;
+    - JsonLogFormatIT and TextLogFormatIT: the full startup output. Codex didn't
+      mention these two, but they were in the same situation;
+    - ApplicationStarter: its description still said "only for startup
+      failures".
+  - docs/ai/decisoes.md: the entry cites the Codex review and records your two
+    decisions.
+  - No line of test or production code changed, only comments.
+
+  Kept out of this commit: the T037 changes from before are still uncommitted
+  (tasks.md, research.md, and the T037 entry in decisoes.md). Both entries were
+  in the same file, so I staged only the amendment entry. The T037 one remains
+  in the working tree, along with docs/ai/prompts.md as usual.
+
+  Pending, recorded in the Sync Impact Report: README.md (the test section and
+  the traceability table) and ADR 0004 still say only StartupFailureIT uses
+  SpringApplication. Those files belong to the documentation role, so I didn't
+  edit them.
+
+✻ Cooked for 5m 24s · done 14:03
+
+❯ /export docs/ai/sessoes/10-marco-2-operacao.md                                
+  ⎿  Couldn't export conversation: the file already exists · run /export to
+     overwrite it

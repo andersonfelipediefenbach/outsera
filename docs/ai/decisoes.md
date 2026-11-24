@@ -29,6 +29,22 @@ decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 - **Pendente (papel de documentação):** o README (seção de testes e tabela de rastreabilidade) e o ADR
   0004 ainda dizem que só os testes de falha de inicialização usam `SpringApplication`.
 
+## 2026-11-24 — T037: healthcheck com readiness em 503
+
+- **Pergunta (research R8):** o `wget` do BusyBox da imagem termina com código diferente de zero quando
+  a readiness responde 503? Se não terminasse, o container ficaria `healthy` antes da carga do CSV.
+- **Experimento, sem alterar a aplicação:** um container da própria imagem rodou um servidor temporário
+  com o `nc` do BusyBox, respondendo um status fixo na 8080. Um segundo container da imagem entrou na
+  rede do primeiro (`--network container:`) e rodou o comando do `HEALTHCHECK` exatamente como
+  `docker inspect` o lê da imagem.
+- **Resultado:** com 503, o código de saída foi 1 (`wget: server returned error: HTTP/1.1 503`). Com
+  200, foi 0. Nos dois casos, o servidor registrou `GET /actuator/health/readiness`, então o `PORT` da
+  imagem foi expandido. O healthcheck não muda, e a T037 foi concluída (hadolint e variável de log vazia
+  já verificados antes).
+- O script do experimento ficou fora do repositório: é uma verificação única de uma premissa da imagem
+  base. Se o Dependabot trocar a base, os passos 1 e 7 do teste de fumaça continuam provando o
+  `healthy`, mas não o caso do 503.
+
 ## 2026-11-24 — hadolint DL3025 no `CMD` do healthcheck
 
 - **Falha:** o job `dockerfile-lint` reprovou o `Dockerfile:44` com a regra DL3025 ("Use arguments JSON

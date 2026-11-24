@@ -305,8 +305,9 @@ correspondente (R16) faz essa verificação, e o resultado volta para esta resea
     do Maven;
   - rodar `./mvnw verify` dentro do build da imagem: duplicaria os testes do pipeline e deixaria o build
     lento.
-- **Verificar:** se o `wget` do BusyBox da imagem base atual responde código diferente de zero para um
-  503, que é o que faz o healthcheck falhar enquanto a aplicação não está pronta.
+- **Verificado (T037, 2026-11-24):** o `wget` do BusyBox 1.37.0 da imagem base termina com código
+  diferente de zero para um 503. O comando do healthcheck, lido da imagem, saiu com 1 contra um servidor
+  temporário que respondia 503 na readiness, e com 0 contra 200. O healthcheck fica como está.
 
 ## R9. Estrutura do pipeline
 

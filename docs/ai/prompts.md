@@ -658,3 +658,37 @@ O Docker está rodando agora. Execute smoke test da imagem localmente e me mostr
 <summary>Background command "Run mvnw verify and count containers before and after" completed (exit code 0)</summary>
 </task-notification>
 ```
+
+## 2026-11-24 13:45:19 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+O job do hadolint falhou no pipeline com este erro:(Run hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387) . Corrija o Dockerfile. Se a regra não se aplicar ao nosso caso, ignore-a com um comentário no Dockerfile explicando o motivo, em vez de desligá-la no pipeline inteiro. Faça um commit separado.
+
+
+
+<pasted_content id="861c">
+Run hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387
+/usr/bin/docker run --name b04beeae14444a85b3581ccbda8174aa_703613 --label 662052 --workdir /github/workspace --rm -e "INPUT_DOCKERFILE" -e "INPUT_FAILURE-THRESHOLD" -e "INPUT_CONFIG" -e "INPUT_RECURSIVE" -e "INPUT_OUTPUT-FILE" -e "INPUT_NO-COLOR" -e "INPUT_NO-FAIL" -e "INPUT_VERBOSE" -e "INPUT_FORMAT" -e "INPUT_OVERRIDE-ERROR" -e "INPUT_OVERRIDE-WARNING" -e "INPUT_OVERRIDE-INFO" -e "INPUT_OVERRIDE-STYLE" -e "INPUT_IGNORE" -e "INPUT_TRUSTED-REGISTRIES" -e "NO_COLOR" -e "HADOLINT_NOFAIL" -e "HADOLINT_VERBOSE" -e "HADOLINT_FORMAT" -e "HADOLINT_FAILURE_THRESHOLD" -e "HADOLINT_OVERRIDE_ERROR" -e "HADOLINT_OVERRIDE_WARNING" -e "HADOLINT_OVERRIDE_INFO" -e "HADOLINT_OVERRIDE_STYLE" -e "HADOLINT_IGNORE" -e "HADOLINT_TRUSTED_REGISTRIES" -e "HADOLINT_CONFIG" -e "HADOLINT_RECURSIVE" -e "HADOLINT_OUTPUT" -e "HOME" -e "GITHUB_JOB" -e "GITHUB_REF" -e "GITHUB_SHA" -e "GITHUB_REPOSITORY" -e "GITHUB_REPOSITORY_OWNER" -e "GITHUB_REPOSITORY_OWNER_ID" -e "GITHUB_RUN_ID" -e "GITHUB_RUN_NUMBER" -e "GITHUB_RETENTION_DAYS" -e "GITHUB_RUN_ATTEMPT" -e "GITHUB_ACTOR_ID" -e "GITHUB_ACTOR" -e "GITHUB_WORKFLOW" -e "GITHUB_HEAD_REF" -e "GITHUB_BASE_REF" -e "GITHUB_EVENT_NAME" -e "GITHUB_SERVER_URL" -e "GITHUB_API_URL" -e "GITHUB_GRAPHQL_URL" -e "GITHUB_REF_NAME" -e "GITHUB_REF_PROTECTED" -e "GITHUB_REF_TYPE" -e "GITHUB_WORKFLOW_REF" -e "GITHUB_WORKFLOW_SHA" -e "GITHUB_REPOSITORY_ID" -e "GITHUB_TRIGGERING_ACTOR" -e "GITHUB_WORKSPACE" -e "GITHUB_ACTION" -e "GITHUB_EVENT_PATH" -e "GITHUB_ACTION_REPOSITORY" -e "GITHUB_ACTION_REF" -e "GITHUB_PATH" -e "GITHUB_ENV" -e "GITHUB_STEP_SUMMARY" -e "GITHUB_STATE" -e "GITHUB_OUTPUT" -e "GITHUB_ARTIFACTS" -e "GITHUB_ARTIFACTS_LIST" -e "RUNNER_OS" -e "RUNNER_ARCH" -e "RUNNER_NAME" -e "RUNNER_ENVIRONMENT" -e "RUNNER_TOOL_CACHE" -e "RUNNER_TEMP" -e "RUNNER_WORKSPACE" -e "ACTIONS_RUNTIME_URL" -e "ACTIONS_RUNTIME_TOKEN" -e "ACTIONS_CACHE_URL" -e "ACTIONS_RESULTS_URL" -e "ACTIONS_CACHE_MODE" -e "ACTIONS_ORCHESTRATION_ID" -e GITHUB_ACTIONS=true -e CI=true -v "/var/run/docker.sock":"/var/run/docker.sock" -v "/home/runner/work/_temp":"/github/runner_temp" -v "/home/runner/work/_temp/_github_home":"/github/home" -v "/home/runner/work/_temp/_github_workflow":"/github/workflow" -v "/home/runner/work/_temp/_runner_file_commands":"/github/file_commands" -v "/home/runner/work/outsera/outsera":"/github/workspace" 662052:b04beeae14444a85b3581ccbda8174aa  "Dockerfile"
+Warning: Dockerfile:44 DL3025 warning: Use arguments JSON notation for CMD and ENTRYPOINT arguments
+Hadolint output saved to: /dev/stdout
+</pasted_content id="861c">
+
+```
+
+## 2026-11-24 13:49:46 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+Comprove a T037: mostre que o comando do healthcheck da imagem termina com código diferente de zero quando o endpoint de readiness responde 503. Use um experimento local simples, sem alterar o código da aplicação, por exemplo apontando o mesmo comando para um servidor temporário que responda 503. Registre o resultado na T037 e marque-a como concluída se passar.
+```
+
+## 2026-11-24 13:57:04 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+O Codex apontou no PR que o EtagAcrossRunsIT e o ReadinessAfterLoadIT usam SpringApplication em execuções bem-sucedidas, o que a constituição só permite para falha de inicialização. Os dois precisam controlar o ciclo de vida (comparar duas execuções e observar a ordem da subida), então emende o Princípio I: SpringApplication é permitido quando o teste precisa controlar o ciclo de vida da aplicação real, como falha de inicialização, múltiplas execuções ou a ordem da subida; continua sem mocks e com chamadas HTTP reais. Atualize o AGENTS.md (linhas 20 a 23), o Sync Impact Report, o javadoc dos dois testes citando a cláusula e registre em docs/ai/decisoes.md citando a revisão do Codex. Commit separado.
+```
