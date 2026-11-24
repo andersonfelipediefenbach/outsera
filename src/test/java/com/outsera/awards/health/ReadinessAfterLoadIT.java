@@ -20,6 +20,12 @@ import org.springframework.context.ApplicationListener;
  * <p>Roda a aplicação real com {@code SpringApplication} e um ouvinte real dos eventos do ciclo de vida.
  * No momento de cada evento, o ouvinte escreve um marcador no console. Como a saída é capturada na
  * ordem em que é escrita, o teste confere a ordem entre o resumo da carga e a passagem para "pronta".
+ *
+ * <p>Usa {@code SpringApplication}, e não {@code @SpringBootTest}, pela cláusula de controle do ciclo de
+ * vida do Princípio I (constituição 1.5.0), caso "ordem da subida": o ouvinte precisa estar registrado
+ * antes do {@code run}. Sem mocks. A ordem não é observável por HTTP, porque a probe só responde depois
+ * que o servidor sobe; por isso, é verificada pelos eventos reais. A resposta HTTP da readiness é
+ * verificada no {@code HealthProbesIT} e no {@code ProbeStatesIT}.
  */
 class ReadinessAfterLoadIT {
 

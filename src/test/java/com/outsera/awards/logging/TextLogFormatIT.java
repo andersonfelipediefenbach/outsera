@@ -16,6 +16,12 @@ import org.springframework.http.HttpHeaders;
 /**
  * Sem a variável de formato, o log é o texto padrão do Boot, como no Marco 1, e sem o banner (spec 002,
  * FR-019, FR-020, US4-5). Roda só na execução padrão do Failsafe.
+ *
+ * <p>Os testes que leem o log da subida usam {@code SpringApplication} (pelo {@link ApplicationStarter}),
+ * pela cláusula de controle do ciclo de vida do Princípio I (constituição 1.5.0), caso "saída completa da
+ * subida": o resumo da carga e a ausência do banner só aparecem no log desde a primeira linha. Sem mocks.
+ * O teste do cabeçalho {@code Authorization} faz uma chamada HTTP real ao contexto do
+ * {@code @SpringBootTest}.
  */
 @DisabledIfEnvironmentVariable(named = "LOGGING_STRUCTURED_FORMAT_CONSOLE", matches = ".+")
 class TextLogFormatIT extends ScenarioIT {

@@ -20,7 +20,7 @@ Se a tarefa contradiz uma fonte de prioridade maior, pare e pergunte ao Anderson
 - **No back-end, só testes de integração** (item 4.2). Nada de testes unitários na API.
   - Todo teste usa `@SpringBootTest` com o contexto completo da aplicação, sem mocks.
   - O resultado é verificado preferencialmente por HTTP. Log ou banco só valem enquanto o comportamento não tem endpoint exposto.
-  - Os testes de falha de inicialização rodam a aplicação real com `SpringApplication` (Princípio I da constituição).
+  - Quando o teste precisa controlar o ciclo de vida da aplicação real, ele a roda com `SpringApplication` (Princípio I, constituição 1.5.0). Os casos são falha de inicialização, múltiplas execuções, ordem da subida e saída completa da subida. Continua sem mocks, e o resultado é verificado por HTTP real sempre que o HTTP o observa.
   - Testes unitários só existem no front-end.
 - **Um extra só entra completo.** Extra pela metade não é mergeado. O marco 1 nunca é reduzido.
 

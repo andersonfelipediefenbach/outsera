@@ -3,6 +3,32 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-24 — Emenda 1.5.0 da constituição: `SpringApplication` para controlar o ciclo de vida
+
+- **Origem:** revisão do Codex no PR do Marco 2. O `EtagAcrossRunsIT` e o `ReadinessAfterLoadIT` usam
+  `SpringApplication` em execuções bem-sucedidas, e a constituição 1.4.1 só permitia isso para falha de
+  inicialização. **Aceito:** o apontamento estava correto.
+- **Decisão do responsável:** emendar o Princípio I, em vez de reescrever os testes. Os dois precisam
+  controlar o ciclo de vida: o primeiro compara duas execuções, o segundo observa a ordem da subida, e
+  nenhum dos dois cabe num `@SpringBootTest`. A cláusula passa a valer sempre que o teste precisa
+  controlar o ciclo de vida da aplicação real: falha de inicialização, múltiplas execuções, ordem da
+  subida e saída completa da subida. Continua sem mocks. MINOR (1.4.1 → 1.5.0): amplia o permitido e não
+  proíbe nada que valia antes.
+- **Dois pontos levados ao responsável antes da redação:**
+  - *HTTP real:* o pedido dizia "continua com chamadas HTTP reais", mas o `ReadinessAfterLoadIT` não faz
+    chamada HTTP, e a ordem da subida não é observável por HTTP (a probe só responde depois que o
+    servidor sobe). **Escolhido:** o resultado é verificado por HTTP real sempre que o comportamento é
+    observável por HTTP; a ordem da subida e o próprio log são verificados pelos eventos reais e pela
+    saída capturada. O teste não muda.
+  - *Testes não citados na revisão:* o `JsonLogFormatIT` e o `TextLogFormatIT` também usam
+    `SpringApplication` em subidas bem-sucedidas, para ler o log desde a primeira linha. **Escolhido:**
+    cobri-los com o caso "saída completa da subida" e citar a cláusula no javadoc deles.
+- **Mudanças:** constituição (cláusula e Sync Impact Report), `AGENTS.md` (regras invioláveis) e o
+  javadoc do `EtagAcrossRunsIT`, do `ReadinessAfterLoadIT`, do `JsonLogFormatIT`, do `TextLogFormatIT` e
+  do `ApplicationStarter`. Nenhuma linha de código de teste ou de produção mudou.
+- **Pendente (papel de documentação):** o README (seção de testes e tabela de rastreabilidade) e o ADR
+  0004 ainda dizem que só os testes de falha de inicialização usam `SpringApplication`.
+
 ## 2026-11-24 — hadolint DL3025 no `CMD` do healthcheck
 
 - **Falha:** o job `dockerfile-lint` reprovou o `Dockerfile:44` com a regra DL3025 ("Use arguments JSON

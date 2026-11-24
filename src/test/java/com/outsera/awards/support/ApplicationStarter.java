@@ -11,9 +11,10 @@ import org.springframework.context.ApplicationListener;
 import org.springframework.context.ConfigurableApplicationContext;
 
 /**
- * Executa a {@link AwardsApplication} real com {@link SpringApplication}, para os testes de falha de
- * inicialização (cláusula própria do Princípio I). Não é um dublê: é a aplicação completa subindo com
- * o CSV indicado.
+ * Executa a {@link AwardsApplication} real com {@link SpringApplication}, para os testes que controlam o
+ * ciclo de vida da aplicação (cláusula do Princípio I, constituição 1.5.0): falha de inicialização,
+ * múltiplas execuções, ordem da subida e saída completa da subida. Não é um dublê: é a aplicação
+ * completa subindo com o CSV indicado.
  *
  * <p>A saída do console é duplicada durante a execução: continua aparecendo no log do build e também
  * fica guardada no resultado, para o teste verificar a mensagem do {@code FailureAnalyzer}.

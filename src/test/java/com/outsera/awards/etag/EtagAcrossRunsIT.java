@@ -16,6 +16,10 @@ import org.junit.jupiter.api.Test;
  * O ETag é derivado do conteúdo: o mesmo arquivo dá o mesmo ETag em execuções separadas, e arquivos com
  * resultados diferentes dão ETags diferentes (FR-002, US1-7). Cada execução é a aplicação real, subida
  * com {@code SpringApplication} e chamada por HTTP.
+ *
+ * <p>Usa {@code SpringApplication}, e não {@code @SpringBootTest}, pela cláusula de controle do ciclo de
+ * vida do Princípio I (constituição 1.5.0), caso "múltiplas execuções": o teste precisa de duas subidas
+ * separadas da aplicação para comparar os ETags. Sem mocks, e o ETag é lido da resposta HTTP real.
  */
 class EtagAcrossRunsIT {
 

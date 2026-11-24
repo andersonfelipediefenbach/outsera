@@ -21,6 +21,12 @@ import tools.jackson.databind.JsonNode;
 /**
  * Com {@code LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs}, cada evento é uma linha JSON no formato ECS
  * (spec 002, FR-017 a FR-020, SC-005; história 4). Roda só na execução {@code json-logs} do Failsafe.
+ *
+ * <p>Os testes que leem o log da subida usam {@code SpringApplication} (pelo {@link ApplicationStarter}),
+ * pela cláusula de controle do ciclo de vida do Princípio I (constituição 1.5.0), caso "saída completa da
+ * subida": o log precisa ser capturado desde a primeira linha, o que o contexto compartilhado do
+ * {@code @SpringBootTest} não garante. Sem mocks. O teste do cabeçalho {@code Authorization} faz uma
+ * chamada HTTP real ao contexto do {@code @SpringBootTest}.
  */
 @Tag("log")
 @EnabledIfEnvironmentVariable(named = "LOGGING_STRUCTURED_FORMAT_CONSOLE", matches = "ecs")

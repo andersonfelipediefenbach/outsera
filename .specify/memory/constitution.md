@@ -1,4 +1,36 @@
 <!--
+Sync Impact Report (1.5.0)
+- Version change: 1.4.1 → 1.5.0
+  Justificativa: MINOR. A cláusula do Princípio I sobre `SpringApplication` foi ampliada de forma
+  compatível. Antes, ela valia só para os testes de falha de inicialização. Agora vale sempre que o
+  teste precisa controlar o ciclo de vida da aplicação real:
+  - falha de inicialização (sem mudança);
+  - múltiplas execuções;
+  - ordem da subida;
+  - saída completa da subida.
+
+  Continua proibido usar mocks ou dublês. O resultado é verificado por HTTP real sempre que o
+  comportamento é observável por HTTP; a ordem da subida e o próprio log são verificados pelos eventos
+  reais e pela saída capturada. Nenhum teste que cumpria a versão anterior deixa de cumprir.
+  Origem: revisão do Codex no PR do Marco 2, que apontou o `EtagAcrossRunsIT` e o
+  `ReadinessAfterLoadIT` usando `SpringApplication` em execuções bem-sucedidas. O `JsonLogFormatIT` e o
+  `TextLogFormatIT`, que a revisão não citou, estavam na mesma situação e ficaram cobertos pelo caso
+  "saída completa da subida".
+- Modified principles: I. Somente testes de integração no back-end (cláusula de `SpringApplication`)
+- Added sections: nenhuma
+- Removed sections: nenhuma
+- Impacto:
+  - AGENTS.md ✅ regras invioláveis, item dos testes de integração;
+  - src/test ✅ javadoc do `EtagAcrossRunsIT`, do `ReadinessAfterLoadIT`, do `JsonLogFormatIT`, do
+    `TextLogFormatIT` e do `ApplicationStarter` citando a cláusula;
+  - docs/ai/decisoes.md ✅ emenda registrada;
+  - specs/002-operacao: nenhuma mudança (o Constitution Check do plano já descrevia esses testes);
+  - specs/001-producer-intervals-api: nenhuma mudança (os testes de falha continuam no caso original);
+  - ⚠ pendente, papel de documentação: README.md (seção de testes e tabela de rastreabilidade) e
+    ADR 0004 ainda dizem que só os testes de falha de inicialização usam `SpringApplication`.
+- Templates requiring updates: nenhum
+- Follow-up TODOs: README.md e ADR 0004 (acima)
+
 Sync Impact Report (1.4.1)
 - Version change: 1.4.0 → 1.4.1
   Justificativa: PATCH. Esclarecimento do Princípio V. O texto anterior listava o ETag entre os
@@ -111,9 +143,22 @@ Os sete princípios abaixo são **inegociáveis**. Uma violação bloqueia o mer
   - A verificação por log ou banco só é permitida enquanto o comportamento ainda não tem endpoint
     exposto.
   - Quando o endpoint passar a existir, o teste MUST ganhar a verificação por HTTP.
-- **Testes de falha de inicialização:** um contexto que não sobe não pode ser verificado por
-  `@SpringBootTest`. Por isso, esses testes executam a aplicação real com `SpringApplication`, sem
-  mocks, e verificam a exceção e o log.
+- **Testes que controlam o ciclo de vida da aplicação:** quando o teste precisa controlar o ciclo de
+  vida da aplicação real, ele MAY executá-la com `SpringApplication` em vez de `@SpringBootTest`. Os
+  casos são:
+  - **falha de inicialização:** um contexto que não sobe não pode ser verificado por
+    `@SpringBootTest`; o teste verifica a exceção e o log;
+  - **múltiplas execuções:** o teste compara o resultado de duas ou mais subidas da aplicação, por
+    exemplo com arquivos diferentes;
+  - **ordem da subida:** o teste observa, com ouvintes reais dos eventos do ciclo de vida, a ordem em
+    que as etapas da subida acontecem;
+  - **saída completa da subida:** o teste captura o log desde a primeira linha, num formato que ele
+    controla.
+
+  Esses testes MUST continuar sem mocks nem dublês: sobem a aplicação completa. O resultado MUST ser
+  verificado por chamadas HTTP reais sempre que o comportamento for observável por HTTP. A ordem da
+  subida e o próprio log, que o HTTP não observa, são verificados pelos eventos reais e pela saída
+  capturada.
 - Todo comportamento novo ou alterado MUST chegar com o seu teste de integração, no mesmo bolt.
 - O resultado de referência com o arquivo fornecido MUST ser testado: Joel Silver em `min`
   (1990–1991) e Matthew Vaughn em `max` (2002–2015).
@@ -288,4 +333,4 @@ documentação coerentes e evita o modelo cascata.
   conformidade com os princípios I a VII. Os sete princípios são inegociáveis e não admitem
   exceção em "Complexity Tracking". Qualquer outra divergência MUST ser justificada no plano.
 
-**Version**: 1.4.1 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-23
+**Version**: 1.5.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-24
