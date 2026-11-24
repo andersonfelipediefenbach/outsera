@@ -273,7 +273,11 @@ máquina e conferir se os dois endpoints estão descritos. Validar as respostas 
   - o ano não é um inteiro entre 1 e 9999 (por exemplo, `0` ou `10000`);
   - o título está vazio;
   - a coluna de produtores está vazia ou não gera nenhum nome depois da separação (FR-007 a FR-010);
-  - `winner` tem um valor diferente de `yes` ou vazio.
+  - `winner` tem um valor diferente de `yes` ou vazio;
+  - um campo excede o tamanho da coluna do esquema: título com mais de 500 caracteres, estúdios ou
+    produtores com mais de 1000, ou um nome de produtor com mais de 500 (acrescentado pela spec 003 em
+    2026-11-24, para que a carga direta e a ingestão por Kafka usem a mesma validação; antes, essa linha
+    interrompia a carga com um erro do banco, sem mensagem clara).
 - **FR-006e**: Ano, título e produtores são colunas obrigatórias. A coluna de estúdios é opcional: vazia,
   ela não invalida a linha. `winner` vazio significa não vencedor (FR-004).
 - **FR-006a**: Cada linha ignorada MUST gerar um aviso no log com o número da linha no arquivo e o

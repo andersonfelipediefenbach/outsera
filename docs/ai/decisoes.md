@@ -3,6 +3,156 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-24 — Segunda análise da spec 003 (`/speckit-analyze`)
+
+O responsável aceitou as correções, com os ajustes abaixo. Elas foram aplicadas na spec, no plano, na
+research, nos contratos e nas tarefas. A spec 001 também mudou (I1).
+
+- **C1, nova tentativa quando a gravação falha:**
+  - nova FR-015a e o `RetryPostgresIT` no `postgres-it`, que renomeia a tabela `movie` e a devolve num
+    `finally`. Ele é `@Isolated` e roda sem paralelismo;
+  - a spec e a R9 dizem o que o teste comprova de fato: a nova tentativa quando a gravação falha;
+  - a queda real do banco continua comprovada pelo passo 7b do compose.
+- **C2, comparação do token:**
+  - a FR-024 saiu da spec, e o número ficou reservado;
+  - a comparação em tempo constante virou decisão de design na R11, com o mecanismo
+    (`MessageDigest.isEqual` sobre SHA-256 em UTF-8);
+  - o ADR 0017 cita o mecanismo, e a "Revisão de segurança" o confere.
+- **C3, checks obrigatórios:** nova tarefa T093, um pedido ao responsável depois da primeira execução do
+  pipeline no PR e antes do merge:
+  - incluir `postgres` e `compose` como checks obrigatórios;
+  - conferir os seis jobs existentes;
+  - deixar desligado o bypass para administradores.
+- **I1, `FIELD_TOO_LONG` sem exceção:** a pedido do responsável, a diferença não foi documentada. A
+  regra de tamanho máximo passou para a `MovieFieldRules` e vale nos dois caminhos.
+  - **Custo, avaliado como baixo:** uma regra, um motivo no `RejectionReason` e um IT novo
+    (`FieldTooLongIT`).
+  - **Efeito no Marco 1:** uma linha do CSV com campo maior que a coluna deixa de interromper a subida
+    com um erro do banco. Ela passa a ser ignorada com aviso, e a spec 001 (FR-006) e o data-model 001
+    foram atualizados.
+  - Nenhum IT do Marco 1 depende desse caso, e o `KafkaEquivalenceIT` passa a incluir um arquivo com
+    esse caso.
+  - As diferenças de representação do evento (`winner` booleano, `year` inteiro JSON) foram para a
+    FR-010 e a FR-012.
+- **I2:** a linha de exceção do `ApiDocsIT` cita o título exato, com as crases.
+- **G1:** novo `KafkaBrokerUnavailableIT` (liveness 200 e readiness 503 com o broker fora).
+- **G2:** novo `KafkaErrorTopicUnavailableIT`. Antes, a tarefa verifica se um nome inválido de tópico
+  derruba a subida; se derrubar, usa um tópico válido não criado.
+- **G3:** o passo 7 do compose usa `down` sem `-v` e `up`, e não mais `restart app`.
+- **A1:** o `OPTIONS` segue a matriz de acesso, e o CORS fica para o Marco 6.
+- **A2:** o valor do token de demonstração é definido só no README (T088), e o quickstart o cita sem
+  repeti-lo.
+- **I3:** nova FR-022a, com os cabeçalhos de proteção e a ausência de `Cache-Control` nos endpoints de
+  negócio, e a definição de "como no Marco 2" na FR-019.
+- **I4:** a saúde geral entra na FR-022.
+- **I5:** o `RestartPostgresIT` faz 4 subidas (3 reinícios), como o SC-004.
+- **Não aplicados**, porque o responsável não os pediu: I6 (deriva entre a estrutura do plano e as
+  tarefas, só em parte resolvida pelas mudanças acima), I7 ("aceitas" × "publicadas"), A3 (o T036
+  aceita que o `DefaultModeIsolationIT` passe) e C4 (propriedade `publish-completion` usada por teste).
+
+## 2026-11-24 — Exceção do `ApiDocsIT` à regra dos testes sem alteração
+
+- **Origem:** plano 003. O `ApiDocsIT` (Marco 2, tag `v0.2.0`) compara o `/openapi.yaml` publicado, byte
+  a byte, com `specs/002-operacao/contracts/openapi.yaml`. O contrato 1.2.0 (autenticação opcional e
+  resposta 401, spec 003 FR-026) faz esse teste falhar. Pela R14 do plano, os ITs dos Marcos 1 e 2 não
+  podem mudar.
+- **Alternativas apresentadas ao responsável:**
+  - **A:** trocar só a constante `SPEC_CONTRACT` para o contrato da spec 003, como o Marco 2 fez ao
+    trocar a spec 001 pela 002;
+  - **B:** sobrescrever o contrato da spec 002 com o 1.2.0;
+  - **C:** não publicar o 1.2.0.
+- **Decisão do responsável:** opção A, sem mudar nenhuma asserção. O `ApiDocsIT` é a única linha de
+  `.github/unchanged-tests-exceptions.txt`, com o título desta entrada. O `check-unchanged-tests.sh`
+  aceita a mudança desse arquivo e reprova a de qualquer outro IT da tag.
+- **Rejeitadas:**
+  - B: o artefato de uma spec já entregue passaria a descrever o marco seguinte;
+  - C: a FR-026 deixaria de ser cumprida.
+
+## 2026-11-24 — Cabeçalhos de proteção do Spring Security em todas as respostas
+
+- **Origem:** plano 003, research R12. O Spring Security acrescenta `Cache-Control`, `Pragma`,
+  `Expires`, `X-Content-Type-Options` e `X-Frame-Options` a toda resposta. Os três primeiros anulariam o
+  ETag, e o Marco 2 não mandava `Cache-Control`.
+- **Decisão do responsável:**
+  - o `Cache-Control` do Security fica fora dos dois endpoints de negócio (pedido do plano);
+  - `X-Content-Type-Options` e `X-Frame-Options` ficam em **todas** as respostas, com o token ligado ou
+    desligado;
+  - o ADR da autenticação os registra como decisão intencional (spec 003, FR-037, e item do checklist).
+- **Leitura da FR-019** ("comportamento idêntico ao do Marco 2"): status, corpo, ETag, 304 e os
+  cabeçalhos que o Marco 2 já mandava continuam iguais. Os dois cabeçalhos de proteção são acréscimos
+  que não mudam nada do que os testes dos Marcos 1 e 2 verificam.
+- **Rejeitada:** desligar também esses dois escritores, para uma igualdade literal de cabeçalhos. Isso
+  removeria proteção sem nenhum ganho para o ETag nem para o contrato.
+
+## 2026-11-24 — Emenda 1.7.0 da constituição: comprovação de comportamento que depende de infraestrutura
+
+- **Origem:** Constitution Check do plano 003:
+  - o Princípio VI exigia o teste de integração de cada comportamento "no `./mvnw verify`";
+  - o Princípio II põe os testes de PostgreSQL num perfil Maven separado, fora do `verify` padrão;
+  - o plano tinha lido os dois juntos e pedido a confirmação do responsável.
+- **Decisão do responsável:** emenda MINOR do Princípio VI. O comportamento da aplicação que depende de
+  infraestrutura indisponível no modo padrão, como o PostgreSQL, é comprovado por testes de integração
+  num perfil Maven dedicado, executado obrigatoriamente no pipeline. Todo o resto continua exigindo teste
+  no `./mvnw verify`.
+- **Detalhes da redação:**
+  - os testes do perfil seguem o Princípio I (contexto completo, sem mocks, HTTP);
+  - o comportamento comum aos dois modos continua testado no `verify`, com H2;
+  - uma dependência com substituto embutido sem Docker, como o broker Kafka do Spring, não entra na
+    exceção.
+- **Impacto:**
+  - 1.6.0 → 1.7.0 (MINOR): é regra nova, e nenhum requisito que cumpria a versão anterior deixa de
+    cumprir;
+  - foram alinhados a constituição (Princípio VI e Sync Impact Report), o `AGENTS.md` (rastreabilidade e
+    seção Testes), a spec 003 (FR-038) e o plano 003 (Constitution Check). O checklist da spec 003 também
+    foi atualizado.
+
+## 2026-11-24 — Emenda 1.6.0 da constituição: credenciais de demonstração no compose local
+
+- **Origem:** clarificação da spec 003 (Marco 3). O compose precisa de usuário e senha para o
+  PostgreSQL e o Grafana, e o Princípio VII só permitia o token de demonstração no repositório.
+- **Alternativas apresentadas ao responsável:**
+  - sem credencial: PostgreSQL só na rede interna do compose, sem senha, e Grafana com acesso anônimo;
+  - senhas de demonstração, documentadas no README;
+  - `.env` não versionado, com um passo obrigatório antes do `docker compose up`.
+- **Decisão do responsável:** senhas de demonstração, com emenda do Princípio VII antes do plano. Elas
+  são permitidas só no compose de desenvolvimento local e precisam cumprir quatro condições:
+  - aparecem só nos arquivos do compose local e na configuração que ele monta;
+  - são identificadas como de demonstração no README e no próprio arquivo;
+  - podem ser sobrescritas por variável de ambiente;
+  - nunca são usadas em ambiente publicado.
+
+  O token de demonstração continua como estava.
+- **Motivo:** é a forma mais comum de um compose local subir com um único comando, num clone limpo. Uma
+  senha de demonstração restrita à máquina de quem executa não protege nada de valor.
+- **Ponto interpretado na redação:** o estágio do pipeline que sobe o mesmo compose num runner
+  temporário (spec 003, FR-035) foi declarado como não sendo ambiente publicado. Sem isso, o teste do
+  compose no pipeline violaria a condição "só no compose local".
+- **Impacto:** MINOR (1.5.0 → 1.6.0), porque amplia o permitido e não proíbe nada que valia antes.
+  Foram alinhados a constituição (Princípio VII, motivo e Sync Impact Report), o `AGENTS.md` (seção
+  Segurança), a spec 003 (Clarifications e FR-033) e o checklist dela. O README só ganha a
+  identificação das credenciais quando o compose existir (spec 003, FR-036).
+
+## 2026-11-24 — T050 do Marco 2 (SC-008) não executada
+
+- **Situação:** a T050, que prova que o pipeline reprova (SC-008), não foi executada antes do merge do
+  PR do Marco 2 nem da tag `v0.2.0`. O branch temporário de verificação não chegou a ser criado, e
+  nenhum dos sete defeitos foi enviado ao pipeline.
+- **Motivo (decisão do responsável):** prazo de entrega. A verificação exige um push e uma execução
+  do pipeline por defeito, e isso não cabia no prazo do marco.
+- **O que está comprovado:** os demais requisitos de pipeline (FR-028, FR-028b e FR-029) foram
+  comprovados pelas execuções verdes do workflow `CI` no branch `marco/2-operacao` e no PR. Depois do
+  merge, o pipeline também validou o primeiro pull request do Dependabot (grupo
+  `maven-minor-e-patch`, "Bump the maven-minor-e-patch group with 4 updates"), o que confirma que o
+  Dependabot está ativo e que os PRs dele passam pelo mesmo portão.
+- **O que fica sem comprovação:** que cada job reprova diante do defeito correspondente. As execuções
+  verdes mostram que o pipeline aprova código correto, não que ele recusa código com defeito. O único
+  portão já visto falhando de propósito é o da cobertura mínima, localmente, com
+  `-Djacoco.line.minimum=0.99` (T041).
+- **Impacto:** a T050 fica marcada como não executada em `specs/002-operacao/tasks.md`, com referência
+  a esta entrada. O SC-008 continua aberto e pode ser comprovado depois, seguindo o roteiro da T050 sem
+  mudança, num branch temporário a partir da `main`. Quando isso acontecer, o resultado entra numa
+  entrada "Verificação do SC-008", como a T050 prevê.
+
 ## 2026-11-24 — Emenda 1.5.0 da constituição: `SpringApplication` para controlar o ciclo de vida
 
 - **Origem:** revisão do Codex no PR do Marco 2. O `EtagAcrossRunsIT` e o `ReadinessAfterLoadIT` usam

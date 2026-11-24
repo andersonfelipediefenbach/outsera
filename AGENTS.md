@@ -37,8 +37,13 @@ O trabalho é Spec-Driven Development com o GitHub Spec Kit, no modo *spec-ancho
   4. O implementador corrige apenas o que o Anderson aceitar.
   5. O merge acontece com o pipeline verde, e a sessão é exportada.
 - **Rastreabilidade:** cada requisito aponta para a comprovação adequada ao seu tipo (Princípio VI,
-  constituição 1.4.0): teste de integração para comportamento da aplicação, revisão com item no
-  checklist da spec para documentação, e execução do pipeline para pipeline e imagem.
+  constituição 1.7.0):
+  - comportamento da aplicação: teste de integração no `./mvnw verify`. Se o comportamento depende de
+    infraestrutura indisponível no modo padrão, como o PostgreSQL, o teste de integração roda num perfil
+    Maven dedicado, que o pipeline executa obrigatoriamente. Se a dependência tem substituto embutido sem
+    Docker, como o broker Kafka do Spring, o teste continua no `./mvnw verify`;
+  - documentação: revisão, com item no checklist da spec;
+  - pipeline e imagem: execução do pipeline.
 - Não abra pull request, não faça merge e não crie tags por conta própria. Esses passos são do Anderson.
 - Faça commits pequenos e com mensagens descritivas, sem misturar assuntos.
 
@@ -92,7 +97,7 @@ O detalhe fica na spec. Estas regras não mudam sem decisão registrada.
 
 - Todo comportamento novo ou alterado chega com o teste de integração correspondente, no mesmo bolt.
 - Os testes do enunciado e dos extras da API rodam com `./mvnw verify` **sem Docker**. Kafka usa o broker embutido do Spring, não Testcontainers.
-- Testes que exigem PostgreSQL ficam em um perfil Maven separado, executado no pipeline.
+- Testes que exigem PostgreSQL ficam em um perfil Maven separado, executado obrigatoriamente no pipeline (Princípio VI, 1.7.0). Eles cobrem só o que depende do PostgreSQL. O comportamento comum aos dois bancos é testado também no `./mvnw verify`, com H2.
 - CSVs de cenário ficam em `src/test/`.
 - Um teste que verifica por log ou banco, porque o endpoint ainda não existe, ganha a verificação por HTTP no bolt em que o endpoint surgir (Princípio I).
 - Antes de dar uma tarefa como pronta, rode `./mvnw verify` e informe o resultado real. Se algo falhou ou foi pulado, diga.
@@ -100,6 +105,7 @@ O detalhe fica na spec. Estas regras não mudam sem decisão registrada.
 ## Segurança
 
 - Nunca grave tokens, senhas ou credenciais no código, em commits ou em mensagens aos agentes. Tudo o que é digitado aos agentes será publicado.
+- Exceção (Princípio VII, constituição 1.6.0): credenciais de demonstração dos serviços do compose de desenvolvimento local, como o PostgreSQL e o Grafana. Elas aparecem só nos arquivos do compose local, são identificadas como de demonstração no README e no próprio arquivo, podem ser sobrescritas por variável de ambiente e nunca são usadas em ambiente publicado. O teste do compose no pipeline não conta como ambiente publicado.
 - A autenticação existe e é testada, mas fica **desligada por padrão**: sem a variável de ambiente do token, os endpoints de negócio ficam públicos. O único token aceito no repositório é o de demonstração documentado no README.
 - No pipeline, as actions são fixadas por **hash de commit**, nunca por tag.
 - A imagem Docker é multi-stage e roda com usuário não root.
