@@ -3,6 +3,49 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-24 — Etapa 2 do Marco 3: verificações e decisões da ingestão por Kafka
+
+- **Nome da autoconfiguração (R2, verificado):** no Boot 4.1.2, são
+  `org.springframework.boot.kafka.autoconfigure.KafkaAutoConfiguration` e
+  `...kafka.autoconfigure.metrics.KafkaMetricsAutoConfiguration`, excluídas no `application.yml` e
+  liberadas no `application-kafka.yml`. Versões: Spring Kafka 4.1.2 e kafka-clients 4.2.2.
+- **Nome inválido de tópico (T034c, verificado):**
+  - um tópico de erros com um nome que o Kafka não aceita **não derruba a subida**. Com
+    `spring.kafka.admin.fail-fast: false`, o `KafkaAdmin` registra o `InvalidTopicException` e a aplicação
+    fica pronta;
+  - o `KafkaErrorTopicUnavailableIT` usa esse nome, e cada envio é recusado de verdade pelo cliente;
+  - a propriedade alternativa `awards.ingestion.create-error-topic` não foi necessária e foi descartada:
+    menos uma configuração usada só por teste.
+- **Broker fora do ar (T034b, verificado):** a aplicação sobe sem o broker, com a liveness 200 e a
+  readiness 503. A subida, com os prazos do `KafkaAdmin`, e o encerramento, com envios pendentes, levam
+  cerca de 15 s. O teste encurta os prazos do `KafkaAdmin` e do produtor só para ele.
+- **Série de atraso do consumidor (R19, verificado):** a série que aparece logo depois da carga é
+  `kafka_consumer_fetch_manager_records_lag_max`, por cliente (`client_id=consumer-awards-movies-<n>`). A
+  série por partição só aparece depois da atualização periódica do Micrometer. Com um consumidor e uma
+  partição, o máximo do cliente é o atraso do tópico. A R19 e o contrato operacional foram atualizados.
+- **Captura de saída por teste:** o resumo da publicação é registrado num fio próprio, durante o
+  primeiro teste da classe, e o `OutputCaptureExtension` descarta a captura de cada teste no fim dele.
+  Por isso, a verificação do resumo ficou só no `PublisherSummaryIT`, que tem um único teste, e saiu do
+  `KafkaInvalidLinesIT`, que confere o tópico e os avisos.
+- **Tempo do `./mvnw verify` acima do limite da R15:** 256 s sem `clean`, contra 96 s na linha de base,
+  ou seja, 2,7× (limite de 2×). A R15 previa compartilhar o broker entre as classes, mas a medição mostra
+  que o broker não é o custo: uma classe inteira, como o `KafkaUpdateIT`, leva 2,9 s com broker e
+  contexto. O tempo está em poucos testes que esperam de propósito:
+  - `KafkaBrokerUnavailableIT`, cerca de 20 s;
+  - `KafkaInvalidEventsIT`, 16 casos, cerca de 18 s em cada uma das duas execuções do Failsafe;
+  - `KafkaReadinessIT`, 3 s de espera pelo marcador errado;
+  - `KafkaEquivalenceIT`, seis subidas.
+
+  Foram feitos dois ajustes: o produtor dos testes passou a ser reutilizado e a leitura passou a ser feita
+  sem grupo de consumidores, o que tirou cerca de 20 s do `KafkaInvalidEventsIT`. O resto foi mantido.
+  **Pendente de decisão do responsável:** aceitar os cerca de 4 min do `verify`, ou cortar casos.
+- **Nova tentativa quando a gravação falha (FR-015a):** o `RetryPostgresIT` passou no `postgres-it`
+  local, com a mensagem `Falha ao gravar o evento … nova tentativa` no log, e o filme foi gravado depois
+  de a tabela ser devolvida. A queda real do banco fica para o passo 7b do compose (etapa 4).
+- **Validação comum (I1 da segunda análise):** o `FIELD_TOO_LONG` está na `MovieFieldRules`, usada pelo
+  leitor do CSV e pelo parser de eventos. O `FieldTooLongIT` (carga direta) e o `KafkaEquivalenceIT` (com
+  o arquivo `field-too-long.csv`) passam.
+
 ## 2026-11-24 — Segunda análise da spec 003 (`/speckit-analyze`)
 
 O responsável aceitou as correções, com os ajustes abaixo. Elas foram aplicadas na spec, no plano, na

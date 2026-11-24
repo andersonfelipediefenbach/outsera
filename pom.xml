@@ -57,6 +57,12 @@
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
         <dependency>
+            <!-- Ingestão por Kafka no perfil kafka (spec 003, FR-009 a FR-018). A autoconfiguração do Boot
+                 fica excluída fora do perfil (research R2). -->
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-kafka</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-csv</artifactId>
             <version>${commons-csv.version}</version>
@@ -112,6 +118,12 @@
             <!-- RestTestClient e @AutoConfigureRestTestClient (Spring Boot 4) -->
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-resttestclient</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <!-- Broker Kafka embutido (KRaft) nos testes, sem Docker (Princípio II; research R15) -->
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

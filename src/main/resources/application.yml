@@ -8,6 +8,12 @@ spring:
       docker:
         - postgres
         - kafka
+  autoconfigure:
+    # Sem o perfil kafka, o Kafka não é configurado (Princípio V; spec 003, FR-001; research R2). O
+    # application-kafka.yml redefine esta lista sem as duas classes.
+    exclude:
+      - org.springframework.boot.kafka.autoconfigure.KafkaAutoConfiguration
+      - org.springframework.boot.kafka.autoconfigure.metrics.KafkaMetricsAutoConfiguration
   main:
     # Banner desligado em todas as execuções (spec 002, FR-020; research R6)
     banner-mode: off

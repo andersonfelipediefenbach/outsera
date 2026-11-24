@@ -206,12 +206,11 @@ research e, se mudar comportamento, para a spec (Princípio IV).
     do consumidor cresce e aparece no dashboard.
 - **Tópico de erros fora do ar:** o envio ao tópico de erros espera a confirmação por até 10 s. Se
   falhar, o aviso no log registra o motivo e a falha do envio, e o offset avança (caso de borda da spec).
-  O `KafkaErrorTopicUnavailableIT` comprova isso com um nome de tópico de erros inválido para o Kafka, que
-  o broker recusa de verdade. **Verificar antes:** se o `NewTopic` com esse nome derruba a subida. Se
-  derrubar, o IT usa um nome válido que não é criado (o `NewTopic` do tópico de erros fica atrás da
-  propriedade `awards.ingestion.create-error-topic`, padrão `true`), com a criação automática de tópicos
-  desligada no broker embutido. Se nenhum dos dois for possível sem dublê, o limite é registrado em
-  `docs/ai/decisoes.md`.
+  O `KafkaErrorTopicUnavailableIT` comprova isso com um nome de tópico de erros que o Kafka não aceita, e
+  o cliente recusa cada envio de verdade. **Verificado (etapa 2, T034c):** o `NewTopic` com esse nome não
+  derruba a subida. Com `spring.kafka.admin.fail-fast: false`, o `KafkaAdmin` registra o
+  `InvalidTopicException` e a aplicação fica pronta. Por isso não foi preciso a propriedade alternativa
+  `awards.ingestion.create-error-topic`, que foi descartada.
 - **Comprovação da nova tentativa (spec 003, FR-015a):**
   - **`RetryPostgresIT`** (perfil `postgres-it`) prova a **nova tentativa quando a gravação falha**:
     1. com a aplicação pronta, o teste renomeia a tabela `movie` do seu esquema por JDBC;
@@ -504,11 +503,14 @@ O contrato está em [contracts/compose.md](contracts/compose.md).
   - **requisições por segundo** por rota: `sum by (uri) (rate(http_server_requests_seconds_count{uri=~"/api/.*"}[1m]))`;
   - **taxa de erro:** razão entre `outcome=~"CLIENT_ERROR|SERVER_ERROR"` e o total, nas rotas de negócio;
   - **p95 e p99 de latência:** `histogram_quantile(0.95|0.99, sum by (le, uri) (rate(http_server_requests_seconds_bucket{uri=~"/api/.*"}[5m])))`;
-  - **atraso do consumidor:** `kafka_consumer_fetch_manager_records_lag{topic="awards.movies"}` ou o
-    equivalente que o Micrometer publicar;
+  - **atraso do consumidor:** `max(kafka_consumer_fetch_manager_records_lag_max{client_id=~"consumer-awards-movies.*"})`;
   - **eventos gravados e rejeitados:** `rate(awards_ingestion_events_total[5m])` por `outcome`.
-- **Verificar:** o nome exato da série de atraso que o Micrometer publica com o Spring Kafka do Boot
-  4.1.2 (`MicrometerConsumerListener`). O `KafkaMetricsIT` fixa o nome, e o painel usa o mesmo.
+- **Verificado (etapa 2):** com o Spring Kafka 4.1.2, a série que aparece logo depois da carga é a do
+  cliente: `kafka_consumer_fetch_manager_records_lag_max`, com o rótulo `client_id` do consumidor do
+  ouvinte `awards-movies` (`consumer-awards-movies-<n>`). A série por partição (`..._records_lag`, com
+  `topic` e `partition`) só aparece depois da atualização periódica do Micrometer. Com um consumidor e
+  uma partição, o máximo do cliente é o atraso do tópico de filmes. O `KafkaMetricsIT` fixa esse nome, e
+  o painel usa o mesmo.
 
 ## R20. Pipeline: jobs novos e mudanças
 

@@ -23,7 +23,8 @@ import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 /**
- * Lê e valida o arquivo de filmes (FR-003 a FR-006e, research R3).
+ * Lê e valida o arquivo de filmes (FR-003 a FR-006e, research R3). As regras de conteúdo de cada campo
+ * ficam na {@link MovieFieldRules}, comum ao parser de eventos do Kafka (spec 003, FR-012).
  *
  * <p>Erros estruturais lançam {@link MovieFileException}. Linhas inválidas viram {@link Rejection} no
  * {@link LoadReport}, e a leitura continua.
@@ -36,10 +37,6 @@ public class MovieCsvReader {
 
     private static final char BOM = '﻿';
     private static final Pattern YEAR = Pattern.compile("\\d+");
-    private static final Pattern LEADING_ZEROS = Pattern.compile("^0+");
-    /** Faixa válida de ano (FR-006, sessão 2026-11-22 da spec). */
-    private static final int MIN_YEAR = 1;
-    private static final int MAX_YEAR = 9999;
 
     private static final CSVFormat FORMAT = CSVFormat.DEFAULT.builder()
             .setDelimiter(';')
@@ -164,39 +161,30 @@ public class MovieCsvReader {
         if (!YEAR.matcher(year).matches()) {
             return new Rejection(lineNumber, RejectionReason.YEAR_NOT_NUMERIC, year);
         }
-        if (!isYearInRange(year)) {
+        if (!MovieFieldRules.isYearInRange(year)) {
             return new Rejection(lineNumber, RejectionReason.YEAR_OUT_OF_RANGE, year);
         }
         String title = record.get(1);
-        if (title.isEmpty()) {
+        if (!MovieFieldRules.hasTitle(title)) {
             return new Rejection(lineNumber, RejectionReason.TITLE_MISSING, null);
         }
-        if (ProducerNameParser.parse(record.get(3)).isEmpty()) {
+        List<String> producerNames = MovieFieldRules.producerNames(record.get(3));
+        if (producerNames.isEmpty()) {
             return new Rejection(lineNumber, RejectionReason.PRODUCERS_MISSING, null);
         }
         String winner = record.get(4);
         if (!winner.isEmpty() && !winner.equalsIgnoreCase("yes")) {
             return new Rejection(lineNumber, RejectionReason.WINNER_INVALID, winner);
         }
+        String tooLong = MovieFieldRules.tooLong(title, record.get(2), record.get(3), producerNames);
+        if (tooLong != null) {
+            return new Rejection(lineNumber, RejectionReason.FIELD_TOO_LONG, tooLong);
+        }
         Long original = accepted.get(new MovieKey(Integer.parseInt(year), title));
         if (original != null) {
             return new Rejection(lineNumber, RejectionReason.DUPLICATE, "mesmo ano e título da linha " + original);
         }
         return null;
-    }
-
-    /**
-     * Se o ano, já só com dígitos, está entre {@link #MIN_YEAR} e {@link #MAX_YEAR}. Os zeros à esquerda
-     * são descartados antes, e o tamanho é conferido antes da conversão, para que uma sequência longa de
-     * dígitos não estoure o {@code int}.
-     */
-    private static boolean isYearInRange(String digits) {
-        String significant = LEADING_ZEROS.matcher(digits).replaceFirst("");
-        if (significant.length() > String.valueOf(MAX_YEAR).length()) {
-            return false;
-        }
-        int value = significant.isEmpty() ? 0 : Integer.parseInt(significant);
-        return value >= MIN_YEAR && value <= MAX_YEAR;
     }
 
     private static MovieRow toRow(CSVRecord record, long lineNumber) {

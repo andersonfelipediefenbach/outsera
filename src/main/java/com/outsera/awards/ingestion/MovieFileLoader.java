@@ -1,52 +1,39 @@
 package com.outsera.awards.ingestion;
 
-import com.outsera.awards.ingestion.MovieFileException.Reason;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.SmartInitializingSingleton;
-import org.springframework.core.io.Resource;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
- * Carrega o arquivo de filmes na inicialização (FR-001).
+ * Carga direta do arquivo de filmes na inicialização (FR-001), no modo padrão e no perfil
+ * {@code postgres}. Com o perfil {@code kafka}, ela não roda: o tópico é o único caminho de entrada dos
+ * dados (spec 003, FR-009 e US1-6).
  *
  * <p>Roda em {@link #afterSingletonsInstantiated()}: depois do Flyway e dos repositórios, e antes de o
  * servidor web começar a aceitar conexões (research R2). Uma exceção aqui interrompe a inicialização.
  */
 @Component
+@Profile("!kafka")
 public class MovieFileLoader implements SmartInitializingSingleton {
 
     private static final Logger log = LoggerFactory.getLogger(MovieFileLoader.class);
 
-    private final MovieFileProperties properties;
-    private final MovieCsvReader reader;
+    private final MovieFileReading reading;
     private final MovieImportService importService;
 
-    public MovieFileLoader(MovieFileProperties properties, MovieCsvReader reader,
-            MovieImportService importService) {
-        this.properties = properties;
-        this.reader = reader;
+    public MovieFileLoader(MovieFileReading reading, MovieImportService importService) {
+        this.reading = reading;
         this.importService = importService;
     }
 
     @Override
     public void afterSingletonsInstantiated() {
-        String path = properties.path();
-        Resource resource = properties.resource();
-        if (!resource.exists()) {
-            throw new MovieFileException(Reason.NOT_FOUND, path, null, "o arquivo não existe");
-        }
-        if (!resource.isReadable()) {
-            throw new MovieFileException(Reason.UNREADABLE, path, null, "o caminho não é um arquivo legível");
-        }
-
-        MovieCsvReader.Result result = reader.read(resource, path);
+        MovieCsvReader.Result result = reading.read();
         LoadReport report = result.report();
-        for (Rejection rejection : report.rejections()) {
-            log.warn("Linha {} rejeitada: {}", rejection.lineNumber(), rejection.describe());
-        }
         importService.importMovies(result.rows());
         log.info("Carga do arquivo {} concluída: {} linhas lidas, {} aceitas, {} rejeitadas",
-                path, report.linesRead(), report.accepted(), report.rejected());
+                reading.path(), report.linesRead(), report.accepted(), report.rejected());
     }
 }

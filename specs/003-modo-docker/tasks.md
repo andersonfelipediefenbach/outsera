@@ -215,8 +215,8 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
 
 ### Apoio da etapa 2
 
-- [ ] T021 [US1] No `pom.xml`, acrescentar `org.springframework.kafka:spring-kafka` (compilação) e `org.springframework.kafka:spring-kafka-test` (teste), com as versões do Boot.
-- [ ] T022 [US1] Criar `src/test/java/com/outsera/awards/support/KafkaTestSupport.java`, com um produtor e um consumidor **reais** (clientes Kafka) ligados ao broker embutido:
+- [X] T021 [US1] No `pom.xml`, acrescentar `org.springframework.kafka:spring-kafka` (compilação) e `org.springframework.kafka:spring-kafka-test` (teste), com as versões do Boot.
+- [X] T022 [US1] Criar `src/test/java/com/outsera/awards/support/KafkaTestSupport.java`, com um produtor e um consumidor **reais** (clientes Kafka) ligados ao broker embutido:
   - `topics(Class<?>)` devolve `awards.movies.<classe>` e `awards.movies.errors.<classe>`;
   - `args(EmbeddedKafkaBroker, Class<?>)` devolve `--spring.profiles.active=kafka`,
     `--KAFKA_BOOTSTRAP_SERVERS=…`, `--KAFKA_TOPIC_MOVIES=…`, `--KAFKA_TOPIC_ERRORS=…` e
@@ -228,24 +228,24 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
 
 ### Testes da etapa 2 (escrever primeiro; precisam falhar)
 
-- [ ] T023 [P] [US1] Criar `src/test/java/com/outsera/awards/isolation/DefaultModeIsolationIT.java` (`@Tag("log")`; saída completa da subida pelo `ApplicationStarter`, sem perfil):
+- [X] T023 [P] [US1] Criar `src/test/java/com/outsera/awards/isolation/DefaultModeIsolationIT.java` (`@Tag("log")`; saída completa da subida pelo `ApplicationStarter`, sem perfil):
   - `S003 FR-001`: `GET /actuator/prometheus` não tem nenhuma linha que comece por `kafka_` nem por
     `awards_ingestion_`;
   - o log não contém `AdminClientConfig`, `ProducerConfig` nem `ConsumerConfig` (research R2);
   - os intervalos trazem o resultado de referência.
-- [ ] T024 [P] [US1] Criar `src/test/java/com/outsera/awards/kafka/KafkaReferenceFileIT.java` (`@SpringBootTest`, `@ActiveProfiles("kafka")`, `@EmbeddedKafka(partitions = 1)`, `spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}` e tópicos da classe):
+- [X] T024 [P] [US1] Criar `src/test/java/com/outsera/awards/kafka/KafkaReferenceFileIT.java` (`@SpringBootTest`, `@ActiveProfiles("kafka")`, `@EmbeddedKafka(partitions = 1)`, `spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}` e tópicos da classe):
   - `S003 US1-1 FR-012`: depois da readiness, os intervalos trazem Joel Silver e Matthew Vaughn;
   - `S003 FR-010 FR-011`: o tópico de filmes tem 206 eventos de filme, com a chave `"<ano>|<título>"` e o
     cabeçalho `awards-run-id`, seguidos de um evento `{"type":"load-completed","runId":…,"count":206}`
     com o mesmo `runId`;
   - `S003 US1-6 FR-009`: o log não tem a mensagem da carga direta (`Carga do arquivo … concluída`).
-- [ ] T025 [P] [US1] Criar `src/test/java/com/outsera/awards/kafka/KafkaEquivalenceIT.java` (`@EmbeddedKafka` na classe; duas execuções com o `ApplicationStarter`: carga direta e `kafka`, com o arquivo padrão; a de Kafka chama `awaitReady` antes de consultar):
+- [X] T025 [P] [US1] Criar `src/test/java/com/outsera/awards/kafka/KafkaEquivalenceIT.java` (`@EmbeddedKafka` na classe; duas execuções com o `ApplicationStarter`: carga direta e `kafka`, com o arquivo padrão; a de Kafka chama `awaitReady` antes de consultar):
   - `S003 FR-018 US1-2 SC-001`: os intervalos, `/api/movies?size=100&page=0..2`, `?winner=true` e
     `?year=1990` são idênticos byte a byte, inclusive o `ETag`;
   - repetir com `classpath:scenarios/adversario/13-ordenacao-com-acentos-e-caixa.csv`;
   - repetir com `classpath:scenarios/field-too-long.csv` (T034a), sem exceção (FR-018). As linhas
     rejeitadas por `FIELD_TOO_LONG` faltam nos dois caminhos, e as respostas são idênticas.
-- [ ] T026 [P] [US1] Criar `src/test/java/com/outsera/awards/kafka/KafkaReadinessIT.java` (`@SpringBootTest`, perfil `kafka`, `awards.ingestion.publish-completion=false`; research R10):
+- [X] T026 [P] [US1] Criar `src/test/java/com/outsera/awards/kafka/KafkaReadinessIT.java` (`@SpringBootTest`, perfil `kafka`, `awards.ingestion.publish-completion=false`; research R10):
   - `S003 FR-013 US1-3`:
     - depois de `totalElements` chegar a 206 na listagem, a readiness e `/actuator/health` continuam
       503 e a liveness 200;
@@ -254,17 +254,17 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
     - depois, envia o marcador com o `runId` certo, e a readiness passa a 200 em até 5 s;
   - `S003 FR-016 US3-5`: com a aplicação pronta, envia um evento válido e um inválido; a readiness
     continua 200.
-- [ ] T027 [P] [US1] Criar `src/test/java/com/outsera/awards/kafka/KafkaInvalidLinesIT.java` (`@Tag("log")`, `classpath:scenarios/invalid-lines.csv`, perfil `kafka`):
+- [X] T027 [P] [US1] Criar `src/test/java/com/outsera/awards/kafka/KafkaInvalidLinesIT.java` (`@Tag("log")`, `classpath:scenarios/invalid-lines.csv`, perfil `kafka`):
   - `S003 FR-009 US1-4`: cada linha rejeitada gera o aviso `Linha <n> rejeitada: <motivo>`, com os mesmos
     pares número e motivo do `InvalidLinesIT`;
   - o resumo `Publicação do arquivo <caminho> concluída: <lidas> linhas lidas, <aceitas> publicadas,
     <rejeitadas> rejeitadas` aparece com as contagens do `InvalidLinesIT`;
   - o tópico tem só os eventos das linhas aceitas, e a aplicação fica pronta.
-- [ ] T028 [P] [US1] Criar `src/test/java/com/outsera/awards/kafka/KafkaStructuralFailureIT.java` (`@Tag("log")`, falha de inicialização pelo `ApplicationStarter` com os argumentos de Kafka):
+- [X] T028 [P] [US1] Criar `src/test/java/com/outsera/awards/kafka/KafkaStructuralFailureIT.java` (`@Tag("log")`, falha de inicialização pelo `ApplicationStarter` com os argumentos de Kafka):
   - `S003 FR-009 US1-5`: com arquivo ausente e com `scenarios/header-wrong-order.csv`, a subida falha com
     a mesma mensagem do `StartupFailureIT`;
   - o tópico de filmes fica vazio (`readAll` de 3 s sem registros).
-- [ ] T029 [P] [US3] Criar `src/test/java/com/outsera/awards/kafka/KafkaNewWinnerIT.java` (perfil `kafka`, arquivo padrão):
+- [X] T029 [P] [US3] Criar `src/test/java/com/outsera/awards/kafka/KafkaNewWinnerIT.java` (perfil `kafka`, arquivo padrão):
   - `S003 FR-016 US3-1 SC-005`: depois da readiness, guarda o `ETag` dos intervalos. Envia
     `{"year":1991,"title":"Evento Novo","studios":null,"producers":"Producer X, Joel Silver and Producer Y","winner":true}`.
     Em até 5 s, `min` traz exatamente `{"producer":"Joel Silver","interval":0,"previousWin":1991,"followingWin":1991}`
@@ -272,25 +272,27 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
   - `S003 US3-2`: a consulta com o `ETag` antigo em `If-None-Match` responde 200, com um `ETag` diferente;
   - `S003 US3-6 FR-012`: `/api/movies?year=1991` traz o filme com `producers` igual ao texto enviado.
     Os intervalos tratam `Producer X` e `Producer Y` como produtores distintos.
-- [ ] T030 [P] [US3] Criar o cenário `src/test/resources/scenarios/kafka/update-base.csv` com o cabeçalho e as linhas:
+- [X] T030 [P] [US3] Criar o cenário `src/test/resources/scenarios/kafka/update-base.csv` com o cabeçalho e as linhas:
   - `2000;Upd A;S;Producer A;yes`;
   - `2004;Upd B;S;Producer A;`;
   - `2008;Upd C;S;Producer A, Producer B;yes`;
   - `2012;Upd D;S;Producer B;yes`.
 
-  Criar também `src/test/java/com/outsera/awards/kafka/KafkaUpdateIT.java`:
-  - `S003 FR-014 US2-5`: um evento de `2004`/`Upd B` com `winner: true` deixa `Upd B` como vencedor na
-    listagem, e `min` passa a `Producer A` 2004–2008 (4);
-  - `S003 FR-014` (vencedor que vira indicado): um evento de `2012`/`Upd D` com `winner: false` tira o
-    intervalo de `Producer B`, porque só resta a vitória de 2008;
-  - `S003 FR-014` (produtor removido): um evento de `2008`/`Upd C` com `producers: "Producer A"` tira o
-    vínculo de `Producer B`, e `Producer B` some das respostas;
+  Criar também `src/test/java/com/outsera/awards/kafka/KafkaUpdateIT.java`, com os passos em sequência sobre o
+  mesmo estado (na carga, `min` = `Producer B` 2008–2012 (4) e `max` = `Producer A` 2000–2008 (8)):
+  - `S003 FR-014 US2-5` (indicado que vira vencedor): `2004`/`Upd B` com `winner: true` dá `min` = `max` =
+    `Producer A` 2000–2004, `Producer A` 2004–2008 e `Producer B` 2008–2012, todos com 4;
+  - vencedor que vira indicado: `2004`/`Upd B` com `winner: false` volta aos intervalos da carga;
+  - produtor removido: `2008`/`Upd C` com `producers: "Producer A"` tira o vínculo de `Producer B`, que
+    some dos intervalos (`min` = `max` = `Producer A` 2000–2008 (8)), e a listagem mostra o texto novo;
   - em todos os casos, `totalElements` continua 4.
-- [ ] T031 [P] [US3] Criar `src/test/java/com/outsera/awards/kafka/KafkaIdempotencyIT.java`:
+
+  *Ajustado na implementação: a sequência original não isolava o efeito de cada evento.*
+- [X] T031 [P] [US3] Criar `src/test/java/com/outsera/awards/kafka/KafkaIdempotencyIT.java`:
   - `S003 FR-014 SC-004`: depois da readiness, o teste lê os 206 eventos de filme do tópico e os reenvia
     todos. `totalElements` continua 206, e os intervalos são os mesmos;
   - o mesmo evento novo enviado duas vezes aumenta `totalElements` em 1.
-- [ ] T032 [P] [US3] Criar `src/test/java/com/outsera/awards/kafka/KafkaInvalidEventsIT.java` (`@Tag("log")`, perfil `kafka`, `@ParameterizedTest` com um caso por motivo do data-model.md):
+- [X] T032 [P] [US3] Criar `src/test/java/com/outsera/awards/kafka/KafkaInvalidEventsIT.java` (`@Tag("log")`, perfil `kafka`, `@ParameterizedTest` com um caso por motivo do data-model.md):
   - os casos:
     - `NOT_UTF8`: bytes `0xC3 0x28`;
     - `NOT_JSON`: `não é json`;
@@ -310,29 +312,29 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
   - o log tem um aviso com o motivo e a posição e **não** contém o conteúdo enviado;
   - `S003 US3-4 SC-006`: um evento válido enviado logo depois do inválido aparece na listagem em até 5 s;
   - `S003 FR-017`: `awards_ingestion_events_total{outcome="rejected"}` aumenta 1 por caso.
-- [ ] T033 [P] [US3] Criar `src/test/java/com/outsera/awards/kafka/KafkaMetricsIT.java`:
+- [X] T033 [P] [US3] Criar `src/test/java/com/outsera/awards/kafka/KafkaMetricsIT.java`:
   - `S003 FR-017`: depois da readiness, `/actuator/prometheus` tem
     `awards_ingestion_events_total{outcome="recorded"}` igual a 206 e uma série de atraso do consumidor
     com o rótulo `topic` do tópico de filmes;
   - **Verificar (R19):** fixar no teste o nome exato que o Micrometer publicar e atualizar a R19 e
     `contracts/operational-endpoints.md` com ele.
-- [ ] T034 [P] [US1] Criar `src/test/java/com/outsera/awards/kafka/PublisherSummaryIT.java` (`@Tag("log")`):
+- [X] T034 [P] [US1] Criar `src/test/java/com/outsera/awards/kafka/PublisherSummaryIT.java` (`@Tag("log")`):
   - `S003 FR-009`: com `scenarios/load-summary.csv` e o perfil `kafka`, o log tem uma única linha de
     resumo da publicação, com as contagens do `LoadSummaryIT`.
-- [ ] T034a [P] [US1] Criar o cenário `src/test/resources/scenarios/field-too-long.csv` e o IT `src/test/java/com/outsera/awards/ingestion/FieldTooLongIT.java` (carga direta, `@Tag("log")`; spec 001 FR-006 e FR-006c, atualizadas pela spec 003):
+- [X] T034a [P] [US1] Criar o cenário `src/test/resources/scenarios/field-too-long.csv` e o IT `src/test/java/com/outsera/awards/ingestion/FieldTooLongIT.java` (carga direta, `@Tag("log")`; spec 001 FR-006 e FR-006c, atualizadas pela spec 003):
   - o cenário tem duas linhas válidas e uma linha inválida para cada limite: título de 501 caracteres,
     estúdios de 1001, produtores de 1001 e um nome de produtor de 501. Também tem um título de
     **exatamente** 500 caracteres, que é aceito;
   - `S003 FR-018` e `001 FR-006`: a subida não falha; cada linha inválida gera `Linha <n> rejeitada: um
     campo excede o tamanho da coluna (<campo>)`; o resumo conta 4 rejeitadas; o filme de 500 caracteres
     aparece na listagem.
-- [ ] T034b [P] [US1] Criar `src/test/java/com/outsera/awards/kafka/KafkaBrokerUnavailableIT.java` (`ApplicationStarter`, perfil `kafka`, `KAFKA_BOOTSTRAP_SERVERS` apontando para uma porta local que o teste abre com `ServerSocket(0)` e fecha logo depois, sem broker):
+- [X] T034b [P] [US1] Criar `src/test/java/com/outsera/awards/kafka/KafkaBrokerUnavailableIT.java` (`ApplicationStarter`, perfil `kafka`, `KAFKA_BOOTSTRAP_SERVERS` apontando para uma porta local que o teste abre com `ServerSocket(0)` e fecha logo depois, sem broker):
   - `S003 FR-013` (caso de borda "Broker indisponível"): a aplicação sobe, e durante 10 s a liveness
     responde 200 e a readiness 503;
   - **verificar:** o tempo de subida com o broker fora (`KafkaAdmin` e o publicador, research R8). Se a
     subida falhar ou passar de 60 s, ajustar `spring.kafka.admin.fail-fast: false` e
     `spring.kafka.admin.operation-timeout` no `application-kafka.yml` e registrar na R8.
-- [ ] T034c [US3] **Verificar antes** (research R9, "Tópico de erros fora do ar"): com o broker embutido, subir o perfil `kafka` com `KAFKA_TOPIC_ERRORS="tópico inválido!"` e anotar se o `NewTopic` desse nome derruba a subida. Depois, criar `src/test/java/com/outsera/awards/kafka/KafkaErrorTopicUnavailableIT.java` (`@Tag("log")`) pela saída que a verificação indicar:
+- [X] T034c [US3] **Verificado: o nome inválido não derruba a subida, e o IT usa esse nome (`docs/ai/decisoes.md`, etapa 2).** **Verificar antes** (research R9, "Tópico de erros fora do ar"): com o broker embutido, subir o perfil `kafka` com `KAFKA_TOPIC_ERRORS="tópico inválido!"` e anotar se o `NewTopic` desse nome derruba a subida. Depois, criar `src/test/java/com/outsera/awards/kafka/KafkaErrorTopicUnavailableIT.java` (`@Tag("log")`) pela saída que a verificação indicar:
   - se a subida não cai, usar o nome inválido;
   - se cai, usar `awards.ingestion.create-error-topic=false` com um nome válido não criado e a criação
     automática de tópicos desligada no `@EmbeddedKafka` (`brokerProperties = "auto.create.topics.enable=false"`);
@@ -344,7 +346,7 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
 
   Se nenhuma das duas saídas for possível sem dublê, não criar o IT e registrar o limite em
   `docs/ai/decisoes.md` (T048).
-- [ ] T035 [US2] Criar `src/test/java/com/outsera/awards/postgres/RestartPostgresIT.java` (`postgres-it`; `@EmbeddedKafka` na classe; **quatro execuções** do `ApplicationStarter`, ou seja, três reinícios, como o SC-004 pede; `PostgresSupport.args` + `KafkaTestSupport.args`, mesmo esquema e mesmo grupo):
+- [X] T035 [US2] Criar `src/test/java/com/outsera/awards/postgres/RestartPostgresIT.java` (`postgres-it`; `@EmbeddedKafka` na classe; **quatro execuções** do `ApplicationStarter`, ou seja, três reinícios, como o SC-004 pede; `PostgresSupport.args` + `KafkaTestSupport.args`, mesmo esquema e mesmo grupo):
   - execução 1, arquivo padrão: depois da readiness, o teste envia um filme novo
     (`2030`/`Filme Novo`, `Joel Silver`, vencedor) e uma atualização de um filme do arquivo
     (`1980`/`Can't Stop the Music`, com `winner: false`), e espera os dois aparecerem;
@@ -353,7 +355,7 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
     - `S003 US2-6`: `Can't Stop the Music` voltou a `winner: true`, o valor do arquivo;
   - execuções 2, 3 e 4: `S003 US2-3 SC-004`: `totalElements` 207 e nenhum filme repetido na listagem
     completa.
-- [ ] T035a [US2] Criar `src/test/java/com/outsera/awards/postgres/RetryPostgresIT.java` (`postgres-it`, `@Isolated` do JUnit, `@EmbeddedKafka`, perfil `postgres` + `kafka`; research R9, "Comprovação da nova tentativa"):
+- [X] T035a [US2] Criar `src/test/java/com/outsera/awards/postgres/RetryPostgresIT.java` (`postgres-it`, `@Isolated` do JUnit, `@EmbeddedKafka`, perfil `postgres` + `kafka`; research R9, "Comprovação da nova tentativa"):
   - `S003 FR-015a`: prova a **nova tentativa quando a gravação falha**, e não a queda real do banco
     (essa é o passo 7b do T071);
   - com a aplicação pronta, o teste renomeia `movie` para `movie_retry_off` no esquema da classe, por
@@ -365,7 +367,7 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
     não mudou;
   - **sem paralelismo:** a execução `postgres` do Failsafe (T010) não liga o paralelismo do JUnit, e o
     `@Isolated` garante isso mesmo que alguém o ligue.
-- [ ] T036 [US1] Confirmar a falha: `./mvnw verify` falha em todos os ITs de `kafka/`, porque não há
+- [X] T036 [US1] Confirmar a falha: `./mvnw verify` falha em todos os ITs de `kafka/`, porque não há
   ingestão por Kafka e a carga direta roda sempre. O `FieldTooLongIT` (`ingestion/`, T034a) também falha,
   porque a subida cai com o erro do banco enquanto a regra `FIELD_TOO_LONG` não existe. O `DefaultModeIsolationIT` falha porque a
   autoconfiguração do Kafka cria os clientes, ou passa. Anotar qual dos dois aconteceu. Se passar, ele
@@ -373,7 +375,7 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
 
 ### Implementação da etapa 2
 
-- [ ] T037 [US1] Isolamento (research R2):
+- [X] T037 [US1] Isolamento (research R2):
   - no `src/main/resources/application.yml`, acrescentar `spring.autoconfigure.exclude` com a
     autoconfiguração do Kafka. **Verificar o nome totalmente qualificado no Boot 4.1.2** no JAR
     `spring-boot-kafka`;
@@ -390,7 +392,7 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
     - `awards.ingestion.publish-completion: true`;
     - `management.endpoint.health.group.readiness.include: readinessState,ingestion` (**verificar
       R10**).
-- [ ] T038 [P] [US1] Criar `src/main/java/com/outsera/awards/ingestion/MovieFieldRules.java`, com estas regras:
+- [X] T038 [P] [US1] Criar `src/main/java/com/outsera/awards/ingestion/MovieFieldRules.java`, com estas regras:
   - ano de 1 a 9999, sem estouro de `int`;
   - título não vazio;
   - produtores com ao menos um nome pelo `ProducerNameParser`;
@@ -402,14 +404,14 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
   excede o tamanho da coluna")` ao `RejectionReason`, **antes de `DUPLICATE`** (spec 001, data-model,
   motivo 8). O detalhe da rejeição cita o campo. O parser de eventos (T041) usa a mesma classe, para que
   os dois caminhos rejeitem as mesmas linhas.
-- [ ] T039 [P] [US1] Criar `src/main/java/com/outsera/awards/ingestion/MovieFileReading.java`, com a verificação de existência e de leitura do arquivo, o `MovieCsvReader.read` e os avisos `Linha {} rejeitada: {}`, com o mesmo texto e o mesmo logger de hoje (`MovieFileLoader`). Em `MovieFileLoader.java`:
+- [X] T039 [P] [US1] Criar `src/main/java/com/outsera/awards/ingestion/MovieFileReading.java`, com a verificação de existência e de leitura do arquivo, o `MovieCsvReader.read` e os avisos `Linha {} rejeitada: {}`, com o mesmo texto e o mesmo logger de hoje (`MovieFileLoader`). Em `MovieFileLoader.java`:
   - pôr `@Profile("!kafka")`;
   - usar `MovieFileReading`;
   - manter o resumo `Carga do arquivo {} concluída: {} linhas lidas, {} aceitas, {} rejeitadas`, com o
     logger atual.
 
   **Verificar:** os testes do Marco 1 que procuram o logger pelo nome continuam passando.
-- [ ] T040 [P] [US1] Criar em `src/main/java/com/outsera/awards/ingestion/kafka/`:
+- [X] T040 [P] [US1] Criar em `src/main/java/com/outsera/awards/ingestion/kafka/`:
   - `KafkaIngestionProperties` (`@ConfigurationProperties("awards.ingestion")`: `topicMovies`,
     `topicErrors`, `publishCompletion`);
   - `EventRejectionReason` (enum com os códigos e as descrições do data-model.md). Os motivos de
@@ -418,7 +420,7 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
   - `LoadCompletedEvent` (record `runId`, `count`).
 
   Todos com `@Profile("kafka")` onde se aplica.
-- [ ] T041 [US1] Criar `src/main/java/com/outsera/awards/ingestion/kafka/MovieEventParser.java` (research R7, data-model.md):
+- [X] T041 [US1] Criar `src/main/java/com/outsera/awards/ingestion/kafka/MovieEventParser.java` (research R7, data-model.md):
   - entrada em `byte[]`, decodificada em UTF-8 estrito;
   - objeto JSON lido pelo `JsonMapper` do Boot, ignorando campos desconhecidos;
   - `type` ausente ou `movie` → filme; `load-completed` → marcador (`runId` obrigatório); outro →
@@ -432,11 +434,11 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
     500, `studios` > 1000, `producers` > 1000 ou um nome de produtor > 500 caracteres");
   - devolve um resultado selado: `Movie(MovieRow)`, `Completed(LoadCompletedEvent)` ou
     `Rejected(EventRejectionReason, String detalhe)`. O `lineNumber` do `MovieRow` é `0` para eventos.
-- [ ] T042 [US1] Criar `src/main/java/com/outsera/awards/ingestion/kafka/IngestionReadiness.java` (`HealthIndicator` de nome `ingestion`, research R10):
+- [X] T042 [US1] Criar `src/main/java/com/outsera/awards/ingestion/kafka/IngestionReadiness.java` (`HealthIndicator` de nome `ingestion`, research R10):
   - `OUT_OF_SERVICE` até `complete(runId)` receber o `runId` desta execução, e `UP` depois;
   - outro `runId` é registrado em DEBUG e ignorado;
   - expõe `runId()` para o publicador.
-- [ ] T043 [US1] Criar `src/main/java/com/outsera/awards/ingestion/kafka/MovieEventPublisher.java` (research R8):
+- [X] T043 [US1] Criar `src/main/java/com/outsera/awards/ingestion/kafka/MovieEventPublisher.java` (research R8):
   - em `afterSingletonsInstantiated`, lê com `MovieFileReading`; os erros estruturais interrompem a
     subida;
   - no `ApplicationReadyEvent`, publica num fio próprio:
@@ -446,7 +448,7 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
     - cada envio espera a confirmação;
   - broker indisponível: novas tentativas com espera crescente até 30 s, sem derrubar a aplicação;
   - no fim, registra `Publicação do arquivo {} concluída: {} linhas lidas, {} publicadas, {} rejeitadas`.
-- [ ] T044 [US1] Criar `src/main/java/com/outsera/awards/ingestion/kafka/MovieEventListener.java` (research R9):
+- [X] T044 [US1] Criar `src/main/java/com/outsera/awards/ingestion/kafka/MovieEventListener.java` (research R9):
   - `@KafkaListener` no tópico de filmes, com `ConsumerRecord<String, byte[]>`;
   - filme → `MovieImportService.record` e contador `awards.ingestion.events` com `outcome=recorded`;
   - marcador → `IngestionReadiness.complete`;
@@ -456,13 +458,13 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
     - registra `Evento rejeitado (tópico {}, partição {}, offset {}): {}`, sem o conteúdo;
     - incrementa `outcome=rejected`;
     - se o envio ao tópico de erros falhar, registra a falha e segue.
-- [ ] T045 [US1] Criar `src/main/java/com/outsera/awards/ingestion/kafka/KafkaIngestionConfiguration.java` (`@Configuration`, `@Profile("kafka")`):
-  - `NewTopic` para os dois tópicos (1 partição, replicação 1). O do tópico de erros fica atrás de
-    `awards.ingestion.create-error-topic` (padrão `true`) só se o T034c indicar essa saída;
+- [X] T045 [US1] Criar `src/main/java/com/outsera/awards/ingestion/kafka/KafkaIngestionConfiguration.java` (`@Configuration`, `@Profile("kafka")`):
+  - `NewTopic` para os dois tópicos (1 partição, replicação 1). A propriedade `create-error-topic` não foi
+    necessária (T034c);
   - `DefaultErrorHandler` com `ExponentialBackOff` (inicial 500 ms, multiplicador 2, máximo 30 s, sem
     limite de tentativas) para as exceções que escapam do ouvinte, ou seja, as falhas de infraestrutura;
   - registro dos contadores com o rótulo `application`.
-- [ ] T046 [US1] Rodar `./mvnw verify` até ficar verde:
+- [X] T046 [US1] Rodar `./mvnw verify` até ficar verde:
   - todos os ITs de `kafka/`, o `DefaultModeIsolationIT` e o `FieldTooLongIT` (`ingestion/`);
   - a suíte dos Marcos 1 e 2 sem alteração;
   - a execução `json-logs` com os ITs `@Tag("log")` novos;
@@ -471,11 +473,11 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
   **Verificar (R15):** se o tempo do `verify` passar de 2× o do T001, compartilhar o broker por execução
   do Failsafe e manter os tópicos por classe. Se o broker embutido falhar no Windows ao apagar os logs,
   aplicar a saída da R15 e registrar o motivo.
-- [ ] T047 [US2] Com o Docker: `./mvnw -Ppostgres-it verify` verde, inclusive o `RestartPostgresIT` e o `RetryPostgresIT`. Sem Docker, registrar `PULADO`.
-- [ ] T048 [US1] Registrar em `docs/ai/decisoes.md`:
+- [X] T047 [US2] Com o Docker: `./mvnw -Ppostgres-it verify` verde, inclusive o `RestartPostgresIT` e o `RetryPostgresIT`. Sem Docker, registrar `PULADO`.
+- [X] T048 [US1] Registrar em `docs/ai/decisoes.md`:
   - o resultado da verificação do T034c e a saída escolhida, ou o limite, se nenhuma for possível;
   - o resultado da verificação do T034b (tempo de subida com o broker fora).
-- [ ] T049 [US1] Commit `Etapa 2: ingestão por Kafka com readiness e tópico de erros` com T021 a T048.
+- [X] T049 [US1] Commit `Etapa 2: ingestão por Kafka com readiness e tópico de erros` com T021 a T048.
 - [ ] T050 [US1] **Pedido ao Anderson:** acionar o testador adversário (Codex) para a ingestão por Kafka. Ele cria eventos de ataque a partir da spec 003 e de `contracts/kafka-events.md`, sem ler o código de produção. Cada falha encontrada vira IT permanente em `src/test/java/com/outsera/awards/kafka/adversario/`, com a correção, num commit de correção da etapa 2.
 - [ ] T051 [US2] **Pendente: exige o push, que é do Anderson.** Conferir o job `postgres` verde com o `RestartPostgresIT` e o `RetryPostgresIT`.
 

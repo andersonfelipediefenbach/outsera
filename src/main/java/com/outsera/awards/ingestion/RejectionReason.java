@@ -12,6 +12,8 @@ public enum RejectionReason {
     TITLE_MISSING("título vazio"),
     PRODUCERS_MISSING("produtores vazios"),
     WINNER_INVALID("winner diferente de yes ou vazio"),
+    /** Acrescentado pela spec 003 (spec 001, FR-006): a mesma regra vale para os eventos do Kafka. */
+    FIELD_TOO_LONG("um campo excede o tamanho da coluna"),
     DUPLICATE("filme duplicado");
 
     private final String message;

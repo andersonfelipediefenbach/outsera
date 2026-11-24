@@ -63,6 +63,6 @@ O grupo é `readinessState` + `ingestion` (research R10). A resposta continua s�
 | Série no Prometheus | Rótulos | Significado |
 | --- | --- | --- |
 | `awards_ingestion_events_total` | `outcome="recorded"` ou `"rejected"`, `application` | eventos de filme gravados e enviados ao tópico de erros (FR-017) |
-| `kafka_consumer_fetch_manager_records_lag` (nome a confirmar, research R19) | `topic`, `partition`, `client_id` | atraso do consumidor no tópico de filmes |
+| `kafka_consumer_fetch_manager_records_lag_max` (verificado, research R19) | `client_id` (`consumer-awards-movies-<n>`), `spring_id`, `kafka_version`, `application` | atraso máximo do consumidor do tópico de filmes (uma partição, um consumidor) |
 
 No modo padrão, nenhuma série `kafka_*` nem `awards_ingestion_*` existe (research R2).
