@@ -3,6 +3,31 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-23 — Etapa 1 do Marco 2: filtro de ETag próprio e contexto do `EmptyLoadIT`
+
+- **Filtro de ETag próprio (research R4):**
+  - *Origem:* implementador, no T012. Com o `ShallowEtagHeaderFilter` do Spring, o teste
+    `IntervalsEtagIT.wildcardIsNotModified` falhou: `If-None-Match: *` devolvia 200 com corpo. A FR-003
+    e a RFC 9110 (seção 13.1.2) exigem 304, porque `*` casa com qualquer representação atual. Os demais
+    casos (valor único, lista, forma fraca, malformado, 400 e 405 sem ETag) passaram com o filtro do
+    Spring;
+  - *Decisão (implementador, para revisão do responsável no PR):* um filtro próprio,
+    `ContentEtagFilter`, que faz o mesmo que o do Spring (corpo guardado, ETag forte `"0" + MD5`, só em
+    2xx de GET e HEAD) e compara com as classes do Spring (`ETag.parse` e `ETag.compare`, comparação
+    fraca), tratando o `*` explicitamente. O formato do ETag é o mesmo;
+  - *Alternativas rejeitadas:* estender o `ShallowEtagHeaderFilter`, cujo método que decide o 304 é
+    privado; tirar o `*` da spec, que contrariaria a RFC 9110.
+- **`EmptyLoadIT` com contexto próprio:**
+  - *Origem:* o `EmptyLoadIT` (Marco 1) falhou ao rodar com o `EtagEmptyIT`, que usa o mesmo
+    `header-only.csv`. O pacote `etag` roda antes de `ingestion`, então o contexto já existia no cache,
+    e o resumo da carga não aparecia mais na saída capturada pelo `EmptyLoadIT`;
+  - *Decisão (implementador):* as duas classes internas do `EmptyLoadIT` ganharam
+    `@DirtiesContext(classMode = BEFORE_CLASS)`, o mesmo padrão que o `DefaultFileIT` já usa. Nenhum
+    resultado esperado mudou;
+  - *Alternativa rejeitada:* dar ao `EtagEmptyIT` um CSV próprio. Esconderia a fragilidade, que é de
+    quem lê o log da inicialização.
+- **Resultado da etapa:** `./mvnw verify` verde, com 160 ITs (136 do Marco 1 e 24 novos).
+
 ## 2026-11-23 — Correções da segunda análise da spec 002
 
 - **Origem:** segunda rodada do `/speckit-analyze` da spec 002, sem achados críticos. O responsável

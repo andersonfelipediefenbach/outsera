@@ -47,8 +47,40 @@ class IntervalsContractIT {
             assertThat(tampered).isNotEqualTo(body);
 
             var report = ContractValidator.validateGet(INTERVALS, result.getStatus().value(),
-                    result.getResponseHeaders().getFirst(HttpHeaders.CONTENT_TYPE),
-                    tampered.getBytes(StandardCharsets.UTF_8));
+                    result.getResponseHeaders(), tampered.getBytes(StandardCharsets.UTF_8));
+            assertThat(report.hasErrors()).isTrue();
+        }
+
+        @Test
+        @DisplayName("FR-007 resposta 200 traz o ETag declarado no contrato")
+        void okDeclaresEtag() {
+            EntityExchangeResult<byte[]> result = get();
+            assertThat(result.getResponseHeaders().getETag()).isNotNull();
+            ContractValidator.assertValidGet(INTERVALS, result);
+        }
+
+        @Test
+        @DisplayName("FR-007 resposta 304 compatível com o contrato")
+        void notModifiedMatchesContract() {
+            String etag = get().getResponseHeaders().getETag();
+            EntityExchangeResult<byte[]> result = http.get().uri(INTERVALS)
+                    .header(HttpHeaders.IF_NONE_MATCH, etag)
+                    .exchange().expectBody(byte[].class).returnResult();
+            assertThat(result.getStatus().value()).isEqualTo(304);
+            ContractValidator.assertValidGet(INTERVALS, result);
+        }
+
+        /** Garante que o cabeçalho é de fato verificado: uma resposta 200 sem ETag é recusada. */
+        @Test
+        @DisplayName("FR-007 o contrato recusa uma resposta 200 sem ETag")
+        void contractRejectsMissingEtag() {
+            EntityExchangeResult<byte[]> result = get();
+            HttpHeaders withoutEtag = new HttpHeaders();
+            withoutEtag.putAll(result.getResponseHeaders());
+            withoutEtag.remove(HttpHeaders.ETAG);
+
+            var report = ContractValidator.validateGet(INTERVALS, result.getStatus().value(), withoutEtag,
+                    result.getResponseBody());
             assertThat(report.hasErrors()).isTrue();
         }
     }

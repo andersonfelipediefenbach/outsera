@@ -5,6 +5,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.util.function.IntFunction;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 
@@ -55,6 +56,21 @@ public final class ApplicationStarter {
             System.setErr(originalErr);
         }
         return new Result(failure, captured.toString(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Sobe a aplicação real com {@code --server.port=0} e {@code --movies.csv.path=<csvPath>}, executa
+     * {@code call} com a porta em que ela atende e fecha o contexto no fim, mesmo se {@code call} lançar
+     * exceção. Serve para comparar respostas HTTP entre execuções separadas (por exemplo, o ETag com
+     * arquivos diferentes).
+     */
+    public static <T> T runAndCall(String csvPath, IntFunction<T> call) {
+        SpringApplication application = new SpringApplication(AwardsApplication.class);
+        try (ConfigurableApplicationContext context =
+                application.run("--server.port=0", "--movies.csv.path=" + csvPath)) {
+            int port = Integer.parseInt(context.getEnvironment().getRequiredProperty("local.server.port"));
+            return call.apply(port);
+        }
     }
 
     private static PrintStream tee(PrintStream original, OutputStream copy) {

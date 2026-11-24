@@ -11,14 +11,23 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.annotation.DirtiesContext.ClassMode;
 import org.springframework.test.context.TestPropertySource;
 
-/** Um arquivo válido sem nenhum filme aceito não impede a aplicação de subir (casos de borda). */
+/**
+ * Um arquivo válido sem nenhum filme aceito não impede a aplicação de subir (casos de borda).
+ *
+ * <p>As duas classes leem o resumo no log da inicialização. O {@code @DirtiesContext(BEFORE_CLASS)}
+ * garante um contexto novo, como no {@code DefaultFileIT}: outro IT com o mesmo CSV (por exemplo, o
+ * {@code EtagEmptyIT}) pode ter criado o contexto antes, e o log já não seria capturado aqui.
+ */
 class EmptyLoadIT {
 
     @Nested
     @DisplayName("Edge só cabeçalho")
     @TestPropertySource(properties = "movies.csv.path=classpath:scenarios/header-only.csv")
+    @DirtiesContext(classMode = ClassMode.BEFORE_CLASS)
     class HeaderOnly extends ScenarioIT {
 
         @Test
@@ -40,6 +49,7 @@ class EmptyLoadIT {
     @Nested
     @DisplayName("Edge todas inválidas")
     @TestPropertySource(properties = "movies.csv.path=classpath:scenarios/all-invalid.csv")
+    @DirtiesContext(classMode = ClassMode.BEFORE_CLASS)
     class AllInvalid extends ScenarioIT {
 
         @Test

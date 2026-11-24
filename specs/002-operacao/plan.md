@@ -8,7 +8,8 @@
 
 O Marco 2 acrescenta a camada de operação à API do Marco 1, sem mudar o corpo de nenhuma resposta 200.
 
-- **ETag:** o `ShallowEtagHeaderFilter` do Spring, só nos dois endpoints de negócio, dá ETag forte
+- **ETag:** um filtro próprio (`ContentEtagFilter`, que faz o que o `ShallowEtagHeaderFilter` do Spring
+  faz e trata também o `If-None-Match: *`), só nos dois endpoints de negócio, dá ETag forte
   derivado do corpo e 304 na revalidação (R4). O contrato OpenAPI vai a 1.1.0, com o cabeçalho, o
   parâmetro e a resposta 304 (R5).
 - **Saúde e métricas:** Spring Boot Actuator, com liveness e readiness ligados e sem detalhes, e
@@ -119,7 +120,8 @@ docs/adr/
 └── 0001-…md a 0012-…md               # R15
 src/main/java/com/outsera/awards/
 └── web/
-    └── EtagConfiguration.java        # FilterRegistrationBean do ShallowEtagHeaderFilter (R4)
+    ├── ContentEtagFilter.java        # ETag forte do corpo e 304, inclusive com If-None-Match: * (R4)
+    └── EtagConfiguration.java        # registra o filtro só nos dois endpoints de negócio (R4)
 src/main/resources/
 ├── application.yml                   # management.* (R1, R3); banner desligado; nada de logging estruturado (R6)
 └── static/openapi.yaml               # cópia de specs/002-operacao/contracts/openapi.yaml (R5)

@@ -83,7 +83,24 @@ correspondente (R16) faz essa verificação, e o resultado volta para esta resea
 - **Alternativas rejeitadas:** percentis calculados na aplicação (`percentiles=0.95,0.99`): não se
   agregam entre instâncias e não servem para o SLO por faixa do Marco 4.
 
-## R4. ETag pelo `ShallowEtagHeaderFilter`
+## R4. ETag derivado do conteúdo, por filtro
+
+> **Atualização (etapa 1, 2026-11-23):** a decisão original, abaixo, usava o `ShallowEtagHeaderFilter`
+> do Spring. Na implementação, o `IntervalsEtagIT` mostrou que ele **não trata `If-None-Match: *`**:
+> com o Spring 7 do Boot 4.1.2, a resposta é 200 com corpo. A spec (FR-003) e a RFC 9110 (seção
+> 13.1.2) exigem 304, porque `*` casa com qualquer representação atual. Todos os outros casos (valor
+> único, lista, forma fraca, malformado, 400 e 405 sem ETag) funcionaram como previsto.
+>
+> **Decisão corrigida:** um filtro próprio, `ContentEtagFilter`, em `web/`, registrado pelo
+> `EtagConfiguration` nos mesmos dois caminhos. Ele faz o mesmo que o filtro do Spring: guarda o corpo
+> com o `ContentCachingResponseWrapper`, calcula o ETag forte `"0" + MD5`, só em respostas 2xx de GET e
+> HEAD. A comparação usa as classes do próprio Spring (`ETag.parse` e `ETag.compare`, com a comparação
+> fraca do `If-None-Match`), e o `*` é tratado explicitamente. O formato do ETag não muda.
+>
+> *Alternativas rejeitadas:* estender o `ShallowEtagHeaderFilter`, cujo método que decide o 304 é
+> privado; tirar o `*` da spec, que contrariaria a RFC 9110.
+
+**Decisão original:**
 
 - **Decisão:** registrar o `ShallowEtagHeaderFilter` do Spring num `FilterRegistrationBean`, só para
   `/api/producers/intervals` e `/api/movies`.
@@ -451,7 +468,7 @@ correspondente (R16) faz essa verificação, e o resultado volta para esta resea
   | 0004 | Somente testes de integração no back-end, sem Mockito | emenda 1.2.0 e "Mockito excluído" |
   | 0005 | Contrato OpenAPI estático como fonte única, Swagger UI pelo webjar | decisoes.md, R8 e bolt 6 |
   | 0006 | Erros em Problem Details (RFC 9457) | plano 001 (entrada nova) |
-  | 0007 | ETag derivado do conteúdo (`ShallowEtagHeaderFilter`) | R4 (entrada nova) |
+  | 0007 | ETag derivado do conteúdo (`ContentEtagFilter`, no lugar do `ShallowEtagHeaderFilter`) | R4 e decisoes.md, 2026-11-23 |
   | 0008 | Liveness e readiness pelo Actuator, com a readiness após a carga | R1, R2 (entrada nova) |
   | 0009 | Métricas no formato do Prometheus, com histograma de latência | R3 (entrada nova) |
   | 0010 | Log em texto no `./mvnw` e JSON por variável, ligado na imagem | emenda 1.3.0 |

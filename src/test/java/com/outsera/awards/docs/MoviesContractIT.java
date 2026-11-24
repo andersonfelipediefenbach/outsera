@@ -51,8 +51,26 @@ class MoviesContractIT extends ScenarioIT {
         assertThat(tampered).isNotEqualTo(body);
 
         var report = ContractValidator.validateGet(MOVIES, result.getStatus().value(),
-                result.getResponseHeaders().getFirst(HttpHeaders.CONTENT_TYPE),
-                tampered.getBytes(StandardCharsets.UTF_8));
+                result.getResponseHeaders(), tampered.getBytes(StandardCharsets.UTF_8));
         assertThat(report.hasErrors()).isTrue();
+    }
+
+    @Test
+    @DisplayName("FR-007 resposta 200 da listagem traz o ETag declarado no contrato")
+    void okDeclaresEtag() {
+        EntityExchangeResult<byte[]> result = get("?winner=true");
+        assertThat(result.getResponseHeaders().getETag()).isNotNull();
+        ContractValidator.assertValidGet(MOVIES, result);
+    }
+
+    @Test
+    @DisplayName("FR-007 resposta 304 da listagem compatível com o contrato")
+    void notModifiedMatchesContract() {
+        String etag = get("?winner=true").getResponseHeaders().getETag();
+        EntityExchangeResult<byte[]> result = http.get().uri(MOVIES + "?winner=true")
+                .header(HttpHeaders.IF_NONE_MATCH, etag)
+                .exchange().expectBody(byte[].class).returnResult();
+        assertThat(result.getStatus().value()).isEqualTo(304);
+        ContractValidator.assertValidGet(MOVIES, result);
     }
 }

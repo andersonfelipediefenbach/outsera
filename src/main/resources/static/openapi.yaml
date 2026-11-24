@@ -1,10 +1,11 @@
 openapi: 3.1.0
 info:
   title: Golden Raspberry Awards API
-  version: 1.0.0
+  version: 1.1.0
   description: >
     Intervalos entre prêmios consecutivos de produtores na categoria Pior Filme e listagem dos filmes
-    indicados e vencedores. Os dados vêm do arquivo CSV carregado na inicialização.
+    indicados e vencedores. Os dados vêm do arquivo CSV carregado na inicialização. As respostas 200
+    trazem ETag, e uma requisição com If-None-Match igual ao ETag atual recebe 304 sem corpo.
 paths:
   /api/producers/intervals:
     get:
@@ -15,9 +16,14 @@ paths:
         entram na lista, ordenados por previousWin e depois por nome. Sem produtor com duas vitórias,
         as duas listas vêm vazias.
       tags: [producers]
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
       responses:
         '200':
           description: Intervalos mínimo e máximo
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
           content:
             application/json:
               schema:
@@ -33,6 +39,8 @@ paths:
                 semDadosSuficientes:
                   summary: Nenhum produtor com duas vitórias
                   value: { min: [], max: [] }
+        '304':
+          $ref: '#/components/responses/NotModified'
   /api/movies:
     get:
       operationId: listMovies
@@ -60,9 +68,13 @@ paths:
           required: false
           description: Itens por página
           schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - $ref: '#/components/parameters/IfNoneMatch'
       responses:
         '200':
           description: Página de filmes
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
           content:
             application/json:
               schema:
@@ -78,6 +90,8 @@ paths:
                 size: 20
                 totalElements: 206
                 totalPages: 11
+        '304':
+          $ref: '#/components/responses/NotModified'
         '400':
           description: Parâmetro inválido
           content:
@@ -93,6 +107,30 @@ paths:
                 invalidParams:
                   - { name: winner, reason: deve ser true ou false }
 components:
+  parameters:
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      description: >
+        ETag recebido numa resposta anterior. Aceita um valor, uma lista separada por vírgulas, a forma
+        fraca (W/"...") ou *. Quando contém o ETag atual, a resposta é 304 sem corpo.
+      schema: { type: string }
+      example: '"0a1b2c3d4e5f60718293a4b5c6d7e8f90"'
+  headers:
+    ETag:
+      description: >
+        Identifica a representação. É derivado do conteúdo do corpo: o mesmo corpo tem sempre o mesmo
+        ETag, inclusive entre execuções com o mesmo arquivo.
+      required: true
+      schema: { type: string }
+      example: '"0a1b2c3d4e5f60718293a4b5c6d7e8f90"'
+  responses:
+    NotModified:
+      description: A representação não mudou desde o ETag enviado em If-None-Match. Sem corpo.
+      headers:
+        ETag:
+          $ref: '#/components/headers/ETag'
   schemas:
     ProducerIntervals:
       type: object
