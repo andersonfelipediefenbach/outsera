@@ -538,8 +538,10 @@ O contrato está em [contracts/ci-pipeline.md](contracts/ci-pipeline.md).
      - em seguida, o passo 7b (queda real do banco, FR-015a):
        1. `docker compose stop postgres`;
        2. publica um evento;
-       3. `docker compose start postgres`;
-       4. confere a gravação sem registro no tópico de erros;
+       3. espera a mensagem `Falha ao gravar o evento` no log da aplicação. Isso prova que a gravação
+          falhou de verdade, porque o pool de conexões espera até 30 s por uma conexão antes de falhar;
+       4. `docker compose start postgres`;
+       5. confere a gravação sem registro no tópico de erros;
   7. **token:** recria `app` e `prometheus` com um `API_TOKEN` aleatório gerado no próprio job
      (`openssl rand -hex 16`, nunca gravado). Confere 401 sem token nos intervalos e o alvo do
      Prometheus de novo `up`;

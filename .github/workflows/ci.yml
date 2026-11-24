@@ -16,13 +16,18 @@ concurrency:
 
 jobs:
   workflow-policy:
-    name: Política do workflow e do Dependabot
+    name: Política do workflow, do Dependabot e do compose
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Hash de commit, permissões, segredos, publicação e Dependabot
+        with:
+          # Histórico e tags: o check-unchanged-tests.sh compara com a tag v0.2.0 (spec 003, research R14).
+          fetch-depth: 0
+      - name: Hash de commit, permissões, segredos, publicação, Dependabot e imagens do compose por digest
         run: .github/scripts/check-workflows.sh
+      - name: Testes de integração dos Marcos 1 e 2 sem alteração desde a v0.2.0
+        run: .github/scripts/check-unchanged-tests.sh v0.2.0
 
   build:
     name: Build, testes e cobertura
@@ -236,3 +241,16 @@ jobs:
           ignore-unfixed: true
           format: table
           exit-code: '1'
+
+  compose:
+    # Ambiente completo do modo Docker (spec 003, FR-015a, FR-028 a FR-035, SC-005 e SC-008; research
+    # R20). O token do passo 8 é gerado no próprio job e nunca é impresso nem gravado. A credencial do
+    # Grafana é a de demonstração do compose.yaml (constituição 1.6.0).
+    name: Compose com PostgreSQL, Kafka, Prometheus e Grafana
+    needs: dockerfile-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Teste do compose (passos 0 a 8 e 7b)
+        run: .github/scripts/compose-test.sh

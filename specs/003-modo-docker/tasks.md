@@ -620,7 +620,7 @@ coletando e o Grafana com o dashboard. O pipeline verifica tudo isso.
 
 ### Verificação da etapa 4 (escrever primeiro; precisa falhar)
 
-- [ ] T071 [US5] Criar `.github/scripts/compose-test.sh` (bash, `set -euo pipefail`, executável), com os passos 0 a 8 de `contracts/ci-pipeline.md`:
+- [X] T071 [US5] Criar `.github/scripts/compose-test.sh` (bash, `set -euo pipefail`, executável), com os passos 0 a 8 de `contracts/ci-pipeline.md`:
   - `trap 'docker compose --profile tools down -v' EXIT`;
   - mede o tempo dos passos 1 a 4 e falha acima de 180 s (SC-008);
   - no passo 5, publica `{"year":1991,"title":"Compose Novo","studios":null,"producers":"Joel Silver","winner":true}`
@@ -639,7 +639,7 @@ coletando e o Grafana com o dashboard. O pipeline verifica tudo isso.
   4. `docker compose start postgres`;
   5. esperar até 60 s pelo filme na listagem;
   6. conferir que o tópico de erros **não** recebeu esse evento.
-- [ ] T072 [US5] Em `.github/scripts/check-workflows.sh`, acrescentar as regras de `contracts/ci-pipeline.md`:
+- [X] T072 [US5] Em `.github/scripts/check-workflows.sh`, acrescentar as regras de `contracts/ci-pipeline.md`:
   - o ecossistema `docker-compose` no Dependabot;
   - `@sha256:` com 64 caracteres hexadecimais em toda `image:` do `compose.yaml` e dos `services:` dos
     workflows;
@@ -647,17 +647,17 @@ coletando e o Grafana com o dashboard. O pipeline verifica tudo isso.
 
   Testar numa pasta temporária, sem versionar, com um caso que falha para cada regra nova e um caso
   válido.
-- [ ] T073 [US5] Confirmar a falha: `check-workflows.sh` falha (o Dependabot não tem `docker-compose`), e `compose-test.sh` falha no passo 1 (não há `compose.yaml`). Sem Docker, registrar `PULADO` para o segundo.
+- [X] T073 [US5] Confirmar a falha: `check-workflows.sh` falha (o Dependabot não tem `docker-compose`), e `compose-test.sh` falha no passo 1 (não há `compose.yaml`). Sem Docker, registrar `PULADO` para o segundo.
 
 ### Implementação da etapa 4
 
-- [ ] T074 [US5] Resolver as versões estáveis atuais e os digests de `postgres:18-alpine`, `apache/kafka-native`, `apache/kafka` (mesma versão), `prom/prometheus` e `grafana/grafana`, com `docker buildx imagetools inspect <imagem:tag>` ou pela API do registro. **Verificar (R17):**
+- [X] T074 [US5] Resolver as versões estáveis atuais e os digests de `postgres:18-alpine`, `apache/kafka-native`, `apache/kafka` (mesma versão), `prom/prometheus` e `grafana/grafana`, com `docker buildx imagetools inspect <imagem:tag>` ou pela API do registro. **Verificar (R17):**
   - se a `apache/kafka-native` tem `nc` ou outro binário para o healthcheck;
   - se `prom/prometheus` tem `/bin/sh` e `wget`, e o `grafana/grafana` tem `wget`;
   - aplicar a saída da R17 quando faltar algum.
 
   Anotar os pares tag → digest e o resultado na descrição do commit.
-- [ ] T075 [US5] Criar `compose.yaml` conforme `contracts/compose.md`:
+- [X] T075 [US5] Criar `compose.yaml` conforme `contracts/compose.md`:
   - os seis serviços, com `kafka-cli` em `profiles: [tools]`;
   - imagens por tag e digest;
   - volumes `pgdata` e `kafkadata`;
@@ -670,24 +670,24 @@ coletando e o Grafana com o dashboard. O pipeline verifica tudo isso.
   - KRaft com nó único e `KAFKA_AUTO_CREATE_TOPICS_ENABLE=false`;
   - na `app`, `SPRING_PROFILES_ACTIVE=docker`, `DB_PASSWORD=${POSTGRES_PASSWORD:-awards-demo}` e
     `API_TOKEN=${API_TOKEN:-}`.
-- [ ] T076 [P] [US5] Criar `observability/prometheus/prometheus.yml` (`scrape_interval: 5s`; job `app`, alvo `app:8080`, `metrics_path: /actuator/prometheus`, `authorization: { type: Bearer, credentials_file: /tmp/api-token }`). No serviço `prometheus` do compose, o `entrypoint` grava `API_TOKEN` com `printf %s` em `/tmp/api-token` e executa o `prometheus`. **Verificar (R18):** o `credentials_file` vazio é aceito. Se não for, aplicar o modelo da R18.
-- [ ] T077 [P] [US5] Criar o provisionamento do Grafana:
+- [X] T076 [P] [US5] Criar `observability/prometheus/prometheus.yml` (`scrape_interval: 5s`; job `app`, alvo `app:8080`, `metrics_path: /actuator/prometheus`, `authorization: { type: Bearer, credentials_file: /tmp/api-token }`). No serviço `prometheus` do compose, o `entrypoint` grava `API_TOKEN` com `printf %s` em `/tmp/api-token` e executa o `prometheus`. **Verificar (R18):** o `credentials_file` vazio é aceito. Se não for, aplicar o modelo da R18.
+- [X] T077 [P] [US5] Criar o provisionamento do Grafana:
   - `observability/grafana/provisioning/datasources/prometheus.yml` (`uid: prometheus`, `url:
     http://prometheus:9090`, `isDefault: true`);
   - `observability/grafana/provisioning/dashboards/awards.yml` (provedor de arquivo apontando para
     `/var/lib/grafana/dashboards`).
-- [ ] T078 [P] [US5] Criar `observability/grafana/dashboards/awards.json` (`uid: awards`, título "Golden Raspberry Awards API", datasource `uid: prometheus`), com os cinco painéis da research R19. O painel de atraso usa o nome de série fixado no T033.
-- [ ] T079 [P] [US5] Em `.github/dependabot.yml`, acrescentar o ecossistema `docker-compose` (`directory: /`, `schedule.interval: weekly`).
-- [ ] T080 [US5] Em `.github/workflows/ci.yml`, conforme `contracts/ci-pipeline.md`:
+- [X] T078 [P] [US5] Criar `observability/grafana/dashboards/awards.json` (`uid: awards`, título "Golden Raspberry Awards API", datasource `uid: prometheus`), com os cinco painéis da research R19. O painel de atraso usa o nome de série fixado no T033.
+- [X] T079 [P] [US5] Em `.github/dependabot.yml`, acrescentar o ecossistema `docker-compose` (`directory: /`, `schedule.interval: weekly`).
+- [X] T080 [US5] Em `.github/workflows/ci.yml`, conforme `contracts/ci-pipeline.md`:
   - no `workflow-policy`, `fetch-depth: 0` no checkout e o passo `.github/scripts/check-unchanged-tests.sh v0.2.0`;
   - o job `compose` (`needs: dockerfile-lint`, `timeout-minutes: 20`), com checkout e
     `.github/scripts/compose-test.sh`. Em falha, os logs vão para o resumo com
     `docker compose logs --no-color` (`if: failure()`).
 
   Rodar `check-workflows.sh` (com o `yq`).
-- [ ] T081 [US5] Com o Docker: rodar `.github/scripts/compose-test.sh` na raiz até passar, inclusive o passo 7b, e anotar o tempo dos passos 1 a 4. Sem Docker, registrar `PULADO`.
-- [ ] T082 [US5] Rodar `./mvnw verify`: verde. Nada desta etapa muda a aplicação.
-- [ ] T083 [US5] Commit `Etapa 4: compose com PostgreSQL, Kafka, Prometheus e Grafana` com T071 a T082.
+- [X] T081 [US5] Com o Docker: rodar `.github/scripts/compose-test.sh` na raiz até passar, inclusive o passo 7b, e anotar o tempo dos passos 1 a 4. Sem Docker, registrar `PULADO`.
+- [X] T082 [US5] Rodar `./mvnw verify`: verde. Nada desta etapa muda a aplicação.
+- [X] T083 [US5] Commit `Etapa 4: compose com PostgreSQL, Kafka, Prometheus e Grafana` com T071 a T082.
 - [ ] T084 [US5] **Pendente: exige o push, que é do Anderson.** Conferir na execução do branch:
   - `workflow-policy`, `build`, `postgres` e `compose` verdes, além dos jobs do Marco 2. A configuração dos checks obrigatórios vem depois, no T093;
   - o tempo do SC-008 no resumo do `compose`;

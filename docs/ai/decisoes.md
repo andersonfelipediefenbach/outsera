@@ -3,6 +3,38 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-24 — Etapa 4 do Marco 3: compose, verificações e ajustes
+
+- **Imagens (T074):** as versões estáveis mais recentes no Docker Hub, fixadas por tag e digest:
+  - `apache/kafka-native:4.4.0` e `apache/kafka:4.4.0` (o `kafka-cli`, sob demanda);
+  - `prom/prometheus:v3.16.0`;
+  - `grafana/grafana:13.3.2`;
+  - `postgres:18-alpine`, com o mesmo digest do job `postgres`.
+
+  O cliente da aplicação (kafka-clients 4.2.2) conversa com o broker 4.4.
+- **Healthchecks (R17, verificado):** a imagem nativa do Kafka tem `nc`, e o healthcheck é
+  `nc -z localhost 9092`. O Prometheus tem `sh`, `wget` e `printf`, e o Grafana tem `wget`. Nenhuma saída
+  alternativa foi necessária.
+- **Volume do Kafka:** a imagem roda com o usuário `appuser`. Um volume num caminho que não existe na
+  imagem seria criado com dono root, então o volume `kafkadata` fica em `/home/appuser`, que já pertence ao
+  `appuser`, com `KAFKA_LOG_DIRS=/home/appuser/kraft-logs`. O `CLUSTER_ID` é fixo, para que o volume sirva
+  a um container recriado.
+- **Token do Prometheus (R18, verificado):** o `credentials_file` vazio é aceito com a autenticação
+  desligada, e a coleta funciona. Com `API_TOKEN` definido, o alvo volta a `up` com o token.
+- **Imagem da aplicação na política:** o serviço `app` é construído pelo próprio compose (`build: .`) e
+  não tem digest. A regra do `check-workflows.sh` vale para as imagens baixadas.
+- **Passo 7b (FR-015a, ajuste):** uma queda curta do PostgreSQL não chega a gerar falha, porque o pool de
+  conexões (Hikari) espera até 30 s por uma conexão. O passo passou a manter o banco fora até o log da
+  aplicação mostrar `Falha ao gravar o evento`, prova de que a gravação falhou de verdade e foi tentada de
+  novo, e só então o religa. O filme é gravado, e o tópico de erros não recebe o evento.
+- **Git Bash:** o `compose-test.sh` exporta `MSYS_NO_PATHCONV=1`, para que `/opt/kafka/bin/...` não vire
+  um caminho do Windows. No runner Linux, isso não muda nada.
+- **Execução local (T081):**
+  - `compose-test.sh` verde, com todos os passos de 0 a 8 e o 7b;
+  - os passos de 1 a 4 levaram 28 s, para um limite de 180 s (SC-008);
+  - rodou com `APP_PORT=18080`, porque a porta 8080 da máquina estava ocupada por um processo Java do
+    usuário, fora da sessão.
+
 ## 2026-11-24 — Etapa 3 do Marco 3: verificações e ajustes da autenticação
 
 - **Nome da autoconfiguração (verificado):** no Boot 4.1.2, é

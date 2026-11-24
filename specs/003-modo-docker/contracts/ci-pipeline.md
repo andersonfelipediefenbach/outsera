@@ -53,7 +53,7 @@ primeiro passo que não confere.
 | 5 | publica pelo `kafka-cli` um vencedor novo que cria um intervalo menor que o mínimo e espera até 5 s pela mudança em `min` | não muda em 5 s (SC-005) |
 | 6 | publica um evento com `year: 0` e lê o tópico de erros com os cabeçalhos | sem registro ou sem `awards-error-reason: YEAR_OUT_OF_RANGE` |
 | 7 | `docker compose down` (**sem `-v`**) e `docker compose up -d --wait`: todos os containers são recriados sobre os mesmos volumes; o filme do passo 5 continua; `totalElements` = 206 + 1 | filme ausente ou total diferente |
-| 7b | `docker compose stop postgres`; publica `{"year":2031,"title":"Durante a Queda",…}`; espera 5 s; `docker compose start postgres`; espera até 60 s pelo filme na listagem; o tópico de erros não recebe esse evento (FR-015a, queda real do banco) | filme ausente ou evento no tópico de erros |
+| 7b | `docker compose stop postgres`; publica `{"year":2031,"title":"Durante a Queda",…}`; espera até 120 s pela mensagem `Falha ao gravar o evento` no log da aplicação (o pool de conexões espera até 30 s antes de falhar, então uma queda curta não gera falha); `docker compose start postgres`; espera até 60 s pelo filme na listagem; o tópico de erros não recebe esse evento (FR-015a, queda real do banco) | filme ausente ou evento no tópico de erros |
 | 8 | `API_TOKEN=$(openssl rand -hex 16) docker compose up -d --wait app prometheus`; intervalos sem token com 401; alvo do Prometheus `up` de novo | outro status ou alvo fora |
 
 O token do passo 8 é gerado no próprio job, nunca é gravado e nunca é impresso (`set +x` em volta dele).

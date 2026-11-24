@@ -10,8 +10,12 @@
 #   3. nenhum job pede escrita, exceto `security-events: write` no job `codeql`;
 #   4. não há referência a `secrets.`;
 #   5. não há publicação de imagem (`push: true` no build-push-action ou `docker push`);
-#   6. o dependabot.yml tem version 2 e os ecossistemas maven, github-actions e docker, com
-#      directory "/" e schedule.interval.
+#   6. o dependabot.yml tem version 2 e os ecossistemas maven, github-actions, docker e docker-compose,
+#      com directory "/" e schedule.interval (docker-compose: spec 003, FR-034);
+#   7. toda imagem do compose.yaml e dos service containers dos workflows está fixada por digest
+#      (@sha256: com 64 caracteres hexadecimais; spec 003, FR-034; research R17);
+#   8. nenhum service container de workflow declara POSTGRES_PASSWORD: o job postgres usa trust, e a
+#      credencial de demonstração só pode estar no compose (constituição 1.6.0; research R16).
 #
 # É a verificação oficial do job `workflow-policy`. Precisa do yq (mikefarah/yq v4), que já vem nos
 # runners ubuntu-latest. Códigos de saída: 0 ok, 1 violação, 2 ferramenta ausente.
@@ -38,6 +42,7 @@ if (( ${#WORKFLOWS[@]} == 0 )); then
 fi
 
 PINNED='^[^@[:space:]]+@[0-9a-f]{40}$'
+DIGEST='^[^@[:space:]]+@sha256:[0-9a-f]{64}$'
 for wf in "${WORKFLOWS[@]}"; do
   name="${wf#"$ROOT"/}"
 
@@ -80,6 +85,16 @@ for wf in "${WORKFLOWS[@]}"; do
   if yqr -r '.. | select(tag == "!!map" and has("run")) | .run' "$wf" | grep -q 'docker push'; then
     violation "$name" "passo run com docker push"
   fi
+
+  # 7 e 8. Service containers: imagem por digest e sem POSTGRES_PASSWORD.
+  while IFS= read -r image; do
+    [[ -z "$image" ]] && continue
+    [[ "$image" =~ $DIGEST ]] || violation "$name" "service container sem digest: $image"
+  done < <(yqr -r '.jobs[].services[]?.image // ""' "$wf")
+  while IFS= read -r job; do
+    [[ -z "$job" ]] && continue
+    violation "$name" "job $job declara POSTGRES_PASSWORD num service container (use trust; research R16)"
+  done < <(yqr -r '.jobs | to_entries[] | select([.value.services[]?.env // {} | has("POSTGRES_PASSWORD")] | any) | .key' "$wf")
 done
 
 # 6. Dependabot.
@@ -89,10 +104,21 @@ if [[ ! -f "$DEPENDABOT" ]]; then
 else
   version="$(yqr -r '.version // ""' "$DEPENDABOT")"
   [[ "$version" == "2" ]] || violation ".github/dependabot.yml" "version deveria ser 2 (encontrado: '${version:-ausente}')"
-  for eco in maven github-actions docker; do
+  for eco in maven github-actions docker docker-compose; do
     found="$(yqr -r ".updates[]? | select(.\"package-ecosystem\" == \"$eco\" and .directory == \"/\" and (.schedule.interval // \"\") != \"\") | .\"package-ecosystem\"" "$DEPENDABOT")"
     [[ -n "$found" ]] || violation ".github/dependabot.yml" "falta o ecossistema $eco com directory \"/\" e schedule.interval"
   done
+fi
+
+# 7. Imagens do compose.yaml por digest (as construídas pelo próprio compose, com build, ficam de fora).
+COMPOSE="$ROOT/compose.yaml"
+if [[ ! -f "$COMPOSE" ]]; then
+  violation "compose.yaml" "arquivo ausente"
+else
+  while IFS='=' read -r service image; do
+    [[ -z "$service" ]] && continue
+    [[ "$image" =~ $DIGEST ]] || violation "compose.yaml" "serviço $service com imagem sem digest: $image"
+  done < <(yqr -r '.services | to_entries[] | select(.value.image != null and .value.build == null) | .key + "=" + .value.image' "$COMPOSE")
 fi
 
 if (( ${#VIOLATIONS[@]} > 0 )); then
@@ -100,4 +126,4 @@ if (( ${#VIOLATIONS[@]} > 0 )); then
   printf '  - %s\n' "${VIOLATIONS[@]}" >&2
   exit 1
 fi
-echo "check-workflows.sh: ${#WORKFLOWS[@]} workflow(s) e o dependabot.yml dentro da política."
+echo "check-workflows.sh: ${#WORKFLOWS[@]} workflow(s), o dependabot.yml e o compose.yaml dentro da política."
