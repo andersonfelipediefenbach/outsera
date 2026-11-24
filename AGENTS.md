@@ -20,7 +20,7 @@ Se a tarefa contradiz uma fonte de prioridade maior, pare e pergunte ao Anderson
 - **No back-end, só testes de integração** (item 4.2). Nada de testes unitários na API.
   - Todo teste usa `@SpringBootTest` com o contexto completo da aplicação, sem mocks.
   - O resultado é verificado preferencialmente por HTTP. Log ou banco só valem enquanto o comportamento não tem endpoint exposto.
-  - Os testes de falha de inicialização rodam a aplicação real com `SpringApplication` (Princípio I da constituição).
+  - Quando o teste precisa controlar o ciclo de vida da aplicação real, ele a roda com `SpringApplication` (Princípio I, constituição 1.5.0). Os casos são falha de inicialização, múltiplas execuções, ordem da subida e saída completa da subida. Continua sem mocks, e o resultado é verificado por HTTP real sempre que o HTTP o observa.
   - Testes unitários só existem no front-end.
 - **Um extra só entra completo.** Extra pela metade não é mergeado. O marco 1 nunca é reduzido.
 
@@ -36,7 +36,9 @@ O trabalho é Spec-Driven Development com o GitHub Spec Kit, no modo *spec-ancho
   3. O revisor comenta no pull request.
   4. O implementador corrige apenas o que o Anderson aceitar.
   5. O merge acontece com o pipeline verde, e a sessão é exportada.
-- **Rastreabilidade:** cada requisito aponta para o teste de integração que o comprova.
+- **Rastreabilidade:** cada requisito aponta para a comprovação adequada ao seu tipo (Princípio VI,
+  constituição 1.4.0): teste de integração para comportamento da aplicação, revisão com item no
+  checklist da spec para documentação, e execução do pipeline para pipeline e imagem.
 - Não abra pull request, não faça merge e não crie tags por conta própria. Esses passos são do Anderson.
 - Faça commits pequenos e com mensagens descritivas, sem misturar assuntos.
 
@@ -68,7 +70,7 @@ O trabalho é Spec-Driven Development com o GitHub Spec Kit, no modo *spec-ancho
 | CSV | Apache Commons CSV |
 | Contrato | OpenAPI com Swagger UI. O contrato é a fonte da documentação e da validação das respostas nos testes |
 | Erros | Problem Details (RFC 9457) |
-| Logs | Texto padrão do framework no Marco 1. JSON estruturado, liveness e readiness a partir do Marco 2 (constituição 1.1.0) |
+| Logs | Texto padrão do framework na execução local (`./mvnw`). JSON estruturado no container e em ambientes operacionais, ligado por variável de ambiente que a imagem define. Liveness e readiness a partir do Marco 2 (constituição 1.3.0) |
 
 - **Isolamento por perfil:** Kafka, PostgreSQL e o que for do modo Docker só são configurados com o perfil ativo. Nenhuma dependência desses extras pode ser exigida no modo padrão.
 - **Um único caminho de gravação:** a regra de registrar um filme fica em um só serviço. O perfil muda apenas a origem dos dados (carga direta ou consumidor Kafka).
@@ -131,7 +133,9 @@ Pontos que estavam em aberto e já foram decididos (detalhe em `specs/001-produc
 ## Definição de pronto
 
 - [ ] A spec reflete o comportamento entregue.
-- [ ] Existe teste de integração para cada requisito do bolt, e `./mvnw verify` passa sem Docker.
+- [ ] Cada requisito do bolt tem a comprovação do seu tipo (Princípio VI): teste de integração para
+  comportamento, item de revisão no checklist para documentação, estágio do pipeline para pipeline e
+  imagem. `./mvnw verify` passa sem Docker.
 - [ ] O contrato de intervalos continua idêntico ao do PDF.
 - [ ] Nenhum segredo nem dado pessoal foi adicionado.
 - [ ] As decisões relevantes foram registradas em `docs/ai/decisoes.md` ou em um ADR.

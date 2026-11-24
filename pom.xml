@@ -23,6 +23,10 @@
         <!-- Mesma versão do Swagger UI que o springdoc 3.2.0 traria (research R8) -->
         <swagger-ui.version>5.34.0</swagger-ui.version>
         <swagger-request-validator.version>3.0.0</swagger-request-validator.version>
+        <jacoco.version>0.8.14</jacoco.version>
+        <!-- Cobertura mínima de linhas dos testes de integração (spec 002, FR-028a). Medido: 97,06% no
+             fim do Marco 1. Sobrescrevível na linha de comando, para provar que o portão funciona. -->
+        <jacoco.line.minimum>0.90</jacoco.line.minimum>
     </properties>
 
     <dependencies>
@@ -37,6 +41,16 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-flyway</artifactId>
+        </dependency>
+        <dependency>
+            <!-- Liveness, readiness e métricas (spec 002, FR-008 a FR-016; research R1) -->
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <!-- Métricas no formato do Prometheus em /actuator/prometheus (research R3) -->
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
@@ -122,6 +136,69 @@
                             <goal>integration-test</goal>
                             <goal>verify</goal>
                         </goals>
+                    </execution>
+                    <execution>
+                        <!-- Os testes que verificam o log rodam de novo com o JSON ligado, numa JVM
+                             própria: o Logback é global na JVM, e ligar o JSON num contexto mudaria o
+                             formato dos testes seguintes (spec 002, FR-018; research R6). -->
+                        <id>json-logs</id>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                        <configuration>
+                            <groups>log</groups>
+                            <environmentVariables>
+                                <LOGGING_STRUCTURED_FORMAT_CONSOLE>ecs</LOGGING_STRUCTURED_FORMAT_CONSOLE>
+                            </environmentVariables>
+                            <reportsDirectory>${project.build.directory}/failsafe-reports-json-logs</reportsDirectory>
+                            <summaryFile>${project.build.directory}/failsafe-reports-json-logs/failsafe-summary.xml</summaryFile>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <!-- Cobertura medida sobre as duas execuções do Failsafe, com mínimo de linhas no verify,
+                     também local, sem Docker (spec 002, FR-028a; research R7). Declarado depois do
+                     Failsafe, para o check rodar depois do verify dele. -->
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent-integration</id>
+                        <goals>
+                            <goal>prepare-agent-integration</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report-integration</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report-integration</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>check-integration</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <dataFile>${project.build.directory}/jacoco-it.exec</dataFile>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${jacoco.line.minimum}</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

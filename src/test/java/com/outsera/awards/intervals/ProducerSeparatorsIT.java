@@ -10,6 +10,7 @@ import com.outsera.awards.support.ScenarioIT;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -29,6 +30,7 @@ import org.springframework.test.context.TestPropertySource;
  * intervalo 0 ou maior que 1.
  */
 @TestPropertySource(properties = "movies.csv.path=classpath:scenarios/producer-separators.csv")
+@Tag("log")
 class ProducerSeparatorsIT extends ScenarioIT {
 
     /** Todos os itens esperados, ordenados por {@code previousWin} e depois pelo nome. */

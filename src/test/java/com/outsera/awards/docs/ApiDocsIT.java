@@ -27,8 +27,8 @@ class ApiDocsIT extends ScenarioIT {
 
     private static final String SWAGGER_UI = "/swagger-ui.html";
     private static final String CONTRACT = "/openapi.yaml";
-    private static final Path SPEC_CONTRACT = Path.of("specs", "001-producer-intervals-api", "contracts",
-            "openapi.yaml");
+    /** Contrato 1.1.0, com ETag e 304 (spec 002, research R5). O da spec 001 fica como registro do Marco 1. */
+    private static final Path SPEC_CONTRACT = Path.of("specs", "002-operacao", "contracts", "openapi.yaml");
 
     @Test
     @DisplayName("FR-024 Swagger UI disponível")
@@ -93,8 +93,33 @@ class ApiDocsIT extends ScenarioIT {
         }
         Map<String, Object> movies = (Map<String, Object>) ((Map<String, Object>) paths.get("/api/movies")).get("get");
         assertThat((List<Map<String, Object>>) movies.get("parameters"))
-                .extracting(p -> p.get("name"))
-                .containsExactly("year", "winner", "page", "size");
+                .extracting(p -> p.containsKey("$ref") ? p.get("$ref") : p.get("name"))
+                .containsExactly("year", "winner", "page", "size", "#/components/parameters/IfNoneMatch");
+    }
+
+    @Test
+    @DisplayName("FR-007 contrato declara ETag, If-None-Match e 304 nos dois endpoints")
+    @SuppressWarnings("unchecked")
+    void contractDeclaresConditionalRequests() {
+        String yaml = text(http.get().uri(CONTRACT).exchange()
+                .expectStatus().isOk()
+                .expectBody(byte[].class)
+                .returnResult());
+        Map<String, Object> root = new Yaml().load(yaml);
+        Map<String, Object> paths = (Map<String, Object>) root.get("paths");
+        for (String path : paths.keySet()) {
+            Map<String, Object> get = (Map<String, Object>) ((Map<String, Object>) paths.get(path)).get("get");
+            Map<String, Object> responses = (Map<String, Object>) get.get("responses");
+            assertThat(responses).as("respostas de GET %s", path).containsKey("304");
+            assertThat(yamlText(((Map<String, Object>) responses.get("200")).get("headers")))
+                    .as("cabeçalhos do 200 de GET %s", path).contains("ETag");
+            assertThat((List<Map<String, Object>>) get.get("parameters"))
+                    .as("parâmetros de GET %s", path)
+                    .anySatisfy(p -> assertThat(p.get("$ref")).isEqualTo("#/components/parameters/IfNoneMatch"));
+        }
+        Map<String, Object> ifNoneMatch = (Map<String, Object>) ((Map<String, Object>) ((Map<String, Object>)
+                root.get("components")).get("parameters")).get("IfNoneMatch");
+        assertThat(ifNoneMatch).containsEntry("name", "If-None-Match").containsEntry("in", "header");
     }
 
     /** GET que segue redirecionamentos, para não depender de como a página do Swagger UI é servida. */

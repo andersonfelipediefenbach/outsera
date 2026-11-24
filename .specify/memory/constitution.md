@@ -1,5 +1,108 @@
 <!--
-Sync Impact Report
+Sync Impact Report (1.5.0)
+- Version change: 1.4.1 → 1.5.0
+  Justificativa: MINOR. A cláusula do Princípio I sobre `SpringApplication` foi ampliada de forma
+  compatível. Antes, ela valia só para os testes de falha de inicialização. Agora vale sempre que o
+  teste precisa controlar o ciclo de vida da aplicação real:
+  - falha de inicialização (sem mudança);
+  - múltiplas execuções;
+  - ordem da subida;
+  - saída completa da subida.
+
+  Continua proibido usar mocks ou dublês. O resultado é verificado por HTTP real sempre que o
+  comportamento é observável por HTTP; a ordem da subida e o próprio log são verificados pelos eventos
+  reais e pela saída capturada. Nenhum teste que cumpria a versão anterior deixa de cumprir.
+  Origem: revisão do Codex no PR do Marco 2, que apontou o `EtagAcrossRunsIT` e o
+  `ReadinessAfterLoadIT` usando `SpringApplication` em execuções bem-sucedidas. O `JsonLogFormatIT` e o
+  `TextLogFormatIT`, que a revisão não citou, estavam na mesma situação e ficaram cobertos pelo caso
+  "saída completa da subida".
+- Modified principles: I. Somente testes de integração no back-end (cláusula de `SpringApplication`)
+- Added sections: nenhuma
+- Removed sections: nenhuma
+- Impacto:
+  - AGENTS.md ✅ regras invioláveis, item dos testes de integração;
+  - src/test ✅ javadoc do `EtagAcrossRunsIT`, do `ReadinessAfterLoadIT`, do `JsonLogFormatIT`, do
+    `TextLogFormatIT` e do `ApplicationStarter` citando a cláusula;
+  - docs/ai/decisoes.md ✅ emenda registrada;
+  - specs/002-operacao: nenhuma mudança (o Constitution Check do plano já descrevia esses testes);
+  - specs/001-producer-intervals-api: nenhuma mudança (os testes de falha continuam no caso original);
+  - ⚠ pendente, papel de documentação: README.md (seção de testes e tabela de rastreabilidade) e
+    ADR 0004 ainda dizem que só os testes de falha de inicialização usam `SpringApplication`.
+- Templates requiring updates: nenhum
+- Follow-up TODOs: README.md e ADR 0004 (acima)
+
+Sync Impact Report (1.4.1)
+- Version change: 1.4.0 → 1.4.1
+  Justificativa: PATCH. Esclarecimento do Princípio V. O texto anterior listava o ETag entre os
+  extras que "MUST ser ativados só pelo seu perfil ou pela sua configuração", mas a intenção do
+  princípio (e do briefing, que põe ETag e observabilidade na camada "Extra na API", rodando no
+  `./mvnw`) é isolar os extras com infraestrutura própria. O texto passa a separar:
+  - extras com infraestrutura própria: só com o seu perfil ou a sua configuração (sem mudança);
+  - extras da API sem infraestrutura própria (listagem, Swagger UI, ETag, health, métricas): podem
+    ficar ligados no modo padrão, desde que não alterem o comportamento avaliado.
+
+  A autenticação continua desligada por padrão (Princípio VII). Nenhuma regra nova nem removida.
+- Modified principles: V. Extras opcionais e isolados por perfil (esclarecimento de redação)
+- Added sections: nenhuma
+- Removed sections: nenhuma
+- Impacto:
+  - specs/002-operacao ✅ o Constitution Check do plano cita o Princípio V 1.4.1;
+  - specs/001-producer-intervals-api: nenhuma mudança (listagem e Swagger UI já ficavam ligados no
+    modo padrão);
+  - AGENTS.md: nenhuma mudança (o isolamento por perfil já falava só de Kafka, PostgreSQL e modo
+    Docker);
+  - docs/ai/decisoes.md ✅ emenda registrada.
+- Templates requiring updates: nenhum
+- Follow-up TODOs: nenhum
+
+Sync Impact Report (1.4.0)
+- Version change: 1.3.0 → 1.4.0
+  Justificativa: MINOR. O Princípio VI foi ampliado de forma compatível: cada requisito aponta para
+  a forma de comprovação adequada ao seu tipo.
+  - comportamento da aplicação: teste de integração (sem mudança);
+  - documentação (README, ADRs e guias): revisão no pull request, com item no checklist da spec;
+  - pipeline e imagem (fumaça do container, segurança, cobertura mínima e lint do Dockerfile):
+    execução do pipeline no GitHub Actions.
+
+  Todo requisito que cumpria a versão anterior continua cumprindo. Requisito de comportamento
+  continua exigindo teste de integração e não pode ser comprovado só por revisão ou pelo pipeline.
+- Modified principles: VI. Rastreabilidade requisito → teste (o título não mudou; o texto foi
+  ampliado)
+- Added sections: nenhuma
+- Removed sections: nenhuma
+- Impacto:
+  - specs/002-operacao ✅ FR-032 passa a citar o Princípio VI; a seção "Revisão dos ADRs" do
+    checklist é a comprovação da FR-030 e da FR-031;
+  - specs/001-producer-intervals-api: nenhuma mudança (todos os requisitos são de comportamento e
+    continuam com teste de integração);
+  - AGENTS.md ✅ regra de rastreabilidade do fluxo de trabalho;
+  - docs/ai/decisoes.md ✅ emenda registrada.
+- Templates requiring updates: nenhum
+- Follow-up TODOs: nenhum
+
+Sync Impact Report (1.3.0)
+- Version change: 1.2.0 → 1.3.0
+  Justificativa: MINOR. A seção "Restrições técnicas e de segurança" > Observabilidade passa a
+  definir onde vale o log em JSON:
+  - na execução em container e em ambientes operacionais, ligado por variável de ambiente que a
+    imagem define;
+  - na execução local padrão (`./mvnw spring-boot:run`), o log continua em texto.
+
+  Nenhum princípio foi alterado. Os probes de liveness e readiness não mudaram. Os testes de log
+  passam a valer nos dois formatos.
+- Modified sections: "Restrições técnicas e de segurança" > Observabilidade
+- Added sections: nenhuma
+- Removed sections: nenhuma
+- Impacto:
+  - specs/002-operacao ✅ clarificação de 2026-11-23, história 4, FR-017, FR-018, FR-020, FR-024a,
+    FR-030 e SC-005;
+  - specs/001-producer-intervals-api: nenhuma mudança (o Marco 1 já usa texto);
+  - AGENTS.md ✅ linha "Logs" da tabela de stack;
+  - docs/ai/decisoes.md ✅ emenda registrada.
+- Templates requiring updates: nenhum
+- Follow-up TODOs: nenhum
+
+Sync Impact Report (1.2.0)
 - Version change: 1.1.0 → 1.2.0 (nesta sessão também 1.0.0 → 1.1.0, observabilidade a partir do Marco 2)
   Justificativa: MINOR. O Princípio I foi reescrito de forma compatível:
   - todo teste que cumpria a versão anterior continua cumprindo;
@@ -40,9 +143,22 @@ Os sete princípios abaixo são **inegociáveis**. Uma violação bloqueia o mer
   - A verificação por log ou banco só é permitida enquanto o comportamento ainda não tem endpoint
     exposto.
   - Quando o endpoint passar a existir, o teste MUST ganhar a verificação por HTTP.
-- **Testes de falha de inicialização:** um contexto que não sobe não pode ser verificado por
-  `@SpringBootTest`. Por isso, esses testes executam a aplicação real com `SpringApplication`, sem
-  mocks, e verificam a exceção e o log.
+- **Testes que controlam o ciclo de vida da aplicação:** quando o teste precisa controlar o ciclo de
+  vida da aplicação real, ele MAY executá-la com `SpringApplication` em vez de `@SpringBootTest`. Os
+  casos são:
+  - **falha de inicialização:** um contexto que não sobe não pode ser verificado por
+    `@SpringBootTest`; o teste verifica a exceção e o log;
+  - **múltiplas execuções:** o teste compara o resultado de duas ou mais subidas da aplicação, por
+    exemplo com arquivos diferentes;
+  - **ordem da subida:** o teste observa, com ouvintes reais dos eventos do ciclo de vida, a ordem em
+    que as etapas da subida acontecem;
+  - **saída completa da subida:** o teste captura o log desde a primeira linha, num formato que ele
+    controla.
+
+  Esses testes MUST continuar sem mocks nem dublês: sobem a aplicação completa. O resultado MUST ser
+  verificado por chamadas HTTP reais sempre que o comportamento for observável por HTTP. A ordem da
+  subida e o próprio log, que o HTTP não observa, são verificados pelos eventos reais e pela saída
+  capturada.
 - Todo comportamento novo ou alterado MUST chegar com o seu teste de integração, no mesmo bolt.
 - O resultado de referência com o arquivo fornecido MUST ser testado: Joel Silver em `min`
   (1990–1991) e Matthew Vaughn em `max` (2002–2015).
@@ -97,8 +213,13 @@ documentação coerentes e evita o modelo cascata.
 
 ### V. Extras opcionais e isolados por perfil
 
-- Todo extra (PostgreSQL, Kafka, Prometheus, Grafana, autenticação, ETag, front-end, deploy) é
-  opcional e MUST ser ativado só pelo seu perfil ou pela sua configuração.
+- Os extras são de dois tipos:
+  - **com infraestrutura própria** (PostgreSQL, Kafka, Prometheus e Grafana em execução, front-end,
+    imagem e deploy): são opcionais e MUST ser ativados só pelo seu perfil ou pela sua configuração;
+  - **da API, sem infraestrutura própria** (por exemplo, listagem, Swagger UI, ETag, health e
+    métricas): MAY ficar ligados no modo padrão, desde que não alterem o comportamento avaliado. O
+    contrato de intervalos, os resultados e os testes do enunciado continuam idênticos com eles ligados.
+- A autenticação é ligada só pela sua configuração e fica desligada por padrão (Princípio VII).
 - Nenhum extra pode quebrar a subida ou os testes do modo padrão. Kafka e PostgreSQL MUST NOT ser
   configurados nem exigidos sem o perfil ativo.
 - A regra de registrar um filme MUST existir em um único serviço. O perfil muda só a origem dos
@@ -111,12 +232,25 @@ documentação coerentes e evita o modelo cascata.
 
 ### VI. Rastreabilidade requisito → teste
 
-- Cada requisito da spec MUST apontar para o teste de integração que o comprova, e cada teste MUST
-  indicar o requisito que cobre.
-- Requisito sem teste não é considerado entregue.
+- Cada requisito da spec MUST apontar para a forma de comprovação adequada ao seu tipo:
+  - **comportamento da aplicação:** teste de integração, conforme o Princípio I. Cada teste MUST
+    indicar o requisito que cobre;
+  - **documentação** (README, ADRs e guias): revisão no pull request, com um item no checklist da
+    spec que diga o que o revisor confere;
+  - **pipeline e imagem** (teste de fumaça do container, análise de segurança, cobertura mínima e lint
+    do Dockerfile): execução do pipeline no GitHub Actions, com o estágio que comprova cada requisito
+    indicado na spec ou no plano.
+- Requisito sem comprovação não é considerado entregue. Um requisito de comportamento da aplicação
+  MUST NOT ser comprovado só por revisão ou só pelo pipeline: ele precisa do seu teste de integração no
+  `./mvnw verify`.
 - O README MUST trazer a tabela de requisitos do enunciado, com o teste que comprova cada um.
 
-**Motivo:** o avaliador consegue conferir cada exigência do enunciado sem ler o código.
+**Motivo:**
+- O avaliador consegue conferir cada exigência do enunciado sem ler o código.
+- Documentos, pipeline e imagem não têm comportamento que um teste de integração no `./mvnw verify`
+  consiga exercitar: o conteúdo de um ADR só uma leitura avalia, e o container e o pipeline só existem
+  no GitHub Actions, fora do modo padrão (Princípio II). Exigir teste de integração para eles levaria a
+  testes de fachada ou a deixar os requisitos sem comprovação.
 
 ### VII. Sem segredos; configuração por variável de ambiente
 
@@ -139,17 +273,25 @@ documentação coerentes e evita o modelo cascata.
   cabeçalho inválido MUST interromper a inicialização com mensagem clara.
 - **Erros:** a API MUST responder em Problem Details (RFC 9457). Parâmetro inválido devolve 400,
   e token ausente ou errado, com a autenticação ligada, devolve 401.
-- **Observabilidade:** valem **a partir do marco de observabilidade (Marco 2)** os logs estruturados
-  em JSON e os probes de liveness e readiness, com a readiness positiva só depois do fim da carga dos
-  dados. Até lá, vale o log padrão do framework, em texto.
+- **Observabilidade:** valem **a partir do marco de observabilidade (Marco 2)**:
+  - os probes de liveness e readiness, com a readiness positiva só depois do fim da carga dos dados;
+  - os logs estruturados em JSON na **execução em container e em ambientes operacionais**. O JSON
+    MUST ser ligado por uma variável de ambiente, que a imagem de container MUST definir e que pode
+    ligá-lo em qualquer outra execução;
+  - na **execução local padrão** (`./mvnw spring-boot:run`, sem a variável), o log MUST continuar no
+    texto padrão do framework.
+
+  Até o Marco 2, vale só o log em texto, sem probes.
   - **Motivo:**
     - O Marco 1 se limita ao que o enunciado avalia, e o enunciado não pede nenhum dos dois itens.
     - Antecipá-los exigiria dependências e configuração novas no modo padrão, que é o que o
       avaliador executa.
     - A garantia que a readiness daria já existe no Marco 1: a carga termina antes de o servidor
       aceitar conexões (FR-001 da spec 001).
-  - Quando o Marco 2 ligar os logs em JSON, os testes que verificam mensagens de log MUST continuar
-    passando.
+    - Quem avalia lê o log do `./mvnw` no terminal, onde o texto é legível e o JSON não é. O JSON
+      serve a coletores de log, que só existem na execução em container e nos ambientes operacionais.
+  - Os testes que verificam mensagens de log MUST passar no formato texto, e as mesmas verificações
+    MUST passar com o JSON ligado.
 - **Cadeia de entrega:** as actions do pipeline MUST ser fixadas por hash de commit, nunca por
   tag. A imagem MUST ser multi-stage e rodar com usuário não root.
 
@@ -191,4 +333,4 @@ documentação coerentes e evita o modelo cascata.
   conformidade com os princípios I a VII. Os sete princípios são inegociáveis e não admitem
   exceção em "Complexity Tracking". Qualquer outra divergência MUST ser justificada no plano.
 
-**Version**: 1.2.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-19
+**Version**: 1.5.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-24

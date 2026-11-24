@@ -453,3 +453,242 @@ Você está no papel de documentação. Atualize o docs/ai/README.md: na tabela 
 ```text
 pode corrigir
 ```
+
+## 2026-11-23 11:29:50 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+
+
+<pasted_content id="861c">
+git stash
+git checkout main
+git pull
+git checkout -b marco/2-operacao
+git stash pop
+</pasted_content id="861c">
+
+```
+
+## 2026-11-23 11:30:02 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+
+
+<pasted_content id="861c">
+/speckit-specify Marco 2, operação, conforme docs/ai/planejamento/briefing.md. Escopo:
+1. ETag no GET de intervalos e na listagem, com 304 quando If-None-Match bate; o contrato de resposta 200 não muda.
+2. Health checks de liveness e readiness, com a aplicação pronta só depois da carga do CSV.
+3. Métricas de latência e taxa de erro dos endpoints, expostas no formato do Prometheus.
+4. Logs estruturados em JSON.
+5. Dockerfile multi-stage, com usuário não root e healthcheck, e .dockerignore. A imagem é um caminho alternativo: o projeto continua subindo e testando só com ./mvnw, sem Docker.
+6. Pipeline no GitHub Actions: em todo push e pull request, build, testes, cobertura, análise de segurança, lint do Dockerfile, build da imagem e um teste de fumaça que sobe o container e chama o endpoint. Actions fixadas por hash de commit. Dependabot para Maven, Actions e Docker.
+7. ADRs curtos para as decisões de arquitetura já tomadas no marco 1 e neste marco.
+Fora do escopo: PostgreSQL, Kafka, autenticação, publicação de imagem, deploy e front-end. Os testes da aplicação continuam somente de integração; o teste do container roda só no pipeline.
+</pasted_content id="861c">
+
+```
+
+## 2026-11-23 11:39:27 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+C. No ./mvnw, o log continua em texto, legível para quem avalia no terminal. Na imagem Docker, o JSON vem ligado por variável de ambiente definida no Dockerfile, e a mesma variável permite ativar JSON em qualquer execução. Emende a constituição: logs estruturados em JSON valem para a execução em container e ambientes operacionais; a execução local padrão usa texto. Registre o motivo em docs/ai/decisoes.md.
+```
+
+## 2026-11-23 11:43:25 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+Segurança: o pipeline falha com achados de severidade alta ou crítica; na análise de dependências e da imagem, consideram-se só vulnerabilidades com versão corrigida disponível. Achados médios e baixos aparecem no relatório sem reprovar. Cobertura: medida pelos testes de integração (JaCoCo com o Failsafe). Meça a cobertura atual e fixe o mínimo de linhas um pouco abaixo dela, com piso de 80%, registrando o valor medido e o escolhido em docs/ai/decisoes.md.
+```
+
+## 2026-11-23 11:47:02 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+Ajuste o mínimo de cobertura de linhas para 90%. Motivo: a margem de 2 pontos é pequena para 340 linhas, e o marco 3 adiciona código que só roda no perfil Docker, fora do verify padrão. Atualize a FR-028a, a SC-008 e a entrada em docs/ai/decisoes.md, mantendo o valor medido de 97,06%.
+Os ADRs são comprovados por revisão, com um item no checklist da spec: cada ADR tem contexto, decisão, alternativas consideradas e consequências; cita a entrada correspondente em docs/ai/decisoes.md; e há um ADR para cada decisão de arquitetura listada na spec. Sem verificação automatizada no pipeline.
+```
+
+## 2026-11-23 11:50:16 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+Faça a emenda MINOR no Princípio VI: cada requisito aponta para a forma de comprovação adequada ao seu tipo. Comportamento da aplicação é comprovado por teste de integração. Requisitos de documentação (README, ADRs, guias) são comprovados por revisão, com item no checklist da spec. Requisitos de pipeline e de imagem (teste de smoke do container, análise de segurança, cobertura mínima, lint do Dockerfile) são comprovados pela execução do pipeline no GitHub Actions. Registre o motivo em docs/ai/decisoes.md e atualize o Sync Impact Report.
+```
+
+## 2026-11-23 11:53:26 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+/speckit-plan Spring Boot Actuator para health e métricas, Micrometer com registro Prometheus, logging estruturado nativo do Spring Boot em JSON ativado por variável de ambiente (texto no ./mvnw, JSON na imagem), Dockerfile multi-stage com imagem JRE mínima e usuário não root, GitHub Actions com setup-java e cache do Maven, JaCoCo integrado ao Failsafe com mínimo de 90% de linhas, CodeQL para análise de segurança, análise de vulnerabilidades de dependências e da imagem considerando só as que têm correção, e hadolint para o Dockerfile. Todas as actions fixadas por hash de commit.
+```
+
+## 2026-11-23 16:42:54 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+Ajustes antes das tarefas. (1) A R16 do plano deve seguir a decisão de um bolt por marco: um único bolt, com etapas por assunto e um commit por etapa; os papéis (implementador, infraestrutura, documentação) ficam como responsáveis por etapa, não como bolts. (2) Ajuste a US4-3: o evento JSON de falha de inicialização deve trazer a mensagem de erro; o rastro da exceção só quando existir, já que o analisador de falhas o substitui por mensagem clara. (3) Princípio V: aceito sua leitura. ETag, health e métricas ficam ligados no ./mvnw porque não alteram o comportamento avaliado; o isolamento por perfil vale para extras com infraestrutura própria. Se o texto do Princípio V exigir perfil para todo extra, faça uma emenda PATCH esclarecendo isso. Registre as três decisões em docs/ai/decisoes.md.
+```
+
+## 2026-11-23 16:46:02 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+/speckit-tasks Agrupe todas as tarefas do marco 2 em um único bolt, organizado em etapas por assunto, nesta ordem: ETag, observabilidade, Dockerfile, pipeline e Dependabot, ADRs e atualização do README. Cada etapa fecha com ./mvnw verify verde e um commit. O teste vem antes da implementação em cada etapa.
+```
+
+## 2026-11-23 17:10:42 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+/speckit-analyze
+```
+
+## 2026-11-23 17:13:35 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+Sim. Sugira correções concretas para C1, G1, G2, U1, A1, A2, A3, I1 e G3. Para C1, prefira estender o script de verificação do workflow na T040, sem emenda. Para U1, me mostre as opções sobre o 500 na FR-006, com a implicação de cada uma, e eu decido. Os achados LOW ficam de fora. Não aplique nada até eu aprovar.
+```
+
+## 2026-11-23 17:18:03 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+hmm A. Tire o 500 da FR-006 e o caso de borda correspondente. Na R4, registre que o filtro de ETag só age em respostas 2xx e que as métricas registram qualquer status, inclusive 500, por comportamento do próprio Spring, sem requisito próprio porque a API não tem caminho que produza 500 sem defeito ou mock. Registre a decisão em docs/ai/decisoes.md.
+```
+
+## 2026-11-23 17:19:42 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+Aprovo todas. No G2, o defeito usado para provar que o CodeQL reprova o pipeline não pode ficar no código do marco: a prova deve acontecer num branch temporário, descartado depois, com o resultado registrado. No G3, garanta que o teste de arquivo sem permissão de leitura funciona no Windows e no Linux, ou que é pulado com motivo explícito onde a permissão não se aplica.
+```
+
+## 2026-11-23 17:24:20 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+/speckit-analyze
+```
+
+## 2026-11-23 17:27:47 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+Aplique H1, H2, M1, M2, M3 e M4. Para H2, escolho a opção (b): banner desligado em todas as execuções, com spring.main.banner-mode: off no application.yml; registre o motivo (o banner não traz informação e, em JSON, viraria um evento com desenho ASCII). Para M1, verifique as referências aninhadas do trivy-action; se não usarem hash, troque pela instalação do binário oficial do Trivy com verificação de checksum, citando o ataque de 2026 ao setup-trivy em R10. Para M2, o script falha com mensagem clara quando o yq não existe; a verificação oficial é a do job workflow-policy. Para M4, use a imagem do estágio de build como base da sonda. Os LOW continuam fora. Registre as decisões em docs/ai/decisoes.md.
+```
+
+## 2026-11-23 17:32:14 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+/speckit-analyze
+```
+
+## 2026-11-23 17:34:04 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+ok, agora commite as specs  no padrão que já temos.
+```
+
+## 2026-11-23 17:36:56 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+/speckit-implement Execute o bolt único do marco 2, etapa por etapa, fazendo um commit ao fim de cada etapa. Não faça push.
+```
+
+## 2026-11-23 17:39:02 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+yes
+```
+
+## 2026-11-24 13:29:00 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+O Docker está rodando agora. Execute smoke test da imagem localmente e me mostre o resultado, incluindo a verificação de que o log do container sai em JSON. Se algo falhar, corrija e faça um commit separado.
+```
+
+## 2026-11-24 13:37:03 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+O Docker está rodando agora. Execute smoke test da imagem localmente e me mostre o resultado, incluindo a verificação de que o log do container sai em JSON. Se algo falhar, corrija e faça um commit separado.
+```
+
+## 2026-11-24 13:37:39 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+<task-notification>
+<task-id>bc6hilo1c</task-id>
+<tool-use-id>toolu_01G5CA8e94nrzt3CodLpmg3o</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bc6hilo1c.output</output-file>
+<status>completed</status>
+<summary>Background command "Run mvnw verify and count containers before and after" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-24 13:45:19 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+O job do hadolint falhou no pipeline com este erro:(Run hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387) . Corrija o Dockerfile. Se a regra não se aplicar ao nosso caso, ignore-a com um comentário no Dockerfile explicando o motivo, em vez de desligá-la no pipeline inteiro. Faça um commit separado.
+
+
+
+<pasted_content id="861c">
+Run hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387
+/usr/bin/docker run --name b04beeae14444a85b3581ccbda8174aa_703613 --label 662052 --workdir /github/workspace --rm -e "INPUT_DOCKERFILE" -e "INPUT_FAILURE-THRESHOLD" -e "INPUT_CONFIG" -e "INPUT_RECURSIVE" -e "INPUT_OUTPUT-FILE" -e "INPUT_NO-COLOR" -e "INPUT_NO-FAIL" -e "INPUT_VERBOSE" -e "INPUT_FORMAT" -e "INPUT_OVERRIDE-ERROR" -e "INPUT_OVERRIDE-WARNING" -e "INPUT_OVERRIDE-INFO" -e "INPUT_OVERRIDE-STYLE" -e "INPUT_IGNORE" -e "INPUT_TRUSTED-REGISTRIES" -e "NO_COLOR" -e "HADOLINT_NOFAIL" -e "HADOLINT_VERBOSE" -e "HADOLINT_FORMAT" -e "HADOLINT_FAILURE_THRESHOLD" -e "HADOLINT_OVERRIDE_ERROR" -e "HADOLINT_OVERRIDE_WARNING" -e "HADOLINT_OVERRIDE_INFO" -e "HADOLINT_OVERRIDE_STYLE" -e "HADOLINT_IGNORE" -e "HADOLINT_TRUSTED_REGISTRIES" -e "HADOLINT_CONFIG" -e "HADOLINT_RECURSIVE" -e "HADOLINT_OUTPUT" -e "HOME" -e "GITHUB_JOB" -e "GITHUB_REF" -e "GITHUB_SHA" -e "GITHUB_REPOSITORY" -e "GITHUB_REPOSITORY_OWNER" -e "GITHUB_REPOSITORY_OWNER_ID" -e "GITHUB_RUN_ID" -e "GITHUB_RUN_NUMBER" -e "GITHUB_RETENTION_DAYS" -e "GITHUB_RUN_ATTEMPT" -e "GITHUB_ACTOR_ID" -e "GITHUB_ACTOR" -e "GITHUB_WORKFLOW" -e "GITHUB_HEAD_REF" -e "GITHUB_BASE_REF" -e "GITHUB_EVENT_NAME" -e "GITHUB_SERVER_URL" -e "GITHUB_API_URL" -e "GITHUB_GRAPHQL_URL" -e "GITHUB_REF_NAME" -e "GITHUB_REF_PROTECTED" -e "GITHUB_REF_TYPE" -e "GITHUB_WORKFLOW_REF" -e "GITHUB_WORKFLOW_SHA" -e "GITHUB_REPOSITORY_ID" -e "GITHUB_TRIGGERING_ACTOR" -e "GITHUB_WORKSPACE" -e "GITHUB_ACTION" -e "GITHUB_EVENT_PATH" -e "GITHUB_ACTION_REPOSITORY" -e "GITHUB_ACTION_REF" -e "GITHUB_PATH" -e "GITHUB_ENV" -e "GITHUB_STEP_SUMMARY" -e "GITHUB_STATE" -e "GITHUB_OUTPUT" -e "GITHUB_ARTIFACTS" -e "GITHUB_ARTIFACTS_LIST" -e "RUNNER_OS" -e "RUNNER_ARCH" -e "RUNNER_NAME" -e "RUNNER_ENVIRONMENT" -e "RUNNER_TOOL_CACHE" -e "RUNNER_TEMP" -e "RUNNER_WORKSPACE" -e "ACTIONS_RUNTIME_URL" -e "ACTIONS_RUNTIME_TOKEN" -e "ACTIONS_CACHE_URL" -e "ACTIONS_RESULTS_URL" -e "ACTIONS_CACHE_MODE" -e "ACTIONS_ORCHESTRATION_ID" -e GITHUB_ACTIONS=true -e CI=true -v "/var/run/docker.sock":"/var/run/docker.sock" -v "/home/runner/work/_temp":"/github/runner_temp" -v "/home/runner/work/_temp/_github_home":"/github/home" -v "/home/runner/work/_temp/_github_workflow":"/github/workflow" -v "/home/runner/work/_temp/_runner_file_commands":"/github/file_commands" -v "/home/runner/work/outsera/outsera":"/github/workspace" 662052:b04beeae14444a85b3581ccbda8174aa  "Dockerfile"
+Warning: Dockerfile:44 DL3025 warning: Use arguments JSON notation for CMD and ENTRYPOINT arguments
+Hadolint output saved to: /dev/stdout
+</pasted_content id="861c">
+
+```
+
+## 2026-11-24 13:49:46 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+Comprove a T037: mostre que o comando do healthcheck da imagem termina com código diferente de zero quando o endpoint de readiness responde 503. Use um experimento local simples, sem alterar o código da aplicação, por exemplo apontando o mesmo comando para um servidor temporário que responda 503. Registre o resultado na T037 e marque-a como concluída se passar.
+```
+
+## 2026-11-24 13:57:04 -03:00
+
+- Sessao: `4420248e-d2ed-4397-aa6d-59a26403b657`
+
+```text
+O Codex apontou no PR que o EtagAcrossRunsIT e o ReadinessAfterLoadIT usam SpringApplication em execuções bem-sucedidas, o que a constituição só permite para falha de inicialização. Os dois precisam controlar o ciclo de vida (comparar duas execuções e observar a ordem da subida), então emende o Princípio I: SpringApplication é permitido quando o teste precisa controlar o ciclo de vida da aplicação real, como falha de inicialização, múltiplas execuções ou a ordem da subida; continua sem mocks e com chamadas HTTP reais. Atualize o AGENTS.md (linhas 20 a 23), o Sync Impact Report, o javadoc dos dois testes citando a cláusula e registre em docs/ai/decisoes.md citando a revisão do Codex. Commit separado.
+```

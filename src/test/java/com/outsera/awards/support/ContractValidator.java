@@ -20,8 +20,10 @@ import org.springframework.test.web.servlet.client.EntityExchangeResult;
  * (FR-025, research R8). O contrato é a única fonte: este validador não conhece as classes de
  * produção, só o arquivo.
  *
- * <p>Verifica o status (que precisa estar declarado na operação), o {@code Content-Type} e o corpo,
- * contra o schema, inclusive {@code additionalProperties: false}.
+ * <p>Verifica o status (que precisa estar declarado na operação), os cabeçalhos declarados (como o
+ * {@code ETag} obrigatório das respostas 200 e 304, FR-007), o {@code Content-Type} e o corpo, contra o
+ * schema, inclusive {@code additionalProperties: false}. Uma resposta sem corpo (304) é validada sem
+ * corpo.
  */
 public final class ContractValidator {
 
@@ -35,21 +37,22 @@ public final class ContractValidator {
 
     /** Falha o teste se a resposta de {@code GET path} não cumpre o contrato. */
     public static void assertValidGet(String path, EntityExchangeResult<byte[]> result) {
-        ValidationReport report = validateGet(path, result.getStatus().value(),
-                result.getResponseHeaders().getFirst(HttpHeaders.CONTENT_TYPE), result.getResponseBody());
+        ValidationReport report = validateGet(path, result.getStatus().value(), result.getResponseHeaders(),
+                result.getResponseBody());
         assertThat(report.hasErrors())
                 .as("resposta de GET %s fora do contrato:%n%s", path,
                         SimpleValidationReportFormat.getInstance().apply(report))
                 .isFalse();
     }
 
-    /** Relatório de validação de uma resposta de {@code GET path}, montada a partir das partes. */
-    public static ValidationReport validateGet(String path, int status, String contentType, byte[] body) {
+    /**
+     * Relatório de validação de uma resposta de {@code GET path}, montada a partir das partes. Todos os
+     * cabeçalhos recebidos são repassados ao validador.
+     */
+    public static ValidationReport validateGet(String path, int status, HttpHeaders headers, byte[] body) {
         SimpleResponse.Builder response = SimpleResponse.Builder.status(status);
-        if (contentType != null) {
-            response.withContentType(contentType);
-        }
-        if (body != null) {
+        headers.forEach((name, values) -> response.withHeader(name, values));
+        if (body != null && body.length > 0) {
             response.withBody(body);
         }
         return VALIDATOR.validateResponse(path, Request.Method.GET, response.build());

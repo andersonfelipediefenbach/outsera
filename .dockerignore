@@ -1,0 +1,7 @@
+# Lista de permissão (spec 002, FR-026; research R8): tudo fica fora do contexto da imagem, menos o
+# necessário para construir o JAR. Qualquer arquivo novo no repositório fica fora por padrão.
+*
+!mvnw
+!.mvn/
+!pom.xml
+!src/main/

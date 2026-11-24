@@ -11,6 +11,7 @@ import com.outsera.awards.support.MovieJson;
 import com.outsera.awards.support.MoviesBody;
 import com.outsera.awards.support.ScenarioIT;
 import java.util.List;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -31,6 +32,7 @@ import org.springframework.test.context.TestPropertySource;
  * desta classe também vale para elas.
  */
 @TestPropertySource(properties = "movies.csv.path=classpath:scenarios/harmless-variations.csv")
+@Tag("log")
 class HarmlessVariationsIT extends ScenarioIT {
 
     @Test

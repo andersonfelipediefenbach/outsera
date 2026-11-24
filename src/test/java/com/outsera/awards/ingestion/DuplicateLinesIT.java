@@ -7,6 +7,7 @@ import com.outsera.awards.support.LoaderLog.Summary;
 import com.outsera.awards.support.MovieJson;
 import com.outsera.awards.support.MoviesBody;
 import com.outsera.awards.support.ScenarioIT;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -17,6 +18,7 @@ import org.springframework.test.context.TestPropertySource;
  * as repetições são rejeitadas com aviso citando a linha original (FR-006d).
  */
 @TestPropertySource(properties = "movies.csv.path=classpath:scenarios/duplicate-lines.csv")
+@Tag("log")
 class DuplicateLinesIT extends ScenarioIT {
 
     @Test

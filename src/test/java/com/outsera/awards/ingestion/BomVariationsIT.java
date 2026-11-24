@@ -6,6 +6,7 @@ import com.outsera.awards.support.LoaderLog;
 import com.outsera.awards.support.LoaderLog.Summary;
 import com.outsera.awards.support.MoviesBody;
 import com.outsera.awards.support.ScenarioIT;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,7 @@ import org.springframework.test.context.TestPropertySource;
  * O BOM é removido antes de o arquivo ser analisado, então ele não interfere nas aspas do cabeçalho nem
  * transforma uma linha em branco em cabeçalho (FR-005a, research R3; revisão do Codex no PR do bolt 2).
  */
+@Tag("log")
 class BomVariationsIT {
 
     @Nested

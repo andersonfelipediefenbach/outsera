@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.outsera.awards.support.LoaderLog;
 import com.outsera.awards.support.LoaderLog.Summary;
 import com.outsera.awards.support.ScenarioIT;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -18,6 +19,7 @@ import org.springframework.test.context.TestPropertySource;
  * numeração é a da linha física (cabeçalho = 1).
  */
 @TestPropertySource(properties = "movies.csv.path=classpath:scenarios/invalid-lines.csv")
+@Tag("log")
 class InvalidLinesIT extends ScenarioIT {
 
     @ParameterizedTest(name = "FR-006 FR-006a linha {0} rejeitada: {1}")

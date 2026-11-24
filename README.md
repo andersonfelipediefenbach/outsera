@@ -123,6 +123,53 @@ Informe um arquivo CSV existente, em UTF-8, com o separador ";" e o cabeçalho "
 
 Os motivos possíveis são `NOT_FOUND`, `UNREADABLE`, `INVALID_SEPARATOR` e `INVALID_HEADER`.
 
+### Formato do log
+
+No `./mvnw`, o log é o **texto** padrão do Spring Boot, legível no terminal, e sem o banner. Para ter
+**JSON** (formato ECS, um objeto por linha), defina `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`. A imagem
+Docker já vem com essa variável.
+
+```bash
+LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs ./mvnw spring-boot:run
+```
+
+```powershell
+$env:LOGGING_STRUCTURED_FORMAT_CONSOLE = "ecs"; .\mvnw.cmd spring-boot:run
+```
+
+```json
+{"@timestamp":"2026-11-24T13:38:51.169Z","log":{"level":"INFO","logger":"com.outsera.awards.ingestion.MovieFileLoader"},"process":{"pid":49512,"thread":{"name":"main"}},"service":{"name":"awards","version":"0.1.0-SNAPSHOT"},"message":"Carga do arquivo classpath:movielist.csv concluída: 206 linhas lidas, 206 aceitas, 0 rejeitadas","ecs":{"version":"8.11"}}
+```
+
+### Imagem Docker (opcional)
+
+A imagem é um caminho alternativo. Nada do modo padrão precisa de Docker.
+
+```bash
+docker build -t awards:local .
+docker run --rm -p 8080:8080 awards:local
+```
+
+| Item | Como é na imagem |
+| --- | --- |
+| Construção | Multi-stage: JDK 25 no build e só a JRE 25 na execução (Temurin Alpine, fixadas por digest). Os testes não rodam no build da imagem: rodam no pipeline |
+| Usuário | `10001`, não root |
+| Configuração | As mesmas variáveis do modo padrão: `PORT` (padrão `8080`) e `MOVIES_CSV_PATH` |
+| Log | JSON (`LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`). Para texto: `-e LOGGING_STRUCTURED_FORMAT_CONSOLE=` |
+| Healthcheck | `/actuator/health/readiness`: o container só fica `healthy` depois da carga do CSV |
+| Parada | A JVM recebe o `SIGTERM` direto e encerra de forma ordenada. Uma falha de inicialização termina com código diferente de 0 |
+
+Outro arquivo, montado só para leitura, e outra porta:
+
+```bash
+docker run --rm -p 9090:9090 -e PORT=9090 \
+  -v "$PWD/src/test/resources/scenarios/disjoint-producers.csv:/data/movies.csv:ro" \
+  -e MOVIES_CSV_PATH=file:/data/movies.csv awards:local
+```
+
+O contrato da imagem está em
+[`specs/002-operacao/contracts/container.md`](specs/002-operacao/contracts/container.md).
+
 Com linhas inválidas (`src/test/resources/scenarios/invalid-lines.csv`), a aplicação sobe e o log
 registra cada rejeição e o resumo:
 
@@ -139,9 +186,11 @@ Carga do arquivo src/test/resources/scenarios/invalid-lines.csv concluída: 13 l
 
 ## 4. Endpoints
 
-O contrato completo está em [`specs/001-producer-intervals-api/contracts/openapi.yaml`](specs/001-producer-intervals-api/contracts/openapi.yaml),
+O contrato completo (versão 1.1.0, com ETag) está em [`specs/002-operacao/contracts/openapi.yaml`](specs/002-operacao/contracts/openapi.yaml),
 publicado em <http://localhost:8080/openapi.yaml> e navegável no Swagger UI, em
-<http://localhost:8080/swagger-ui.html>.
+<http://localhost:8080/swagger-ui.html>. O do Marco 1 fica em
+[`specs/001-producer-intervals-api/contracts/openapi.yaml`](specs/001-producer-intervals-api/contracts/openapi.yaml),
+como registro.
 
 | Método e caminho | O que faz |
 | --- | --- |
@@ -149,6 +198,8 @@ publicado em <http://localhost:8080/openapi.yaml> e navegável no Swagger UI, em
 | `GET /api/movies` | Lista paginada de filmes, com filtros |
 | `GET /swagger-ui.html` | Documentação interativa |
 | `GET /openapi.yaml` | Contrato OpenAPI 3.1 |
+| `GET /actuator/health/liveness`, `GET /actuator/health/readiness`, `GET /actuator/health` | Saúde da aplicação ([endpoints operacionais](#endpoints-operacionais)) |
+| `GET /actuator/prometheus` | Métricas no formato do Prometheus |
 
 ### `GET /api/producers/intervals`
 
@@ -195,14 +246,55 @@ curl -s "http://localhost:8080/api/movies?page=-1&size=500"
 {"detail":"Parâmetro inválido na consulta","instance":"/api/movies","status":400,"title":"Bad Request","invalidParams":[{"name":"page","reason":"deve ser um inteiro maior ou igual a 0"},{"name":"size","reason":"deve ser um inteiro de 1 a 100"}]}
 ```
 
+### ETag e 304
+
+As respostas 200 dos dois endpoints trazem um `ETag` forte, derivado do conteúdo: o mesmo corpo tem
+sempre o mesmo ETag, inclusive entre execuções com o mesmo arquivo. O corpo da resposta 200 não muda.
+
+```bash
+curl -si http://localhost:8080/api/producers/intervals | grep -i etag
+# ETag: "010f231232ae1af42532e0827a126190d"
+
+curl -si -H 'If-None-Match: "010f231232ae1af42532e0827a126190d"' http://localhost:8080/api/producers/intervals
+# HTTP/1.1 304, sem corpo
+```
+
+- O `If-None-Match` bate com o ETag atual sozinho, numa lista, na forma fraca (`W/"..."`) ou com `*`.
+- Na listagem, cada combinação de página, tamanho e filtros tem o seu próprio ETag.
+- Respostas de erro (400 e 405) não têm ETag e nunca viram 304.
+
+### Endpoints operacionais
+
+Na mesma porta da API, públicos neste marco e sem detalhes internos. O contrato está em
+[`specs/002-operacao/contracts/operational-endpoints.md`](specs/002-operacao/contracts/operational-endpoints.md).
+
+| Caminho | Resposta |
+| --- | --- |
+| `/actuator/health/liveness` | 200 `{"status":"UP"}`; 503 `{"status":"DOWN"}` se a aplicação estiver quebrada |
+| `/actuator/health/readiness` | 200 `{"status":"UP"}` só depois da carga do CSV; 503 `{"status":"OUT_OF_SERVICE"}` antes |
+| `/actuator/health` | 200 `{"status":"UP","groups":["liveness","readiness"]}`, sem componentes nem detalhes |
+| `/actuator/prometheus` | Texto do Prometheus: `http_server_requests_seconds` (contagem e histograma de latência por rota, método, status e `outcome`), métricas da JVM e do processo, todas com `application="awards"` |
+
+Os demais endpoints do Actuator (`/actuator`, `/actuator/env`, `/actuator/beans` e outros) respondem
+404. Com as métricas, a taxa de erro e o percentil 95 de cada endpoint saem direto no Prometheus:
+
+```promql
+sum(rate(http_server_requests_seconds_count{uri="/api/producers/intervals",outcome=~"CLIENT_ERROR|SERVER_ERROR"}[5m]))
+  / sum(rate(http_server_requests_seconds_count{uri="/api/producers/intervals"}[5m]))
+
+histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri="/api/producers/intervals"}[5m])))
+```
+
 ### Códigos HTTP
 
 | Código | Quando |
 | --- | --- |
 | 200 | Consulta atendida, inclusive com listas vazias |
+| 304 | `If-None-Match` igual ao ETag atual, sem corpo |
 | 400 | Parâmetro inválido em `/api/movies`, em Problem Details |
 | 404 | Caminho inexistente, em Problem Details |
 | 405 | Verbo diferente de GET nos dois endpoints, em Problem Details e com o cabeçalho `Allow: GET` |
+| 503 | Liveness ou readiness negativa |
 
 ---
 
@@ -218,8 +310,19 @@ curl -s "http://localhost:8080/api/movies?page=-1&size=500"
 .\mvnw.cmd verify "-Dit.test=ReferenceFileIT"   # no PowerShell, o -D vai entre aspas
 ```
 
-São **136 testes de integração**, executados pelo Maven Failsafe na fase `verify`, sem Docker. A
-execução completa leva cerca de 30 s com as dependências já baixadas.
+São **189 testes de integração**, executados pelo Maven Failsafe na fase `verify`, sem Docker, em duas
+execuções:
+
+- **padrão:** todos os testes, com o log em texto. Os 5 do `JsonLogFormatIT` ficam pulados, porque só
+  valem com o JSON ligado;
+- **`json-logs`:** os 55 testes das classes marcadas com `@Tag("log")` rodam de novo, numa JVM própria,
+  com `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`. Assim, as mesmas verificações de log valem nos dois
+  formatos.
+
+A **cobertura** de linhas é medida pelo JaCoCo sobre as duas execuções, e o `verify` falha abaixo de
+**90%**. Hoje ela está em 97,28%, e o relatório fica em `target/site/jacoco-it/index.html`. A execução
+completa leva cerca de 75 s numa cópia de trabalho já compilada. Num clone novo, a primeira execução
+levou cerca de 4 min e meio na máquina de desenvolvimento.
 
 | Grupo (`src/test/java/com/outsera/awards/`) | O que cobre |
 | --- | --- |
@@ -228,9 +331,13 @@ execução completa leva cerca de 30 s com as dependências já baixadas.
 | `intervals/` | Cálculo e formato dos intervalos: resultado de referência, empates em `min` e `max`, três ou mais vitórias, linhas fora de ordem, vitórias no mesmo ano, separação de produtores, arquivo com anos diferentes dos do enunciado e um oráculo independente com arquivos gerados |
 | `adversario/` | Os 13 casos do testador adversário ([seção 10](#10-uso-de-ia)), um IT por caso, com o CSV e o resultado esperado em `src/test/resources/scenarios/adversario/` |
 | `movies/` | Listagem: paginação, filtros, ordem, parâmetros inválidos e tempo de resposta abaixo de 1 s |
-| `docs/` | As respostas reais dos dois endpoints validadas contra o `openapi.yaml`, mais o Swagger UI e o contrato publicado |
+| `docs/` | As respostas reais dos dois endpoints validadas contra o `openapi.yaml`, inclusive o `ETag` e o 304, mais o Swagger UI e o contrato publicado |
 | `web/` | Verbos não suportados nos dois endpoints respondem 405 |
-| `support/` | Base comum (`ScenarioIT`) e apoios, sem testes próprios |
+| `etag/` | ETag e 304: valor único, lista, forma fraca, `*`, malformado, erros sem ETag e o mesmo ETag entre execuções |
+| `health/` | Liveness e readiness, corpo sem detalhes, 503 nos estados negativos e a readiness só depois da carga |
+| `metrics/` | Métricas no formato do Prometheus: contagem, status, rota sem parâmetros, rotas inexistentes, 304, histograma e rótulo `application` |
+| `logging/` | Log em texto sem a variável, JSON ECS com ela, banner desligado e nenhum cabeçalho `Authorization` no log |
+| `support/` | Base comum (`ScenarioIT`) e apoios (leitura do log nos dois formatos, do texto do Prometheus e do contrato), sem testes próprios |
 
 **Como os testes funcionam:**
 - Cada classe sobe a aplicação inteira com `@SpringBootTest` em porta aleatória e faz chamadas HTTP
@@ -246,7 +353,25 @@ da [constituição](.specify/memory/constitution.md) proíbe testes unitários e
 - Os testes verificam o comportamento pelo HTTP, como o avaliador o vê, e não detalhes internos.
 - Log e banco só podem ser usados enquanto um comportamento não tem endpoint. Nenhum teste consulta o
   banco. O log só é verificado no que não tem endpoint: os avisos e o resumo da carga, a ordem entre a
-  carga e o início do servidor e as falhas de inicialização.
+  carga e o início do servidor, as falhas de inicialização e o próprio formato do log.
+
+### Pipeline
+
+O [GitHub Actions](.github/workflows/ci.yml) roda em todo push e pull request, sem segredos e sem
+publicar a imagem. Toda action é fixada por hash de commit. O contrato completo está em
+[`specs/002-operacao/contracts/ci-pipeline.md`](specs/002-operacao/contracts/ci-pipeline.md).
+
+| Job | O que faz | Reprova quando |
+| --- | --- | --- |
+| `workflow-policy` | Confere a política do workflow e do Dependabot | Action sem hash de commit, permissão além de `contents: read` (exceto `security-events: write` no `codeql`), uso de `secrets.`, publicação de imagem ou Dependabot incompleto |
+| `build` | `./mvnw verify`, cobertura no resumo e relatórios como artefato | Qualquer teste falha, ou a cobertura de linhas fica abaixo de 90% |
+| `codeql` | Análise do código Java (`security-extended`) | Achado de severidade alta ou crítica (`security-severity` ≥ 7,0) |
+| `dependencies` | Trivy nas dependências Maven, com relatório completo | Vulnerabilidade `HIGH` ou `CRITICAL` **com versão corrigida** |
+| `dockerfile-lint` | hadolint | Aviso ou erro |
+| `image` | Contexto de build, imagem, teste de fumaça (13 passos) e Trivy na imagem | Contexto fora do `.dockerignore`, imagem que não sobe ou não responde o resultado de referência, ou vulnerabilidade `HIGH` ou `CRITICAL` com correção na imagem |
+
+Achados médios e baixos, e vulnerabilidades sem correção, aparecem no relatório sem reprovar. O
+[Dependabot](.github/dependabot.yml) abre PRs semanais para Maven, GitHub Actions e a imagem base.
 
 ---
 
@@ -277,6 +402,23 @@ requisito da spec, está em
 
 Cada método de teste tem um `@DisplayName` que começa pelos IDs dos requisitos que comprova (por
 exemplo, `"FR-014 FR-015 empate no mínimo"`, no `TiesMinIT`).
+
+### Requisitos do Marco 2 (extras de operação)
+
+Fora do enunciado, mas com a mesma rastreabilidade. Cada requisito é comprovado na forma do seu tipo
+(Princípio VI, constituição 1.4.0): comportamento da aplicação por teste de integração; imagem e
+pipeline pela execução do pipeline; documentação por revisão, com item no checklist da spec. A matriz
+completa está em [`specs/002-operacao/plan.md`](specs/002-operacao/plan.md#rastreabilidade-requisito--comprovação).
+
+| Extra | Requisitos | Como é comprovado |
+| --- | --- | --- |
+| ETag e 304 nos dois endpoints, com o corpo do Marco 1 inalterado | FR-001 a FR-007 | `IntervalsEtagIT`, `MoviesEtagIT`, `EtagEmptyIT`, `EtagAcrossRunsIT`, `IntervalsContractIT`, `MoviesContractIT`, `ApiDocsIT` e toda a suíte do Marco 1 |
+| Liveness e readiness, com a readiness só depois da carga | FR-008 a FR-011 | `HealthProbesIT`, `ReadinessInvalidLinesIT`, `ProbeStatesIT`, `ReadinessAfterLoadIT` |
+| Métricas de latência e de erro no formato do Prometheus | FR-012 a FR-016 | `MetricsIT` |
+| Log em texto no `./mvnw` e JSON por variável | FR-017 a FR-020 | `TextLogFormatIT`, `JsonLogFormatIT` e as classes com `@Tag("log")` nas duas execuções |
+| Imagem multi-stage, não root, com healthcheck e `.dockerignore` | FR-021 a FR-027 | Jobs `dockerfile-lint` e `image` (contexto de build e teste de fumaça) |
+| Pipeline, portas de segurança e cobertura, actions por hash e Dependabot | FR-028 a FR-029 | Jobs `workflow-policy`, `build`, `codeql`, `dependencies` e `image` |
+| ADRs e este README | FR-030, FR-031, FR-034 | Revisão do PR, pelas seções "Revisão dos ADRs" e "Revisão do README" de [`checklists/requirements.md`](specs/002-operacao/checklists/requirements.md) |
 
 ---
 
@@ -356,7 +498,10 @@ A coluna de estúdios é opcional. Ao final, o log traz o resumo de linhas lidas
 | `ingestion` | Leitura e validação do CSV (`MovieCsvReader`), separação dos produtores (`ProducerNameParser`), gravação (`MovieImportService`, o único caminho de gravação), carga na inicialização (`MovieFileLoader`) e mensagem de falha (`MovieFileFailureAnalyzer`) |
 | `movie` | Entidade `Movie`, consulta paginada com filtros (`MovieRepository`, `MovieQueryService`) e `GET /api/movies` |
 | `producer` | Entidade `Producer`, cálculo dos intervalos (`ProducerIntervalService`) e `GET /api/producers/intervals` |
-| `web` | Erros em Problem Details (`ApiExceptionHandler`) |
+| `web` | Erros em Problem Details (`ApiExceptionHandler`) e ETag nos dois endpoints de negócio (`ContentEtagFilter`, registrado pelo `EtagConfiguration`) |
+
+Saúde, métricas e o formato do log são só configuração, no `application.yml` e na variável
+`LOGGING_STRUCTURED_FORMAT_CONSOLE`, sem código próprio.
 
 ### Fluxo da carga até a resposta
 
@@ -389,15 +534,19 @@ flowchart LR
 | Persistência | Spring Data JPA com Hibernate 7.4.13, H2 2.4.240 e Flyway 12.4.0 |
 | CSV | Apache Commons CSV 1.14.1 |
 | Documentação | Swagger UI 5.34.0 (webjar) sobre o `openapi.yaml` estático |
+| Operação | Spring Boot Actuator (liveness e readiness), Micrometer com o registro do Prometheus e o logging estruturado do Boot (ECS) |
 | Build | Maven 3.9.16 pelo Maven Wrapper 3.3.4 |
-| Testes | JUnit 6.0.3, `RestTestClient` do Spring, Maven Failsafe e o validador OpenAPI da Atlassian 3.0.0 |
+| Testes | JUnit 6.0.3, `RestTestClient` do Spring, Maven Failsafe (duas execuções), JaCoCo 0.8.14 e o validador OpenAPI da Atlassian 3.0.0 |
+| Imagem | `eclipse-temurin:25-jdk-alpine` no build e `eclipse-temurin:25-jre-alpine` na execução, por digest |
+| Pipeline | GitHub Actions, CodeQL, Trivy, hadolint e Dependabot |
 
 ---
 
 ## 9. Decisões
 
-As principais, em uma linha cada. O motivo e as alternativas de cada uma estão em
-[`docs/ai/decisoes.md`](docs/ai/decisoes.md).
+As decisões de arquitetura têm um ADR curto cada, com contexto, alternativas e consequências, no
+[índice de `docs/adr/`](docs/adr/README.md). Abaixo, as principais, em uma linha cada. O motivo e as
+alternativas de cada uma estão em [`docs/ai/decisoes.md`](docs/ai/decisoes.md).
 
 - **Linha inválida é ignorada com aviso**, em vez de rejeitar o arquivo inteiro. Só erros estruturais
   impedem a aplicação de subir.
@@ -421,6 +570,22 @@ As principais, em uma linha cada. O motivo e as alternativas de cada uma estão 
 - **Página além da última responde 200 com a lista vazia**, inclusive quando o deslocamento passa do
   limite de `int`.
 - **Mockito fora do classpath de teste**, para que a proibição de mocks seja garantida pelo compilador.
+
+Do Marco 2:
+
+- **Log em texto no `./mvnw` e JSON por variável, ligado na imagem**, para que o avaliador leia o
+  terminal. A constituição foi emendada (1.3.0).
+- **ETag pelo conteúdo, com um filtro próprio:** o `ShallowEtagHeaderFilter` do Spring não trata o
+  `If-None-Match: *`.
+- **Readiness pelo próprio ciclo de vida do Boot:** como a carga termina antes do servidor, não houve
+  código novo.
+- **Banner desligado em todas as execuções**, porque não traz informação.
+- **Cobertura mínima de 90% de linhas**, abaixo dos 97,06% medidos no fim do Marco 1, para dar margem ao
+  código que o Marco 3 só roda no perfil Docker.
+- **Segurança reprova só alto e crítico**, e, nas dependências e na imagem, só com versão corrigida.
+- **Referências aninhadas das actions conferidas**: a `trivy-action` e a `hadolint-action` usam por
+  dentro só referências por hash ou digest.
+- **Comprovação por tipo de requisito** (constituição 1.4.0): teste de integração, pipeline ou revisão.
 
 ---
 
@@ -455,6 +620,7 @@ PR, merge e tags são feitos só pelo responsável, nunca por um agente.
 | 3 | Cálculo dos intervalos |
 | 4 | Endpoint de intervalos no formato do enunciado |
 | 5 e 6 | Listagem, Swagger UI e fechamento, num único PR |
+| Marco 2 | Um único bolt, com seis etapas e um commit por etapa: ETag, observabilidade, Dockerfile, pipeline e Dependabot, ADRs e README ([spec 002](specs/002-operacao/spec.md)) |
 
 **Papéis:**
 
@@ -489,8 +655,14 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 ├── README.md                    # este arquivo
 ├── AGENTS.md                    # regras comuns a todos os agentes de IA
 ├── CLAUDE.md                    # aponta o Claude Code para o AGENTS.md
-├── pom.xml                      # build Maven (dependências e Failsafe)
+├── pom.xml                      # build Maven (dependências, Failsafe em duas execuções e JaCoCo)
 ├── mvnw, mvnw.cmd, .mvn/        # Maven Wrapper: dispensa instalar o Maven
+├── Dockerfile                   # imagem multi-stage, não root (opcional)
+├── .dockerignore                # lista de permissão do contexto da imagem
+├── .github/
+│   ├── workflows/ci.yml         # pipeline de CI
+│   ├── scripts/                 # política do workflow, contexto da imagem e teste de fumaça
+│   └── dependabot.yml           # atualizações de Maven, Actions e imagem base
 ├── .gitattributes               # fim de linha LF no repositório
 ├── .gitignore
 ├── .claude/                     # configuração do Claude Code: hook de prompts e skills do Spec Kit
@@ -503,16 +675,18 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 │   ├── data-model.md            # tabelas, validação do arquivo e mensagens de log
 │   ├── quickstart.md            # roteiro de validação de ponta a ponta
 │   ├── tasks.md                 # tarefas agrupadas em bolts
-│   ├── contracts/openapi.yaml   # contrato OpenAPI, fonte única
+│   ├── contracts/openapi.yaml   # contrato OpenAPI do Marco 1 (registro)
 │   └── checklists/              # checklist de qualidade da spec
+├── specs/002-operacao/          # Marco 2: spec, plano, research, contratos e tarefas
+│   └── contracts/               # OpenAPI 1.1.0 (fonte única), endpoints operacionais, imagem e pipeline
 ├── src/main/java/com/outsera/awards/
 │   ├── AwardsApplication.java   # classe principal
 │   ├── ingestion/               # leitura, validação e carga do CSV
 │   ├── movie/                   # filmes e GET /api/movies
 │   ├── producer/                # produtores e GET /api/producers/intervals
-│   └── web/                     # Problem Details
+│   └── web/                     # Problem Details e ETag
 ├── src/main/resources/
-│   ├── application.yml          # PORT e MOVIES_CSV_PATH, com padrões
+│   ├── application.yml          # PORT, MOVIES_CSV_PATH, Actuator e métricas, com padrões
 │   ├── movielist.csv            # arquivo do enunciado (padrão)
 │   ├── db/migration/            # esquema Flyway
 │   ├── static/openapi.yaml      # cópia publicada do contrato
@@ -520,7 +694,9 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 │   └── META-INF/spring.factories # registra a mensagem de falha da carga
 ├── src/test/java/com/outsera/awards/  # somente testes de integração (*IT)
 │   ├── adversario/  ingestion/  intervals/  movies/  docs/  web/  support/
+│   ├── etag/  health/  metrics/  logging/   # Marco 2
 │   └── SmokeIT.java
 ├── src/test/resources/scenarios/  # um CSV por cenário de teste
+├── docs/adr/                    # decisões de arquitetura (ADRs), com índice
 └── docs/ai/                     # evidência do uso de IA (ver docs/ai/README.md)
 ```
