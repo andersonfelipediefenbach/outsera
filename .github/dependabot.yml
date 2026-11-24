@@ -1,0 +1,28 @@
+# Atualizações automáticas (spec 002, FR-029; research R13). Os PRs passam pelo mesmo pipeline e pela
+# mesma revisão de qualquer PR. Num PR que atualize uma action composta (por exemplo, a trivy-action),
+# a revisão confere também as referências aninhadas da versão nova (research R10).
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      maven-minor-e-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly

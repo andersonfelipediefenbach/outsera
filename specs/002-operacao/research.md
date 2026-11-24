@@ -255,6 +255,12 @@ correspondente (R16) faz essa verificação, e o resultado volta para esta resea
   valer também no `./mvnw verify` local, sem Docker (FR-028a).
 - **Cuidado:** o Failsafe não pode definir `argLine` próprio sem incluir `@{argLine}`, ou o agente se
   perde. Hoje ele não define.
+- **Verificado na etapa 4:** com `-Djacoco.line.minimum=0.99`, o `check` falha ("lines covered ratio is
+  0.97, but expected minimum is 0.99"). Com o padrão, passa. A cobertura das duas execuções juntas é de
+  **97,28%** (358 de 368 linhas), e as linhas não cobertas são as mesmas do Marco 1.
+- **Teste local do `check-workflows.sh`:** feito com o `yq` v4.54.3, baixado da release oficial para o
+  scratchpad, com o SHA-256 conferido contra o arquivo `checksums` da mesma release. Oito fixtures fora do
+  repositório (um caso válido e um inválido por regra) se comportaram como esperado.
 
 ## R8. Imagem de container
 
@@ -401,6 +407,25 @@ correspondente (R16) faz essa verificação, e o resultado volta para esta resea
 - **Referências aninhadas:** o hash do nosso `uses:` não fixa o que uma action composta chama por
   dentro. Para cada action composta (hoje, a `trivy-action`), o `action.yml` da versão escolhida é lido
   e as referências internas precisam estar por hash (R10).
+- **Versões fixadas na etapa 4 (2026-11-24, API pública do GitHub):**
+
+  | Action | Versão | Hash do commit |
+  | --- | --- | --- |
+  | `actions/checkout` | v7.0.1 | `3d3c42e5aac5ba805825da76410c181273ba90b1` |
+  | `actions/setup-java` | v6.3.0 | `d1374f8ac74474200d16ef8ecee22c7ae7a51880` |
+  | `actions/upload-artifact` | v7.0.2 | `cf430e030ddbb5b0abf93d22962f4752f3646cd9` |
+  | `github/codeql-action` (`init`, `analyze`) | v4.39.4 | `1bd86f2fdb4b86187fa4059f16f31a3202acc9ea` |
+  | `docker/setup-buildx-action` | v4.4.1 | `f87e5991a6d7451dcb8d9637bfbc97413f497069` |
+  | `docker/build-push-action` | v7.4.0 | `c3c9e263c25d99ce0380d002d59b67737d91b0dc` |
+  | `hadolint/hadolint-action` | v3.5.0 | `06be81baf89a55ffd0e24b8f04a4185738dd3387` |
+  | `aquasecurity/trivy-action` | v0.36.0 | `ed142fd0673e97e23eac54620cfb913e5ce36c25` |
+
+  - O `actions/cache` não é usado direto: a `trivy-action` já guarda o banco em cache, pela referência
+    aninhada por hash (R10).
+  - A "release mais recente" do `github/codeql-action` é um bundle do CodeQL (`codeql-bundle-v…`), e
+    não uma versão da action. Foi usada a maior tag `vX.Y.Z`.
+  - **Referência aninhada da `hadolint-action`:** é uma action Docker, e o `Dockerfile` dela, na v3.5.0,
+    usa `ghcr.io/hadolint/hadolint:v2.15.1-debian@sha256:9a3944b7…9e27`, fixada por digest.
 - **Ferramenta de consulta:** o `gh` não está instalado na máquina de desenvolvimento atual. A mesma
   consulta funciona pela API pública, sem autenticação:
   `curl -s https://api.github.com/repos/<owner>/<repo>/commits/<tag> | jq -r .sha`.
