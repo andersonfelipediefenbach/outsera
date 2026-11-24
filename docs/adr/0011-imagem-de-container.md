@@ -18,7 +18,8 @@ o projeto continua subindo e testando só com o `./mvnw`. A imagem é a base da 
 - O JAR é extraído em camadas para o `JarLauncher`. Os testes não rodam no build da imagem, e sim no
   pipeline.
 - Usuário 10001, sem shell de login. `PORT=8080` e `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs` definidos.
-- Healthcheck na readiness, com o `wget` da imagem, em forma shell para expandir o `PORT`.
+- Healthcheck na readiness, com o `wget` da imagem, em notação JSON com `sh -c` explícito, que expande
+  o `PORT` e atende à regra DL3025 do hadolint.
 - `ENTRYPOINT` em forma exec, com `-XX:MaxRAMPercentage=75` no próprio `ENTRYPOINT`. Com
   `JAVA_TOOL_OPTIONS`, a JVM escreveria uma linha fora do log, e o JSON quebraria.
 - `.dockerignore` por lista de permissão: só `mvnw`, `.mvn/`, `pom.xml` e `src/main/`.

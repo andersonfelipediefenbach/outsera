@@ -3,6 +3,21 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-24 — hadolint DL3025 no `CMD` do healthcheck
+
+- **Falha:** o job `dockerfile-lint` reprovou o `Dockerfile:44` com a regra DL3025 ("Use arguments JSON
+  notation for CMD and ENTRYPOINT arguments"). O alvo era o `CMD` do `HEALTHCHECK`, em forma shell; o
+  `ENTRYPOINT` já estava em forma exec.
+- **Decisão:** corrigir, e não ignorar a regra. Ela se aplica ao nosso caso: a notação JSON com o shell
+  explícito (`["sh", "-c", "wget ... || exit 1"]`) mantém a expansão do `PORT` a cada verificação, que
+  era o único motivo da forma shell. Nenhum `# hadolint ignore` foi necessário, e o pipeline continua
+  sem regra desligada.
+- **Verificação local:** com a mesma imagem do hadolint que a action fixada usa
+  (`ghcr.io/hadolint/hadolint:v2.15.1-debian`, pelo digest) e `--failure-threshold warning`, o
+  `Dockerfile` anterior reprova com a DL3025, e o novo passa. Depois do rebuild, o teste de fumaça deu
+  12 OK, 0 FALHA e o passo 13 PULADO. O passo 7 (`PORT=9090`) ficou `healthy`, o que prova a expansão.
+- A spec mudou antes do código: research R8 e ADR 0011.
+
 ## 2026-11-24 — Teste de fumaça local e correções do script
 
 Com o Docker ligado, a imagem foi construída e o `smoke-test.sh` rodou no Git Bash do Windows (Docker

@@ -39,10 +39,10 @@ EXPOSE 8080
 
 USER 10001:10001
 
-# Saudável só quando a readiness responde 200, ou seja, depois da carga do CSV (FR-009, FR-023). Forma
-# shell para expandir o PORT.
+# Saudável só quando a readiness responde 200, ou seja, depois da carga do CSV (FR-009, FR-023). Notação
+# JSON com o shell explícito: o sh -c expande o PORT a cada verificação (hadolint DL3025).
 HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 \
-    CMD wget -q -O /dev/null "http://127.0.0.1:${PORT}/actuator/health/readiness" || exit 1
+    CMD ["sh", "-c", "wget -q -O /dev/null \"http://127.0.0.1:${PORT}/actuator/health/readiness\" || exit 1"]
 
 # Forma exec: a JVM é o PID 1 e recebe o SIGTERM direto, com desligamento gracioso (FR-025). A memória
 # vai aqui, e não em JAVA_TOOL_OPTIONS, que faria a JVM escrever uma linha fora do log (research R8).

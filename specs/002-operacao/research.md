@@ -281,8 +281,10 @@ correspondente (R16) faz essa verificação, e o resultado volta para esta resea
     do teste de fumaça; achado H1 da segunda análise). Quem rodar o container e definir
     `JAVA_TOOL_OPTIONS` por conta própria recebe essa linha por escolha própria.
   - **Healthcheck:** `HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3`, com
-    `wget -q -O /dev/null "http://127.0.0.1:${PORT}/actuator/health/readiness"` em forma shell, para
-    expandir o `PORT` (FR-023).
+    `wget -q -O /dev/null "http://127.0.0.1:${PORT}/actuator/health/readiness"` (FR-023). O `CMD` fica
+    na notação JSON, com o shell explícito (`["sh", "-c", "wget ... || exit 1"]`): o `sh -c` expande o
+    `PORT` a cada verificação, e a notação JSON atende à regra DL3025 do hadolint, que reprova o `CMD`
+    em forma shell, inclusive o do `HEALTHCHECK`.
   - **Processo:** `ENTRYPOINT` em forma exec
     (`["java", "-XX:MaxRAMPercentage=75", "org.springframework.boot.loader.launch.JarLauncher"]`),
     então a JVM é o PID 1 e recebe o `SIGTERM` direto. O desligamento gracioso do servidor é o padrão do
