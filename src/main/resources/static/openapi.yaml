@@ -1,11 +1,14 @@
 openapi: 3.1.0
 info:
   title: Golden Raspberry Awards API
-  version: 1.1.0
+  version: 1.2.0
   description: >
     Intervalos entre prêmios consecutivos de produtores na categoria Pior Filme e listagem dos filmes
     indicados e vencedores. Os dados vêm do arquivo CSV carregado na inicialização. As respostas 200
-    trazem ETag, e uma requisição com If-None-Match igual ao ETag atual recebe 304 sem corpo.
+    trazem ETag, e uma requisição com If-None-Match igual ao ETag atual recebe 304 sem corpo. A
+    autenticação é opcional e fica desligada por padrão. Com a variável de ambiente API_TOKEN definida,
+    os dois endpoints exigem o cabeçalho Authorization: Bearer <token>; sem ele, ou com outro valor, a
+    resposta é 401 em Problem Details.
 paths:
   /api/producers/intervals:
     get:
@@ -16,6 +19,9 @@ paths:
         entram na lista, ordenados por previousWin e depois por nome. Sem produtor com duas vitórias,
         as duas listas vêm vazias.
       tags: [producers]
+      security:
+        - {}
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/IfNoneMatch'
       responses:
@@ -41,12 +47,17 @@ paths:
                   value: { min: [], max: [] }
         '304':
           $ref: '#/components/responses/NotModified'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /api/movies:
     get:
       operationId: listMovies
       summary: Lista paginada de filmes, com filtros opcionais
       description: Ordenada por ano e depois por título.
       tags: [movies]
+      security:
+        - {}
+        - bearerAuth: []
       parameters:
         - name: year
           in: query
@@ -92,6 +103,8 @@ paths:
                 totalPages: 11
         '304':
           $ref: '#/components/responses/NotModified'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '400':
           description: Parâmetro inválido
           content:
@@ -107,6 +120,11 @@ paths:
                 invalidParams:
                   - { name: winner, reason: deve ser true ou false }
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Token definido em API_TOKEN. Sem a variável, a autenticação fica desligada.
   parameters:
     IfNoneMatch:
       name: If-None-Match
@@ -118,6 +136,10 @@ components:
       schema: { type: string }
       example: '"0a1b2c3d4e5f60718293a4b5c6d7e8f90"'
   headers:
+    WWW-Authenticate:
+      description: Esquema exigido, presente só no 401.
+      schema: { type: string }
+      example: 'Bearer realm="awards"'
     ETag:
       description: >
         Identifica a representação. É derivado do conteúdo do corpo: o mesmo corpo tem sempre o mesmo
@@ -126,6 +148,21 @@ components:
       schema: { type: string }
       example: '"0a1b2c3d4e5f60718293a4b5c6d7e8f90"'
   responses:
+    Unauthorized:
+      description: Autenticação ligada e token ausente ou inválido
+      headers:
+        WWW-Authenticate:
+          $ref: '#/components/headers/WWW-Authenticate'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: about:blank
+            title: Unauthorized
+            status: 401
+            detail: Token ausente ou inválido
+            instance: /api/producers/intervals
     NotModified:
       description: A representação não mudou desde o ETag enviado em If-None-Match. Sem corpo.
       headers:

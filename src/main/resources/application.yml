@@ -10,10 +10,12 @@ spring:
         - kafka
   autoconfigure:
     # Sem o perfil kafka, o Kafka não é configurado (Princípio V; spec 003, FR-001; research R2). O
-    # application-kafka.yml redefine esta lista sem as duas classes.
+    # application-kafka.yml redefine esta lista sem as duas classes do Kafka. O usuário e a senha gerados
+    # pelo Spring Security ficam excluídos em todos os perfis (research R11).
     exclude:
       - org.springframework.boot.kafka.autoconfigure.KafkaAutoConfiguration
       - org.springframework.boot.kafka.autoconfigure.metrics.KafkaMetricsAutoConfiguration
+      - org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
   main:
     # Banner desligado em todas as execuções (spec 002, FR-020; research R6)
     banner-mode: off
@@ -34,6 +36,12 @@ server:
 movies:
   csv:
     path: ${MOVIES_CSV_PATH:classpath:movielist.csv}
+
+# Autenticação (spec 003, FR-019 a FR-026; research R11). Sem API_TOKEN, ou com ele vazio, fica desligada
+# e todos os endpoints se comportam como no Marco 2.
+awards:
+  security:
+    token: ${API_TOKEN:}
 
 # Saúde e métricas na mesma porta da API (spec 002, FR-008 a FR-016; research R1 e R3).
 # O formato do log não é configurado aqui: o JSON é ligado só pela variável

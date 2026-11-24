@@ -503,14 +503,14 @@ aleatório:
 Os ITs com a autenticação ligada geram o token em tempo de execução (`UUID.randomUUID()` por
 `@DynamicPropertySource` em `awards.security.token`). Nenhum token literal no código (Princípio VII).
 
-- [ ] T052 [P] [US4] Criar `src/test/java/com/outsera/awards/security/AuthDisabledByDefaultIT.java` (research R14):
+- [X] T052 [P] [US4] Criar `src/test/java/com/outsera/awards/security/AuthDisabledByDefaultIT.java` (research R14):
   - `S003 SC-002` (guarda): falha, com a mensagem "API_TOKEN definido no ambiente: a suíte dos Marcos 1 e
     2 estaria rodando com a autenticação ligada", se `System.getenv("API_TOKEN")` não for vazio ou se
     `awards.security.token` do contexto não for vazio;
   - `S003 FR-019 FR-022 US4-1`: sem token, os intervalos, a listagem, `/actuator/prometheus`, as probes,
     `/swagger-ui.html` e `/openapi.yaml` respondem 200, sem `WWW-Authenticate`;
   - um `Authorization: Bearer qualquer` é ignorado e a resposta é 200.
-- [ ] T053 [P] [US4] Criar `src/test/java/com/outsera/awards/security/AuthEnabledIT.java`:
+- [X] T053 [P] [US4] Criar `src/test/java/com/outsera/awards/security/AuthEnabledIT.java`:
   - `S003 FR-020 FR-021 US4-2 US4-3 US4-4`: nos intervalos, na listagem e em `/actuator/prometheus`,
     sem token → 401, `Bearer errado` → 401, `Basic …` → 401 e o token certo → 200;
   - nos intervalos e na listagem com o token, o corpo é o do Marco 2 (Joel Silver e Matthew Vaughn), e
@@ -522,33 +522,33 @@ Os ITs com a autenticação ligada geram o token em tempo de execução (`UUID.r
   - `S003 FR-022 US4-5`: liveness, readiness, `/actuator/health`, `/swagger-ui.html`, `/openapi.yaml`,
     um webjar referenciado pela página e um caminho inexistente (404) respondem sem token;
   - o token com espaços em volta ou com outra caixa → 401.
-- [ ] T054 [P] [US4] Criar `src/test/java/com/outsera/awards/security/AuthProblemDetailsIT.java`:
+- [X] T054 [P] [US4] Criar `src/test/java/com/outsera/awards/security/AuthProblemDetailsIT.java`:
   - `S003 FR-023`: o 401 tem `Content-Type: application/problem+json`, `WWW-Authenticate: Bearer
     realm="awards"` e o corpo `{type: about:blank, title: Unauthorized, status: 401, detail: "Token
     ausente ou inválido", instance: <caminho>}`;
   - o corpo é idêntico sem token e com token errado, e não contém o token esperado nem o enviado.
-- [ ] T055 [P] [US4] Criar `src/test/java/com/outsera/awards/security/TokenNotLoggedIT.java` (`@Tag("log")`, saída completa da subida pelo `ApplicationStarter`, token aleatório):
+- [X] T055 [P] [US4] Criar `src/test/java/com/outsera/awards/security/TokenNotLoggedIT.java` (`@Tag("log")`, saída completa da subida pelo `ApplicationStarter`, token aleatório):
   - `S003 FR-025 US4-6`: faz chamadas com o token certo e com um token errado aleatório;
   - nenhum dos dois valores aparece no log nem em `/actuator/prometheus` (consultado com o token).
-- [ ] T056 [P] [US4] Criar `src/test/java/com/outsera/awards/security/NoGeneratedPasswordIT.java` (`@Tag("log")`, duas subidas pelo `ApplicationStarter`, sem token e com token):
+- [X] T056 [P] [US4] Criar `src/test/java/com/outsera/awards/security/NoGeneratedPasswordIT.java` (`@Tag("log")`, duas subidas pelo `ApplicationStarter`, sem token e com token):
   - `S003 FR-019`: o log não contém `Using generated security password` nem `UserDetailsService`.
-- [ ] T057 [P] [US4] Criar `src/test/java/com/outsera/awards/security/CacheHeadersIT.java` (duas classes aninhadas, token desligado e ligado; research R12):
+- [X] T057 [P] [US4] Criar `src/test/java/com/outsera/awards/security/CacheHeadersIT.java` (token desligado) e `CacheHeadersWithTokenIT.java` (token ligado); research R12. *Ajustado na implementação: duas classes em vez de classes aninhadas, porque cada estado do token precisa de um contexto próprio.*
   - `S003 FR-022a FR-019 FR-021`: as respostas 200 e 304 dos intervalos e da listagem não têm `Cache-Control`,
     `Pragma` nem `Expires` e têm `ETag`;
   - `X-Content-Type-Options: nosniff` e `X-Frame-Options: DENY` aparecem nos endpoints de negócio, na
     readiness, em `/openapi.yaml` e no 401;
   - `/actuator/prometheus` e o 401 têm `Cache-Control` com `no-store`.
-- [ ] T058 [P] [US4] Criar `src/test/java/com/outsera/awards/security/AuthContractIT.java`:
+- [X] T058 [P] [US4] Criar `src/test/java/com/outsera/awards/security/AuthContractIT.java`:
   - `S003 FR-026`: com o token ligado, o 401 dos dois endpoints e as respostas 200 com o token são
     validados pelo `ContractValidator` contra o contrato publicado;
   - o `ContractValidator` (`support/`) ganha uma sobrecarga que repassa o cabeçalho `Authorization`,
     sem mudar as assinaturas atuais.
-- [ ] T059 [P] [US4] Criar `src/test/java/com/outsera/awards/docs/ApiDocsSecurityIT.java`:
+- [X] T059 [P] [US4] Criar `src/test/java/com/outsera/awards/docs/ApiDocsSecurityIT.java`:
   - `S003 FR-026`: o `/openapi.yaml` publicado tem `info.version` 1.2.0 e
     `components.securitySchemes.bearerAuth` (`type: http`, `scheme: bearer`);
   - os dois endpoints têm `security` igual a `[{}, {bearerAuth: []}]` e a resposta `401` referenciando
     `#/components/responses/Unauthorized`.
-- [ ] T060 [US4] (Infraestrutura) Criar `.github/scripts/check-unchanged-tests.sh <tag>` (bash, `set -euo pipefail`, executável), conforme `contracts/ci-pipeline.md`:
+- [X] T060 [US4] (Infraestrutura) Criar `.github/scripts/check-unchanged-tests.sh <tag>` (bash, `set -euo pipefail`, executável), conforme `contracts/ci-pipeline.md`:
   - lista os `src/test/java/**/*IT.java` da tag com `git ls-tree -r --name-only`;
   - ignora os listados em `.github/unchanged-tests-exceptions.txt`, no formato `<caminho> <título da
     entrada>`, e falha se o título não existir em `docs/ai/decisoes.md`;
@@ -561,21 +561,21 @@ Os ITs com a autenticação ligada geram o token em tempo de execução (`UUID.r
   exato.
   Testar numa cópia temporária, sem versionar: alterar um IT da tag faz o script falhar; o `ApiDocsIT`
   alterado passa; uma exceção com título inexistente falha.
-- [ ] T061 [US4] Confirmar a falha: `./mvnw verify` falha no `AuthEnabledIT`, no `AuthProblemDetailsIT`, no `AuthContractIT`, no `ApiDocsSecurityIT` e nos ITs de cabeçalho, porque não há segurança nem contrato 1.2.0. O `AuthDisabledByDefaultIT` passa. `.github/scripts/check-unchanged-tests.sh v0.2.0` passa.
+- [X] T061 [US4] Confirmar a falha: `./mvnw verify` falha no `AuthEnabledIT`, no `AuthProblemDetailsIT`, no `AuthContractIT`, no `ApiDocsSecurityIT` e nos ITs de cabeçalho, porque não há segurança nem contrato 1.2.0. O `AuthDisabledByDefaultIT` passa. `.github/scripts/check-unchanged-tests.sh v0.2.0` passa.
 
 ### Implementação da etapa 3
 
-- [ ] T062 [US4] No `pom.xml`, acrescentar `spring-boot-starter-security`. No `application.yml` e no `application-kafka.yml`, acrescentar a `UserDetailsServiceAutoConfiguration` a `spring.autoconfigure.exclude` (**verificar o nome totalmente qualificado no Boot 4.1.2**). No `application.yml`, acrescentar `awards.security.token: ${API_TOKEN:}`.
-- [ ] T063 [P] [US4] Criar `src/main/java/com/outsera/awards/security/SecurityProperties.java` (`@ConfigurationProperties("awards.security")`, `token`). `enabled()` é verdadeiro só com o token não vazio. O `toString` nunca mostra o valor.
-- [ ] T064 [P] [US4] Criar `src/main/java/com/outsera/awards/security/TokenAuthenticationFilter.java` (`OncePerRequestFilter`):
+- [X] T062 [US4] No `pom.xml`, acrescentar `spring-boot-starter-security`. No `application.yml` e no `application-kafka.yml`, acrescentar a `UserDetailsServiceAutoConfiguration` a `spring.autoconfigure.exclude` (**verificar o nome totalmente qualificado no Boot 4.1.2**). No `application.yml`, acrescentar `awards.security.token: ${API_TOKEN:}`.
+- [X] T063 [P] [US4] Criar `src/main/java/com/outsera/awards/security/SecurityProperties.java` (`@ConfigurationProperties("awards.security")`, `token`). `enabled()` é verdadeiro só com o token não vazio. O `toString` nunca mostra o valor.
+- [X] T064 [P] [US4] Criar `src/main/java/com/outsera/awards/security/TokenAuthenticationFilter.java` (`OncePerRequestFilter`):
   - lê `Authorization` e só aceita o prefixo exato `Bearer `;
   - compara `SHA-256(recebido)` com `SHA-256(esperado)` por `MessageDigest.isEqual`, os dois em UTF-8
     (decisão de design da research R11; nunca `String.equals` nem `Arrays.equals`);
   - se forem iguais, põe no `SecurityContext` uma autenticação `api-client` sem papéis; se não forem, não
     faz nada;
   - nunca registra o cabeçalho.
-- [ ] T065 [P] [US4] Criar `src/main/java/com/outsera/awards/security/ProblemAuthenticationEntryPoint.java`: 401 com `application/problem+json`, o corpo do T054 (montado com `ProblemDetail` e o `JsonMapper` do Boot) e `WWW-Authenticate: Bearer realm="awards"`.
-- [ ] T066 [US4] Criar `src/main/java/com/outsera/awards/security/SecurityConfiguration.java` (research R11 e R12, `contracts/operational-endpoints.md`):
+- [X] T065 [P] [US4] Criar `src/main/java/com/outsera/awards/security/ProblemAuthenticationEntryPoint.java`: 401 com `application/problem+json`, o corpo do T054 (montado com `ProblemDetail` e o `JsonMapper` do Boot) e `WWW-Authenticate: Bearer realm="awards"`.
+- [X] T066 [US4] Criar `src/main/java/com/outsera/awards/security/SecurityConfiguration.java` (research R11 e R12, `contracts/operational-endpoints.md`):
   - uma `SecurityFilterChain`;
   - `csrf`, `formLogin`, `httpBasic`, `logout`, `requestCache` e `anonymous` desligados, e
     `sessionManagement` `STATELESS`;
@@ -588,8 +588,8 @@ Os ITs com a autenticação ligada geram o token em tempo de execução (`UUID.r
   - cabeçalhos: `cacheControl` desligado e, no lugar dele, um `DelegatingRequestMatcherHeaderWriter` com
     o `CacheControlHeadersWriter` para tudo o que não é endpoint de negócio. `contentTypeOptions` e
     `frameOptions(deny)` continuam ligados.
-- [ ] T067 [US4] Copiar `specs/003-modo-docker/contracts/openapi.yaml` para `src/main/resources/static/openapi.yaml` (os dois arquivos ficam idênticos byte a byte). Em `src/test/java/com/outsera/awards/docs/ApiDocsIT.java`, trocar **só** o valor da constante `SPEC_CONTRACT` para `Path.of("specs", "003-modo-docker", "contracts", "openapi.yaml")` e o javadoc dela. Nenhuma asserção muda (decisão registrada em `docs/ai/decisoes.md`). **Verificar (R13):** o validador aceita a alternativa `{}` sem exigir o cabeçalho. Se não aceitar, aplicar a saída da R13.
-- [ ] T068 [US4] Rodar `./mvnw verify` até ficar verde:
+- [X] T067 [US4] Copiar `specs/003-modo-docker/contracts/openapi.yaml` para `src/main/resources/static/openapi.yaml` (os dois arquivos ficam idênticos byte a byte). Em `src/test/java/com/outsera/awards/docs/ApiDocsIT.java`, trocar **só** o valor da constante `SPEC_CONTRACT` para `Path.of("specs", "003-modo-docker", "contracts", "openapi.yaml")` e o javadoc dela. Nenhuma asserção muda (decisão registrada em `docs/ai/decisoes.md`). **Verificar (R13):** o validador aceita a alternativa `{}` sem exigir o cabeçalho. Se não aceitar, aplicar a saída da R13.
+- [X] T068 [US4] Rodar `./mvnw verify` até ficar verde:
   - todos os ITs de `security/` e o `ApiDocsSecurityIT`;
   - a suíte dos Marcos 1 e 2 sem alteração, inclusive com o `ApiDocsIT` só com a constante trocada;
   - os ITs de Kafka;
@@ -597,14 +597,14 @@ Os ITs com a autenticação ligada geram o token em tempo de execução (`UUID.r
   - a cobertura ≥ 90%.
 
   Rodar `.github/scripts/check-unchanged-tests.sh v0.2.0`: verde.
-- [ ] T069 [US4] Acrescentar ao `specs/003-modo-docker/checklists/requirements.md` a seção "Revisão de segurança":
+- [X] T069 [US4] Acrescentar ao `specs/003-modo-docker/checklists/requirements.md` a seção "Revisão de segurança":
   - a comparação do token no `TokenAuthenticationFilter` usa o mecanismo da research R11:
     `MessageDigest.isEqual(sha256(recebido), sha256(esperado))`, em UTF-8, sem `String.equals`,
     `Arrays.equals` nem saída antecipada;
   - o ADR 0017 cita esse mecanismo;
   - o filtro não registra cabeçalhos;
   - a matriz de acesso do `SecurityConfiguration` é igual à de `contracts/operational-endpoints.md`.
-- [ ] T070 [US4] Commit `Etapa 3: autenticação por token com Spring Security e contrato 1.2.0` com T052 a T069.
+- [X] T070 [US4] Commit `Etapa 3: autenticação por token com Spring Security e contrato 1.2.0` com T052 a T069.
 
 **Checkpoint**: US4 completa. O modo padrão continua idêntico, agora com a guarda do token.
 

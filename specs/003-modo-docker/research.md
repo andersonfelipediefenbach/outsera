@@ -309,9 +309,11 @@ research e, se mudar comportamento, para a spec (Princípio IV).
   - o escritor de cabeçalhos de cache do Security é desligado só nos dois endpoints de negócio, que
     passam a responder sem `Cache-Control`, como no Marco 2;
   - nos demais (métricas, saúde, documentação e 401), ele continua;
-  - implementação: `headers.cacheControl(disable)` e, no lugar dele, um
-    `DelegatingRequestMatcherHeaderWriter` com o `CacheControlHeadersWriter` para tudo o que não é
-    endpoint de negócio;
+  - implementação: `headers.cacheControl(disable)` e, no lugar dele, um `HeaderWriter` próprio que
+    aplica o `CacheControlHeadersWriter` a tudo o que não é endpoint de negócio **e a todo 401**, inclusive
+    nos endpoints de negócio. Os cabeçalhos são escritos quando a resposta é confirmada, então o status já
+    é conhecido. *Ajustado na etapa 3: o `DelegatingRequestMatcherHeaderWriter` decide só pelo caminho e
+    deixava o 401 dos endpoints de negócio sem `Cache-Control`, contrariando o contrato operacional;*
   - os outros cabeçalhos de proteção (`X-Content-Type-Options`, `X-Frame-Options`) continuam em todas as
     respostas.
 - **Leitura da FR-019 ("comportamento idêntico ao do Marco 2"):** status, corpo, `ETag`, 304 e os

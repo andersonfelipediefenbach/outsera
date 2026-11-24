@@ -57,6 +57,12 @@
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
         <dependency>
+            <!-- Autenticação por token, desligada sem API_TOKEN (spec 003, FR-019 a FR-026; research R11).
+                 O usuário gerado pelo Boot fica excluído no application.yml. -->
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
             <!-- Ingestão por Kafka no perfil kafka (spec 003, FR-009 a FR-018). A autoconfiguração do Boot
                  fica excluída fora do perfil (research R2). -->
             <groupId>org.springframework.boot</groupId>

@@ -52,6 +52,16 @@
     ligado ou desligado;
   - que o `Cache-Control` do Spring Security fica fora dos endpoints de negócio.
 
+## Revisão de segurança (comprovação da decisão de design da R11, na revisão do PR)
+
+- [ ] A comparação do token no `TokenAuthenticationFilter` usa o mecanismo da research R11:
+  `MessageDigest.isEqual(sha256(recebido), sha256(esperado))`, em UTF-8, sem `String.equals`,
+  `Arrays.equals` nem saída antecipada.
+- [ ] O ADR 0017 cita esse mecanismo.
+- [ ] O filtro e o `ProblemAuthenticationEntryPoint` não registram nem devolvem o cabeçalho
+  `Authorization` nem o token.
+- [ ] A matriz de acesso do `SecurityConfiguration` é igual à de `contracts/operational-endpoints.md`.
+
 ## Notes
 
 - **Detalhes de tecnologia:** PostgreSQL, Kafka, Prometheus, Grafana e compose aparecem na spec porque

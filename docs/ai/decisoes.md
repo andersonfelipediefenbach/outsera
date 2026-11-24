@@ -3,6 +3,36 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-24 — Etapa 3 do Marco 3: verificações e ajustes da autenticação
+
+- **Nome da autoconfiguração (verificado):** no Boot 4.1.2, é
+  `org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration`. Ela está excluída
+  no `application.yml` e no `application-kafka.yml`, e o `NoGeneratedPasswordIT` confere que o log não
+  traz senha gerada.
+- **`OPTIONS` no Marco 2 (N3 da segunda análise, verificado):** antes do Spring Security, `OPTIONS` nos
+  endpoints de negócio respondia 2xx com `Allow`. O `AuthDisabledByDefaultIT` fixa esse comportamento com
+  o token desligado. Com o token ligado, a resposta é 401.
+- **`Cache-Control` no 401 (R12, ajuste):**
+  - o `DelegatingRequestMatcherHeaderWriter` previsto decide só pelo caminho e deixava o 401 dos
+    endpoints de negócio sem os cabeçalhos de cache, ao contrário do contrato operacional;
+  - foi trocado por um `HeaderWriter` próprio, que aplica o `CacheControlHeadersWriter` fora dos
+    endpoints de negócio e em todo 401. O status é conhecido, porque os cabeçalhos são escritos quando a
+    resposta é confirmada;
+  - os endpoints de negócio continuam sem `Cache-Control` nas respostas 200, 304, 400 e 405.
+- **`CacheHeadersIT` em duas classes:** a tarefa previa classes aninhadas, uma para cada estado do token.
+  Ficaram duas classes, `CacheHeadersIT` e `CacheHeadersWithTokenIT`, porque cada estado do token precisa
+  de um contexto próprio, e a base `ScenarioIT` já faz isso por classe.
+- **Validador de contrato:** o `ContractValidator` valida só a resposta, e não o requisito de segurança da
+  requisição. O `security: [{}, {bearerAuth: []}]` do contrato 1.2.0 não muda os ITs dos Marcos 1 e 2, e
+  o validador não precisou de sobrecarga (R13).
+- **Prova de que os Marcos 1 e 2 não mudaram (R14):**
+  - o `AuthDisabledByDefaultIT` é a guarda contra `API_TOKEN` definido;
+  - o `check-unchanged-tests.sh v0.2.0` passa, com os 59 ITs da tag sem alteração e o `ApiDocsIT` como
+    única exceção (só a constante `SPEC_CONTRACT`);
+  - o script foi testado com um IT alterado (reprova), com o `ApiDocsIT` alterado (passa) e com uma
+    exceção de título inexistente (reprova).
+- **Tempo do `./mvnw clean verify`:** 227 s, depois de encurtar os prazos do `KafkaBrokerUnavailableIT`.
+
 ## 2026-11-24 — Etapa 2 do Marco 3: verificações e decisões da ingestão por Kafka
 
 - **Nome da autoconfiguração (R2, verificado):** no Boot 4.1.2, são

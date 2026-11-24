@@ -4,7 +4,8 @@
 spring:
   autoconfigure:
     # Redefine a lista do application.yml sem a autoconfiguração do Kafka.
-    exclude: []
+    exclude:
+      - org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
     producer:
