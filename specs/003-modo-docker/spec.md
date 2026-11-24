@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-24
 
-**Status**: Draft
+**Status**: Implemented. Faltam as verificações que exigem o push e o PR: o job `postgres` (T020 e T051), os jobs do pipeline com o `compose` (T084), o testador adversário da ingestão por Kafka (T050) e os checks obrigatórios da `main` (T093), todas no `tasks.md`.
 
 **Input**: User description: "Marco 3, modo Docker, conforme docs/ai/planejamento/briefing.md. Escopo: 1. Perfil docker com PostgreSQL no lugar do H2, usando as mesmas migrações do Flyway. 2. Kafka como caminho único de ingestão no perfil docker: um publicador lê o CSV e envia uma mensagem por filme; um consumidor grava pelo mesmo serviço do modo padrão; uma mensagem de carga concluída libera a readiness. Gravação idempotente por ano e título, e tópico de erros para mensagens inválidas. Novos vencedores podem chegar pelo mesmo tópico depois da carga. 3. Autenticação por token parametrizada e desligada por padrão: o token vem de variável de ambiente e é comparado com um cabeçalho; sem a variável, os endpoints ficam públicos; com ela, os endpoints operacionais de métricas exigem token. 4. compose.yaml com a aplicação, PostgreSQL, Kafka (imagem leve), Prometheus e Grafana, com o dashboard versionado. Restrições: o modo padrão continua idêntico, subindo e testando só com ./mvnw, sem Docker. Os testes do Kafka usam o broker embutido do Spring. Os testes com PostgreSQL ficam em um perfil Maven separado, executado no pipeline. Um teste prova que a carga direta e a carga por Kafka produzem a mesma resposta. Fora do escopo: publicação em nuvem e front-end."
 

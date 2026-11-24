@@ -705,11 +705,11 @@ coletando e o Grafana com o dashboard. O pipeline verifica tudo isso.
 
 ### Verificação da etapa 5 (antes da escrita)
 
-- [ ] T085 Conferir que as seções "Revisão do README", "Revisão dos ADRs" e "Revisão de segurança" de `specs/003-modo-docker/checklists/requirements.md` estão desmarcadas. Elas são a comprovação desta etapa (Princípio VI) e só o revisor as marca, no PR.
+- [X] T085 Conferir que as seções "Revisão do README", "Revisão dos ADRs" e "Revisão de segurança" de `specs/003-modo-docker/checklists/requirements.md` estão desmarcadas. Elas são a comprovação desta etapa (Princípio VI) e só o revisor as marca, no PR.
 
 ### Escrita da etapa 5
 
-- [ ] T086 [P] Criar os ADRs em `docs/adr/`, no formato da spec 002 (FR-031). Cada um tem número, título, data, status, contexto, decisão, alternativas e consequências, e cita a entrada de `docs/ai/decisoes.md`:
+- [X] T086 [P] Criar os ADRs em `docs/adr/`, no formato da spec 002 (FR-031). Cada um tem número, título, data, status, contexto, decisão, alternativas e consequências, e cita a entrada de `docs/ai/decisoes.md`:
   - `0013-postgresql-com-esquema-comum.md` (R3, R4, collation `C` e a diferença residual com o
     `String.compareTo`);
   - `0014-ingestao-unica-por-kafka.md` (R6, R8 e R10: partição única, marcador com `runId`, readiness
@@ -727,8 +727,8 @@ coletando e o Grafana com o dashboard. O pipeline verifica tudo isso.
   - `0019-testes-com-postgresql-em-perfil-dedicado.md` (R16 e a emenda 1.7.0).
 
   Criar em `docs/ai/decisoes.md` as entradas que faltarem.
-- [ ] T087 [P] Atualizar `docs/adr/0004-somente-testes-de-integracao.md` com os quatro casos de `SpringApplication` da constituição 1.5.0 e o perfil dedicado da 1.7.0. Atualizar o índice `docs/adr/README.md` com 0013 a 0019.
-- [ ] T088 Atualizar `README.md` (FR-036), sem reescrever as seções dos Marcos 1 e 2:
+- [X] T087 [P] Atualizar `docs/adr/0004-somente-testes-de-integracao.md` com os quatro casos de `SpringApplication` da constituição 1.5.0 e o perfil dedicado da 1.7.0. Atualizar o índice `docs/adr/README.md` com 0013 a 0019.
+- [X] T088 Atualizar `README.md` (FR-036), sem reescrever as seções dos Marcos 1 e 2:
   - **modo Docker:** `docker compose up`, as portas, o papel de cada serviço e o `down -v`;
   - **credenciais:** as de demonstração identificadas como só para uso local (1.6.0) e o token de
     demonstração;
@@ -747,14 +747,14 @@ coletando e o Grafana com o dashboard. O pipeline verifica tudo isso.
     de `SpringApplication`.
 
   A seção "Avalie em 2 minutos" continua funcionando só com o JDK.
-- [ ] T089 Num clone limpo do branch, rodar a seção "Avalie em 2 minutos" e as seções 1 e 2 de `specs/003-modo-docker/quickstart.md` só com o JDK. Com o Docker, rodar também as seções 3 e 4. Anotar os resultados na descrição do commit.
-- [ ] T090 Rodar `./mvnw verify`: verde. Atualizar o **Status** de `specs/003-modo-docker/spec.md` para `Implemented`, listando as tarefas "Pendente: push" que ainda não foram conferidas.
-- [ ] T091 Registrar em `docs/ai/decisoes.md` o fechamento do bolt:
+- [X] T089 Num clone limpo do branch, rodar a seção "Avalie em 2 minutos" e as seções 1 e 2 de `specs/003-modo-docker/quickstart.md` só com o JDK. Com o Docker, rodar também as seções 3 e 4. Anotar os resultados na descrição do commit.
+- [X] T090 Rodar `./mvnw verify`: verde. Atualizar o **Status** de `specs/003-modo-docker/spec.md` para `Implemented`, listando as tarefas "Pendente: push" que ainda não foram conferidas.
+- [X] T091 Registrar em `docs/ai/decisoes.md` o fechamento do bolt:
   - os resultados do T081 (inclusive o passo 7b, que comprova a R9) e do T089;
   - os `PULADO`;
   - as pendências de push;
   - o resultado do testador adversário (T050).
-- [ ] T092 Commit `Etapa 5: ADRs e README do Marco 3` com T085 a T091. Avisar o Anderson de que o bolt está pronto para o PR. Depois do merge, a sessão é exportada para `docs/ai/sessoes/`.
+- [X] T092 Commit `Etapa 5: ADRs e README do Marco 3` com T085 a T091. Avisar o Anderson de que o bolt está pronto para o PR. Depois do merge, a sessão é exportada para `docs/ai/sessoes/`.
 - [ ] T093 **Pedido ao Anderson, depois da primeira execução do pipeline no PR e antes do merge.** Antes da primeira execução, os jobs novos não aparecem na lista de checks da proteção. Pedir a configuração da proteção da `main` (Settings → Branches, ou o ruleset da `main`):
   - incluir como *required status checks* os **dois** jobs novos:
     - `postgres`: comprova o comportamento que depende do PostgreSQL (constituição 1.7.0, Princípio

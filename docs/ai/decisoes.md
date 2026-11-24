@@ -3,6 +3,57 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-24 — Fechamento do bolt do Marco 3 (etapa 5)
+
+- **ADRs (FR-037):**
+  - de 0013 a 0019, no formato da spec 002, cada um citando a sua entrada neste registro;
+  - o 0017 cita o mecanismo de comparação do token e registra, como decisão intencional, os cabeçalhos
+    `X-Content-Type-Options` e `X-Frame-Options` em todas as respostas e o `Cache-Control` fora dos
+    endpoints de negócio;
+  - o 0004 ganhou os quatro casos de `SpringApplication` (emenda 1.5.0) e o perfil dedicado (emenda
+    1.7.0);
+  - o índice foi atualizado.
+- **README (FR-036):**
+  - o modo Docker: serviços, portas, carga por Kafka, publicação de um vencedor novo e leitura do tópico
+    de erros;
+  - as credenciais de demonstração do compose;
+  - a autenticação, com a matriz de acesso e o token de demonstração, definido só no README, que é o
+    único lugar do repositório com esse valor;
+  - os testes do Marco 3 e o perfil `postgres-it`;
+  - os jobs `postgres` e `compose`;
+  - a tabela de requisitos do Marco 3;
+  - a arquitetura do modo Docker e as decisões do Marco 3.
+
+  As pendências deixadas pela emenda 1.5.0 na seção de testes e na tabela de rastreabilidade foram
+  resolvidas. A seção "Avalie em 2 minutos" não mudou.
+- **Clone limpo (T089):** num clone novo do commit da etapa 4, só com o JDK:
+  - `./mvnw verify` verde em 275 s, com 270 + 96 testes;
+  - `./mvnw spring-boot:run` respondeu o resultado de referência e a listagem do README, com o `ETag` e
+    sem `Cache-Control`;
+  - com `API_TOKEN` igual ao token de demonstração: 401 sem token e com token errado, 200 com ele, 401 nas
+    métricas sem token, e a readiness e o Swagger UI públicos. O token não apareceu no log.
+
+  As seções 3 e 4 do quickstart (PostgreSQL e compose) foram verificadas pelo `postgres-it` e pelo
+  `compose-test.sh` locais, nas etapas 2 a 4. Os comandos rodaram na porta 18081, porque a 8080 da
+  máquina estava ocupada por um processo do usuário.
+- **Verificado localmente, com o Docker:**
+  - `./mvnw -Ppostgres-it verify`: 7 testes, inclusive a nova tentativa quando a gravação falha;
+  - `compose-test.sh`: todos os passos, inclusive a queda real do banco (7b), com os passos 1 a 4 em
+    28 s.
+- **Pendências** (exigem o push ou o PR, que são do responsável):
+  - T020, T051 e T084: os jobs `postgres` e `compose` e os demais no pipeline;
+  - T050: o testador adversário (Codex) na ingestão por Kafka;
+  - T093: `postgres` e `compose` como checks obrigatórios da `main`, com o bypass desligado.
+
+  Fica também a decisão sobre o tempo do `./mvnw verify`, cerca de 4 min (entrada da etapa 2).
+- **Pontos A3, N3 e C4 da segunda análise:**
+  - A3: o `DefaultModeIsolationIT` e o `NoGeneratedPasswordIT` já passavam antes da implementação e
+    ficaram como guardas;
+  - N3: o `OPTIONS` do Marco 2 responde 2xx com `Allow`, verificado e fixado no
+    `AuthDisabledByDefaultIT`;
+  - C4: a única propriedade usada por teste que restou é a `publish-completion`, documentada no ADR 0014.
+    A `create-error-topic` não foi necessária.
+
 ## 2026-11-24 — Etapa 4 do Marco 3: compose, verificações e ajustes
 
 - **Imagens (T074):** as versões estáveis mais recentes no Docker Hub, fixadas por tag e digest:
