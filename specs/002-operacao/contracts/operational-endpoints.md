@@ -8,17 +8,19 @@ marco (spec, premissas).
 | --- | --- | --- | --- |
 | `GET /actuator/health/liveness` | 200 se vivo, 503 se `BROKEN` | `{"status":"UP"}` ou `{"status":"DOWN"}` | FR-008, FR-011 |
 | `GET /actuator/health/readiness` | 200 se pronto, 503 antes do fim da carga ou se `REFUSING_TRAFFIC` | `{"status":"UP"}` ou `{"status":"OUT_OF_SERVICE"}` | FR-008, FR-009, FR-010, FR-011 |
-| `GET /actuator/health` | 200 ou 503 | só `{"status":"..."}`, sem `components` nem `details` | FR-011 |
+| `GET /actuator/health` | 200 ou 503 | `{"status":"...","groups":["liveness","readiness"]}`, sem `components` nem `details` | FR-011 |
 | `GET /actuator/prometheus` | 200 | texto do Prometheus (`text/plain; version=0.0.4`, ou OpenMetrics se o `Accept` pedir) | FR-012 a FR-016 |
 
 ## Regras
 
-- Os corpos de saúde têm **só** o campo `status`. Nada de componentes, banco, disco, caminhos, versões
-  ou configuração (FR-011).
+- Os corpos de liveness e readiness têm **só** o campo `status`. A saúde geral tem `status` e a lista
+  `groups`, com exatamente `liveness` e `readiness`, que o Boot inclui sempre que os probes estão
+  ligados. Nada de componentes, banco, disco, caminhos, versões ou configuração (FR-011).
 - Os demais endpoints do Actuator não são expostos: `/actuator`, `/actuator/env`, `/actuator/beans`,
   `/actuator/info`, `/actuator/metrics` e outros respondem 404.
-- O content type das respostas de saúde é `application/vnd.spring-boot.actuator.v3+json` (compatível
-  com `application/json`).
+- O content type das respostas de saúde é `application/vnd.spring-boot.actuator.v3+json`, um tipo JSON
+  (sufixo `+json`). Para o Spring, ele não é "compatível" com `application/json`, e os testes conferem
+  o sufixo (verificado na etapa 2).
 
 ## Séries obrigatórias em `/actuator/prometheus`
 

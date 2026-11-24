@@ -3,6 +3,42 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-24 — Etapa 2 do Marco 2: `groups` na saúde geral, banner e formato ECS
+
+- **`groups` na saúde geral (FR-011):**
+  - *Origem:* implementador, no T030. Com os probes ligados, o `/actuator/health` responde
+    `{"status":"UP","groups":["liveness","readiness"]}`. O Boot 4.1.2 sempre inclui a lista de grupos, e
+    nenhuma propriedade a esconde. A FR-011 dizia "só o estado";
+  - *Decisão (responsável):* aceitar a lista. A FR-011 e o US2-6 foram ajustados antes do código: a saúde
+    geral pode trazer, além do `status`, só `groups` com exatamente `liveness` e `readiness`. O
+    `HealthProbesIT` exige exatamente esses dois campos;
+  - *Motivo:* são os nomes dos dois probes públicos, já publicados no contrato operacional, sem
+    componentes, banco, caminhos nem versões;
+  - *Alternativas rejeitadas:* esconder `groups` com código próprio; não expor a saúde geral. As duas
+    exigiriam código para esconder nomes que já são públicos.
+- **Banner com o JSON ligado (correção de uma premissa):**
+  - *Observado:* com o logging estruturado ligado, o Boot 4.1.2 já não escreve o banner (0 ocorrências na
+    execução `json-logs`, contra 68 na execução em texto). A segunda análise da spec supunha que o banner
+    quebraria o JSON, e isso não vale para esta versão;
+  - *Efeito na decisão:* a decisão de desligar o banner em todas as execuções continua, pelo motivo
+    principal dado pelo responsável (o banner não traz informação). O efeito real do
+    `spring.main.banner-mode: off` é tirá-lo do log em texto do `./mvnw`, provado pelo `TextLogFormatIT`.
+    A FR-020 e a research R6 foram corrigidas.
+- **Formato ECS aninhado:** o Boot 4.1.2 escreve os campos ECS aninhados
+  (`{"log":{"level":…},"process":{"thread":{"name":…}}}`), e não com a chave pontuada. O `LogOutput` dos
+  testes lê os dois jeitos. Research R6 e data-model atualizados.
+- **Content type do Actuator:** `application/vnd.spring-boot.actuator.v3+json`. Para o Spring, ele não é
+  compatível com `application/json`, então o teste confere o sufixo `+json`. Contrato operacional
+  corrigido.
+- **`ReadinessInvalidLinesIT` com `@DirtiesContext`:** ele usa o mesmo CSV do `InvalidLinesIT`, que lê o
+  log da inicialização. O contexto é fechado no fim da classe, pelo mesmo motivo do `EmptyLoadIT` na
+  etapa 1.
+- **Itens "verificar" resolvidos:** R1, porque o starter do Actuator já traz as métricas; R3, porque
+  `management.metrics.tags.application` funciona e o `MetricsConfiguration` não foi necessário.
+- **Resultado da etapa:** `./mvnw verify` verde. Execução padrão com 189 ITs (5 pulados, que são o
+  `JsonLogFormatIT`, só da `json-logs`); execução `json-logs` com 55 ITs de 12 classes; 75 s no total.
+  Conferência manual com o JAR nos dois formatos.
+
 ## 2026-11-23 — Etapa 1 do Marco 2: filtro de ETag próprio e contexto do `EmptyLoadIT`
 
 - **Filtro de ETag próprio (research R4):**

@@ -1,6 +1,9 @@
 spring:
   application:
     name: awards
+  main:
+    # Banner desligado em todas as execuções (spec 002, FR-020; research R6)
+    banner-mode: off
   mvc:
     problemdetails:
       enabled: true
@@ -18,3 +21,30 @@ server:
 movies:
   csv:
     path: ${MOVIES_CSV_PATH:classpath:movielist.csv}
+
+# Saúde e métricas na mesma porta da API (spec 002, FR-008 a FR-016; research R1 e R3).
+# O formato do log não é configurado aqui: o JSON é ligado só pela variável
+# LOGGING_STRUCTURED_FORMAT_CONSOLE (research R6).
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+      discovery:
+        enabled: false
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+      show-components: never
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        "[http.server.requests]": true
+      minimum-expected-value:
+        "[http.server.requests]": 1ms
+      maximum-expected-value:
+        "[http.server.requests]": 10s

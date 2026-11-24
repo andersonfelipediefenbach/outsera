@@ -6,6 +6,7 @@ import com.outsera.awards.support.LoaderLog;
 import com.outsera.awards.support.MovieJson;
 import com.outsera.awards.support.MoviesBody;
 import com.outsera.awards.support.ScenarioIT;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -13,6 +14,7 @@ import org.springframework.test.context.TestPropertySource;
 
 /** A coluna de estúdios é opcional: vazia, ela não invalida a linha (FR-006e). */
 @TestPropertySource(properties = "movies.csv.path=classpath:scenarios/optional-studios.csv")
+@Tag("log")
 class OptionalStudiosIT extends ScenarioIT {
 
     @Test

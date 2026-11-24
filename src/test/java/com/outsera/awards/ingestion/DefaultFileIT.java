@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.outsera.awards.support.LoaderLog;
 import com.outsera.awards.support.LoaderLog.Summary;
 import com.outsera.awards.support.ScenarioIT;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -19,6 +20,7 @@ import org.springframework.test.annotation.DirtiesContext.ClassMode;
  * para que o log da inicialização seja capturado por esta classe.
  */
 @DirtiesContext(classMode = ClassMode.BEFORE_CLASS)
+@Tag("log")
 class DefaultFileIT extends ScenarioIT {
 
     @Test

@@ -39,6 +39,16 @@
             <artifactId>spring-boot-starter-flyway</artifactId>
         </dependency>
         <dependency>
+            <!-- Liveness, readiness e métricas (spec 002, FR-008 a FR-016; research R1) -->
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <!-- Métricas no formato do Prometheus em /actuator/prometheus (research R3) -->
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-csv</artifactId>
             <version>${commons-csv.version}</version>
@@ -122,6 +132,24 @@
                             <goal>integration-test</goal>
                             <goal>verify</goal>
                         </goals>
+                    </execution>
+                    <execution>
+                        <!-- Os testes que verificam o log rodam de novo com o JSON ligado, numa JVM
+                             própria: o Logback é global na JVM, e ligar o JSON num contexto mudaria o
+                             formato dos testes seguintes (spec 002, FR-018; research R6). -->
+                        <id>json-logs</id>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                        <configuration>
+                            <groups>log</groups>
+                            <environmentVariables>
+                                <LOGGING_STRUCTURED_FORMAT_CONSOLE>ecs</LOGGING_STRUCTURED_FORMAT_CONSOLE>
+                            </environmentVariables>
+                            <reportsDirectory>${project.build.directory}/failsafe-reports-json-logs</reportsDirectory>
+                            <summaryFile>${project.build.directory}/failsafe-reports-json-logs/failsafe-summary.xml</summaryFile>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

@@ -7,6 +7,7 @@ import com.outsera.awards.support.LoaderLog.Summary;
 import com.outsera.awards.support.MoviesBody;
 import com.outsera.awards.support.ScenarioIT;
 import java.util.List;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,7 @@ import org.springframework.test.context.TestPropertySource;
  * garante um contexto novo, como no {@code DefaultFileIT}: outro IT com o mesmo CSV (por exemplo, o
  * {@code EtagEmptyIT}) pode ter criado o contexto antes, e o log já não seria capturado aqui.
  */
+@Tag("log")
 class EmptyLoadIT {
 
     @Nested

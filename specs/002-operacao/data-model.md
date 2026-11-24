@@ -67,7 +67,9 @@ total do mesmo `uri`. O 304 (`REDIRECTION`) conta como sucesso (US3-6). Consulta
 
 ## Evento de log
 
-Dois formatos, escolhidos pela variável `LOGGING_STRUCTURED_FORMAT_CONSOLE` (FR-020, research R6).
+Dois formatos, escolhidos pela variável `LOGGING_STRUCTURED_FORMAT_CONSOLE` (FR-020, research R6). Os
+campos JSON abaixo são caminhos ECS: o Boot 4.1.2 os escreve aninhados (`log.level` é
+`{"log":{"level":…}}`).
 
 | Campo da spec (FR-017) | Texto (sem a variável) | JSON ECS (`=ecs`) |
 | --- | --- | --- |

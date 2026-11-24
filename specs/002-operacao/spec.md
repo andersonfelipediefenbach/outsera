@@ -29,6 +29,10 @@
 - Q: O evento JSON da falha de inicialização precisa trazer o rastro da exceção? → A: Não sempre. Ele
   traz a mensagem de erro; o rastro só quando existir, porque o analisador de falhas o substitui por uma
   mensagem clara. US4-3 e FR-017.
+- Q: A saúde geral pode trazer a lista `groups` (`liveness` e `readiness`), que o Boot 4.1.2 sempre
+  inclui com os probes ligados? → A: Sim. São os nomes dos dois probes públicos, sem componentes, banco,
+  caminhos nem versões. Esconder a lista exigiria código próprio, sem ganho. FR-011 e US2-6 (decisão da
+  etapa 2, `docs/ai/decisoes.md`).
 - Q: O banner do Spring Boot continua aparecendo? → A: Não. Fica desligado em todas as execuções
   (`spring.main.banner-mode: off`), porque não traz informação e, com o JSON ligado, seria uma saída fora
   do log, com desenho ASCII. FR-020 e `docs/ai/decisoes.md`.
@@ -115,7 +119,8 @@ que a readiness só ficou positiva depois do resumo da carga.
    como no Marco 1, e nunca chega a se declarar pronta.
 6. **Given** a aplicação no ar, **When** a liveness, a readiness ou a saúde geral são consultadas sem
    autenticação, **Then** a resposta traz só o estado, sem detalhes internos (componentes, banco,
-   caminhos ou versões).
+   caminhos ou versões). A saúde geral pode trazer também a lista `groups`, com exatamente `liveness` e
+   `readiness` (FR-011).
 
 ---
 
@@ -347,7 +352,10 @@ spec e conferir cada ADR contra ele.
 - **FR-010**: Linhas inválidas ignoradas MUST NOT impedir a readiness. Erros estruturais continuam
   impedindo a inicialização (spec 001, FR-005), e a aplicação nunca se declara pronta.
 - **FR-011**: As respostas de saúde MUST trazer só o estado, sem detalhes de componentes, banco,
-  caminhos, versões ou configuração.
+  caminhos, versões ou configuração. A única exceção é a saúde geral, que pode trazer também a lista
+  `groups` com exatamente os nomes dos dois probes públicos (`liveness` e `readiness`). O framework a
+  inclui sempre que os probes estão ligados, e ela não revela nada além do que o contrato operacional já
+  publica.
 
 **Métricas**
 
@@ -378,8 +386,9 @@ spec e conferir cada ADR contra ele.
   padrão do framework, como no Marco 1, e esse é o formato da execução local padrão (`./mvnw
   spring-boot:run`). Com ela, o log é JSON (FR-017), em qualquer execução. A imagem de container MUST
   definir essa variável, ligando o JSON (FR-024a). O banner do framework MUST ficar desligado em todas
-  as execuções, nos dois formatos: ele não traz informação e, com o JSON ligado, seria uma saída fora do
-  log, com desenho ASCII, que quebraria o JSON.
+  as execuções, nos dois formatos: ele não traz informação e, com o JSON ligado, não pode aparecer como
+  saída fora do log. O Boot 4.1.2 já o omite quando o JSON está ligado (research R6); a configuração o
+  tira também do texto.
 
 **Imagem de container**
 

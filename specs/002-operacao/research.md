@@ -27,8 +27,13 @@ correspondente (R16) faz essa verificação, e o resultado volta para esta resea
   - porta separada para o Actuator: mais uma variável e mais uma porta no container, sem ganho neste
     marco;
   - `probes.add-additional-paths` (`/livez`, `/readyz`): dois caminhos para a mesma coisa.
-- **Verificar:** no Boot 4, se o starter do Actuator já traz o módulo de métricas do Micrometer ou se é
-  preciso declarar o módulo separado.
+- **Verificado na etapa 2:** no Boot 4.1.2, o `spring-boot-starter-actuator` já traz as métricas do
+  Micrometer. Com ele e o `micrometer-registry-prometheus`, o `/actuator/prometheus` aparece, sem
+  módulo extra.
+- **Verificado na etapa 2, saúde geral:** com os probes ligados, o `/actuator/health` responde
+  `{"status":"UP","groups":["liveness","readiness"]}`. O Boot sempre lista os grupos, e nenhuma
+  propriedade os esconde. O responsável aceitou a lista, e a FR-011 foi ajustada antes do código
+  (`docs/ai/decisoes.md`). O content type é `application/vnd.spring-boot.actuator.v3+json`.
 
 ## R2. Readiness ligada ao fim da carga
 
@@ -78,8 +83,9 @@ correspondente (R16) faz essa verificação, e o resultado volta para esta resea
   (R4), então vê o status final, 304, com `outcome=REDIRECTION`. O teste confere a série com
   `status="304"`. "Conta como sucesso" quer dizer que não entra na taxa de erro, que é calculada sobre
   `outcome` igual a `CLIENT_ERROR` ou `SERVER_ERROR` (data-model, "Série de métrica").
-- **Verificar:** se `management.metrics.tags.*` continua no Boot 4. Se não continuar, o rótulo é
-  posto por um `MeterRegistryCustomizer` com `commonTags`, que é configuração e não muda o comportamento.
+- **Verificado na etapa 2:** `management.metrics.tags.application` funciona no Boot 4.1.2, e o rótulo
+  aparece em todas as séries. O `MeterRegistryCustomizer` não foi necessário. O 304 aparece com
+  `outcome="REDIRECTION"`, e uma rota inexistente cai num único valor de `uri` (`MetricsIT`).
 - **Alternativas rejeitadas:** percentis calculados na aplicação (`percentiles=0.95,0.99`): não se
   agregam entre instâncias e não servem para o SLO por faixa do Marco 4.
 
@@ -166,10 +172,21 @@ correspondente (R16) faz essa verificação, e o resultado volta para esta resea
   - *Alternativas rejeitadas:* `banner-mode: log`, que tornaria o banner um evento de log, com desenho
     ASCII dentro da `message` do JSON; e desligar só na imagem, que deixaria o JSON quebrado em qualquer
     outra execução com a variável, contra a FR-020.
+  - *Verificado na etapa 2:* com o logging estruturado ligado, o Boot 4.1.2 **já não escreve o banner**
+    (0 ocorrências na execução `json-logs`, contra 68 na execução em texto). A premissa de que o banner
+    quebraria o JSON não vale para esta versão. A decisão continua valendo pelo motivo principal, o de
+    que o banner não traz informação: o efeito real do `banner-mode: off` é tirá-lo do log em texto do
+    `./mvnw`, provado pelo `TextLogFormatIT`. No JSON, o `JsonLogFormatIT` protege contra uma mudança de
+    comportamento do framework.
 - **Formato ECS:** `@timestamp` (ISO-8601 em UTC), `log.level`, `log.logger`, `process.thread.name`,
   `message`, `service.name` (vem de `spring.application.name`) e, nas exceções, `error.type`,
   `error.message` e `error.stack_trace` no mesmo evento (FR-017). Mapeamento completo em
   [data-model.md](data-model.md).
+  - *Verificado na etapa 2:* o Boot 4.1.2 escreve esses campos **aninhados**, e não com a chave
+    pontuada. Por exemplo, `{"@timestamp":"…Z","log":{"level":"INFO","logger":"…"},"process":{"pid":…,
+    "thread":{"name":"main"}},"service":{"name":"awards"},"message":"…","ecs":{"version":"8.11"}}`. Os
+    nomes desta research são os caminhos ECS (`log.level` = `log` → `level`). O `LogOutput` dos testes
+    lê os dois jeitos.
 - **Motivo:**
   - é o mecanismo do próprio framework (Boot 3.4 em diante), sem encoder do Logback nem dependência
     nova;

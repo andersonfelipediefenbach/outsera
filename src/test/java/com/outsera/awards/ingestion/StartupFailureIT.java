@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.outsera.awards.support.ApplicationStarter;
 import com.outsera.awards.support.ApplicationStarter.Result;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
  * e o motivo (FR-005, SC-006). Cada teste executa a aplicação real com {@code SpringApplication}
  * (Princípio I, falha de inicialização), sem mocks.
  */
+@Tag("log")
 class StartupFailureIT {
 
     private static final String EXPECTED_HEADER = "year;title;studios;producers;winner";
@@ -20,7 +22,7 @@ class StartupFailureIT {
     @DisplayName("FR-005 SC-006 arquivo inexistente")
     void missingFile() {
         Result result = assertStartupFails("file:./nao-existe.csv", "NOT_FOUND");
-        assertThat(result.output()).contains("file:./nao-existe.csv");
+        assertThat(result.messages()).contains("file:./nao-existe.csv");
     }
 
     @Test
@@ -39,14 +41,14 @@ class StartupFailureIT {
     @DisplayName("FR-005 arquivo fora de UTF-8")
     void invalidEncoding() {
         Result result = assertStartupFails("classpath:scenarios/invalid-encoding.csv", "UNREADABLE");
-        assertThat(result.output()).contains("UTF-8");
+        assertThat(result.messages()).contains("UTF-8");
     }
 
     @Test
     @DisplayName("FR-005 separador inválido")
     void commaSeparator() {
         Result result = assertStartupFails("classpath:scenarios/comma-separated.csv", "INVALID_SEPARATOR");
-        assertThat(result.output()).contains("\";\"");
+        assertThat(result.messages()).contains("\";\"");
     }
 
     @Test
@@ -70,7 +72,7 @@ class StartupFailureIT {
 
     private static void assertInvalidHeader(String csvPath, String foundHeader) {
         Result result = assertStartupFails(csvPath, "INVALID_HEADER");
-        assertThat(result.output()).contains(EXPECTED_HEADER).contains(foundHeader);
+        assertThat(result.messages()).contains(EXPECTED_HEADER).contains(foundHeader);
     }
 
     /**
@@ -80,7 +82,7 @@ class StartupFailureIT {
     private static Result assertStartupFails(String csvPath, String reason) {
         Result result = ApplicationStarter.start(csvPath);
         assertThat(result.failed()).as("a aplicação não deveria subir com %s", csvPath).isTrue();
-        assertThat(result.output())
+        assertThat(result.messages())
                 .contains("APPLICATION FAILED TO START")
                 .contains(csvPath)
                 .contains(reason);

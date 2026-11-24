@@ -7,6 +7,7 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.function.IntFunction;
 import org.springframework.boot.SpringApplication;
+import org.springframework.context.ApplicationListener;
 import org.springframework.context.ConfigurableApplicationContext;
 
 /**
@@ -28,6 +29,16 @@ public final class ApplicationStarter {
         public boolean failed() {
             return failure != null;
         }
+
+        /**
+         * As mensagens do log (com as pilhas, quando houver), decodificadas pelo {@link LogOutput}, uma
+         * por evento e separadas por quebra de linha. É o texto que os testes verificam nos dois formatos
+         * (spec 002, FR-018): no JSON, as aspas e quebras de linha da mensagem chegam escapadas na saída
+         * crua.
+         */
+        public String messages() {
+            return String.join("\n", LogOutput.messages(output));
+        }
     }
 
     /**
@@ -35,6 +46,15 @@ public final class ApplicationStarter {
      * o contexto é fechado logo em seguida e {@link Result#failure()} vem nulo.
      */
     public static Result start(String csvPath) {
+        return start(csvPath, new ApplicationListener<?>[0]);
+    }
+
+    /**
+     * Como {@link #start(String)}, registrando os {@code listeners} na {@link SpringApplication} antes do
+     * {@code run}. Os ouvintes são reais e recebem os eventos reais do ciclo de vida (por exemplo, a
+     * mudança de prontidão; spec 002, FR-009).
+     */
+    public static Result start(String csvPath, ApplicationListener<?>... listeners) {
         PrintStream originalOut = System.out;
         PrintStream originalErr = System.err;
         ByteArrayOutputStream captured = new ByteArrayOutputStream();
@@ -43,6 +63,7 @@ public final class ApplicationStarter {
         Throwable failure = null;
         try {
             SpringApplication application = new SpringApplication(AwardsApplication.class);
+            application.addListeners(listeners);
             try (ConfigurableApplicationContext ignored =
                     application.run("--server.port=0", "--movies.csv.path=" + csvPath)) {
                 // A aplicação subiu: o contexto é fechado pelo try-with-resources.
