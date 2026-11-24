@@ -11,8 +11,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Serviço único de gravação de filmes (Princípio V). A carga do arquivo usa este serviço, e no Marco 3
- * o consumidor Kafka vai usar o mesmo: o perfil muda só a origem dos dados.
+ * Serviço único de gravação de filmes (Princípio V). A carga direta do arquivo e o consumidor Kafka usam
+ * este serviço: o perfil muda só a origem dos dados.
+ *
+ * <p>A gravação é idempotente por ano e título, com atualização (spec 003, FR-014; research R5): um filme
+ * que ainda não existe é criado, e um que já existe passa a ter os valores da gravação nova. Gravar a
+ * mesma linha de novo não muda nada, e um reinício sobre um banco persistente não duplica filmes.
  */
 @Service
 public class MovieImportService {
@@ -25,17 +29,28 @@ public class MovieImportService {
         this.producers = producers;
     }
 
-    /** Grava os filmes e os vínculos com os produtores, criando os produtores que ainda não existem. */
+    /** Carga direta: grava todas as linhas numa única transação, como no Marco 1. */
     @Transactional
     public void importMovies(List<MovieRow> rows) {
         Map<String, Producer> byName = new HashMap<>();
-        for (MovieRow row : rows) {
-            List<Producer> movieProducers = row.producerNames().stream()
-                    .map(name -> byName.computeIfAbsent(name, this::findOrCreate))
-                    .toList();
-            movies.save(new Movie(row.year(), row.title(), row.studios(), row.producersRaw(), row.winner(),
-                    movieProducers));
-        }
+        rows.forEach(row -> record(row, byName));
+    }
+
+    /** Cria ou atualiza o filme da linha, criando os produtores que ainda não existem. */
+    @Transactional
+    public void record(MovieRow row) {
+        record(row, new HashMap<>());
+    }
+
+    /** {@code byName} guarda os produtores já resolvidos na mesma transação. */
+    private void record(MovieRow row, Map<String, Producer> byName) {
+        List<Producer> movieProducers = row.producerNames().stream()
+                .map(name -> byName.computeIfAbsent(name, this::findOrCreate))
+                .toList();
+        movies.findByYearAndTitle(row.year(), row.title()).ifPresentOrElse(
+                movie -> movie.update(row.studios(), row.producersRaw(), row.winner(), movieProducers),
+                () -> movies.save(new Movie(row.year(), row.title(), row.studios(), row.producersRaw(),
+                        row.winner(), movieProducers)));
     }
 
     private Producer findOrCreate(String name) {

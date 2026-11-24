@@ -1,0 +1,12 @@
+# Perfil postgres (spec 003, FR-004 e FR-005; research R3). Troca só o banco: o esquema é o mesmo da
+# migração V1 do Flyway, validado pelo mapeamento (ddl-auto: validate, do application.yml), e nenhuma
+# consulta usa SQL específico de um banco.
+#
+# A senha não tem padrão: pelo Princípio VII (constituição 1.6.0), a credencial de demonstração só pode
+# aparecer nos arquivos do compose de desenvolvimento local, e não nesta configuração, que vai no JAR e
+# na imagem. Sem DB_PASSWORD, a subida neste perfil falha.
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://postgres:5432/awards}
+    username: ${DB_USER:awards}
+    password: ${DB_PASSWORD}

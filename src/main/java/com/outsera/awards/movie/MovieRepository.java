@@ -1,5 +1,6 @@
 package com.outsera.awards.movie;
 
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -7,6 +8,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface MovieRepository extends JpaRepository<Movie, Long> {
+
+    /**
+     * O filme identificado por ano e título (spec 001, FR-006d), para a gravação com atualização (spec
+     * 003, FR-014; research R5). Consulta derivada, portável entre H2 e PostgreSQL.
+     */
+    Optional<Movie> findByYearAndTitle(int year, String title);
 
     /**
      * Filmes com os filtros opcionais (nulo = sem filtro), ordenados por ano e título (FR-020, FR-022).

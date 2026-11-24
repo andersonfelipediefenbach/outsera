@@ -71,13 +71,13 @@ Toda mensagem de commit termina com a linha de atribuição indicada na sessão.
 
 **Purpose**: linha de base para medir o que o marco muda.
 
-- [ ] T001 Conferir a linha de base no branch `marco/3-docker`:
+- [X] T001 Conferir a linha de base no branch `marco/3-docker`:
   - `git tag --list v0.2.0` existe;
   - `./mvnw verify` está verde;
   - anotar a cobertura de linhas de `target/site/jacoco-it/jacoco.csv` e o tempo total do `verify`.
   O tempo é a referência do limite de 2× da research R15. Os dois números vão para a descrição do
   commit da etapa 1.
-- [ ] T002 Conferir se o Docker está disponível localmente (`docker info`). Sem Docker, os
+- [X] T002 Conferir se o Docker está disponível localmente (`docker info`). Sem Docker, os
   `*PostgresIT` e o `compose-test.sh` só podem ser verificados no pipeline. Nesse caso, as tarefas que
   pedem execução local registram `PULADO: Docker indisponível` na descrição do commit, e a verificação
   fica para as tarefas "Pendente: push".
@@ -96,7 +96,7 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
 
 ### Testes da etapa 1 (escrever primeiro; precisam falhar)
 
-- [ ] T003 [US2] Criar `src/test/java/com/outsera/awards/support/PostgresSupport.java`:
+- [X] T003 [US2] Criar `src/test/java/com/outsera/awards/support/PostgresSupport.java`:
   - lê `DB_URL` (padrão `jdbc:postgresql://localhost:5432/awards`), `DB_USER` (padrão `awards`) e
     `DB_PASSWORD` (padrão vazio) do ambiente;
   - `newSchema(Class<?>)` gera `it_<nome da classe em minúsculas>_<8 caracteres aleatórios>`;
@@ -109,40 +109,40 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
     perfil ausente faria o teste passar no H2;
   - `dropSchema(String)` roda `DROP SCHEMA <schema> CASCADE` por JDBC depois da classe. É SQL de teste,
     fora da aplicação.
-- [ ] T004 [US2] Em `src/test/java/com/outsera/awards/support/ApplicationStarter.java`:
+- [X] T004 [US2] Em `src/test/java/com/outsera/awards/support/ApplicationStarter.java`:
   - acrescentar sobrecargas `start(String csvPath, List<String> extraArgs, ApplicationListener<?>...)` e
     `runAndCall(String csvPath, List<String> extraArgs, IntFunction<T> call)`;
   - acrescentar uma variante que expõe o `ConfigurableApplicationContext` ao `call`, para o
     `assertIsPostgres`;
   - as assinaturas atuais continuam iguais e delegam às novas com a lista vazia.
-- [ ] T005 [P] [US2] Criar `src/test/java/com/outsera/awards/postgres/SchemaPostgresIT.java` (`@SpringBootTest`, `@ActiveProfiles("postgres")`, `@DynamicPropertySource` com o esquema do `PostgresSupport`):
+- [X] T005 [P] [US2] Criar `src/test/java/com/outsera/awards/postgres/SchemaPostgresIT.java` (`@SpringBootTest`, `@ActiveProfiles("postgres")`, `@DynamicPropertySource` com o esquema do `PostgresSupport`):
   - `S003 FR-004 FR-005 US2-1`: o banco é PostgreSQL; `flyway_schema_history` do esquema tem a versão
     `1` com `success = true` (verificação por banco, porque a migração não tem endpoint); a subida passou
     pelo `ddl-auto: validate`;
   - `S003 FR-006 US2-2`: os intervalos trazem Joel Silver em `min` (1990–1991) e Matthew Vaughn em `max`
     (2002–2015), e `GET /api/movies` tem `totalElements` 206.
-- [ ] T006 [P] [US2] Criar `src/test/java/com/outsera/awards/postgres/EquivalencePostgresIT.java` (múltiplas execuções, `ApplicationStarter`):
+- [X] T006 [P] [US2] Criar `src/test/java/com/outsera/awards/postgres/EquivalencePostgresIT.java` (múltiplas execuções, `ApplicationStarter`):
   - sobe com o arquivo padrão no H2 e depois no PostgreSQL;
   - em cada execução, guarda o corpo e o `ETag` de `GET /api/producers/intervals`, de
     `/api/movies?size=100&page=0..2`, de `/api/movies?winner=true` e de `/api/movies?year=1990`;
   - `S003 FR-006 SC-001`: os corpos são idênticos byte a byte, e os ETags também.
-- [ ] T007 [P] [US2] Criar `src/test/java/com/outsera/awards/postgres/ListingOrderPostgresIT.java`:
+- [X] T007 [P] [US2] Criar `src/test/java/com/outsera/awards/postgres/ListingOrderPostgresIT.java`:
   - mesmo método do T006, com `classpath:scenarios/adversario/13-ordenacao-com-acentos-e-caixa.csv` (o
     mesmo do `Case13AccentAndCaseOrderIT`);
   - `S003 FR-008`: a listagem completa tem a mesma ordem byte a byte no H2 e no PostgreSQL.
-- [ ] T008 [P] [US2] Criar os cenários `src/test/resources/scenarios/postgres/restart-base.csv` e `restart-updated.csv`, com o cabeçalho `year;title;studios;producers;winner`:
+- [X] T008 [P] [US2] Criar os cenários `src/test/resources/scenarios/postgres/restart-base.csv` e `restart-updated.csv`, com o cabeçalho `year;title;studios;producers;winner`:
   - `restart-base.csv` tem quatro filmes:
     - `2000;Base A;S;Producer A;yes`;
     - `2003;Base B;S;Producer A;` (indicado);
     - `2005;Base C;S;Producer A;yes`;
     - `2010;Base D;S;Producer Z;yes`;
   - `restart-updated.csv` tem as mesmas quatro linhas, com `Base B` como `yes`.
-- [ ] T009 [US2] Criar `src/test/java/com/outsera/awards/postgres/RestartDirectPostgresIT.java` (carga direta, perfil `postgres` sem `kafka`, três execuções sobre o mesmo esquema):
+- [X] T009 [US2] Criar `src/test/java/com/outsera/awards/postgres/RestartDirectPostgresIT.java` (carga direta, perfil `postgres` sem `kafka`, três execuções sobre o mesmo esquema):
   - `S003 FR-002 FR-014 US2-3`: duas subidas com `restart-base.csv` sobem sem erro, e as duas têm
     `totalElements` 4 e os mesmos intervalos (`Producer A`, 2000–2005, intervalo 5, em `min` e `max`);
   - `S003 FR-014 US2-5`: a terceira subida, com `restart-updated.csv`, tem `totalElements` 4, `min` com
     `Producer A` 2003–2005 (2) e `max` com `Producer A` 2000–2003 (3).
-- [ ] T010 [US2] No `pom.xml` (infraestrutura de teste, research R16):
+- [X] T010 [US2] No `pom.xml` (infraestrutura de teste, research R16):
   - nas duas execuções atuais do Failsafe (padrão e `json-logs`), acrescentar
     `<excludes><exclude>**/*PostgresIT.java</exclude></excludes>` e `<skip>${it.default.skip}</skip>`,
     com a propriedade `it.default.skip` padrão `false`;
@@ -153,7 +153,7 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
     - uma execução `postgres` do Failsafe, com `<includes>**/*PostgresIT.java</includes>` e
       `reportsDirectory`/`summaryFile` em `target/failsafe-reports-postgres/`, sem ligar o paralelismo do
       JUnit (o `RetryPostgresIT`, T035a, não pode rodar em paralelo com outro IT).
-- [ ] T011 [US2] Confirmar a falha:
+- [X] T011 [US2] Confirmar a falha:
   - `./mvnw verify` continua verde, e nenhum `*PostgresIT` roda;
   - com o Docker (T002), subir o PostgreSQL do quickstart, seção 3, e rodar `./mvnw -Ppostgres-it
     verify`. Os `*PostgresIT` precisam falhar no `assertIsPostgres` ou na conexão, porque ainda não
@@ -161,26 +161,26 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
 
 ### Implementação da etapa 1
 
-- [ ] T012 [US2] No `pom.xml`, acrescentar `org.postgresql:postgresql` e `org.flywaydb:flyway-database-postgresql`, os dois em escopo `runtime`, com as versões do Boot. **Verificar (R3):** `./mvnw dependency:tree` mostra a versão do `flyway-database-postgresql` gerenciada. Se não mostrar, criar a propriedade `flyway.version`, igual à do `flyway-core`.
-- [ ] T013 [P] [US2] Criar `src/main/resources/application-postgres.yml`:
+- [X] T012 [US2] No `pom.xml`, acrescentar `org.postgresql:postgresql` e `org.flywaydb:flyway-database-postgresql`, os dois em escopo `runtime`, com as versões do Boot. **Verificar (R3):** `./mvnw dependency:tree` mostra a versão do `flyway-database-postgresql` gerenciada. Se não mostrar, criar a propriedade `flyway.version`, igual à do `flyway-core`.
+- [X] T013 [P] [US2] Criar `src/main/resources/application-postgres.yml`:
   - `spring.datasource.url: ${DB_URL:jdbc:postgresql://postgres:5432/awards}`;
   - `username: ${DB_USER:awards}`;
   - `password: ${DB_PASSWORD}`, **sem padrão**, com um comentário que cita o Princípio VII 1.6.0 (a
     credencial de demonstração só pode estar no compose; research R3);
   - nenhum SQL e nenhuma propriedade do Hibernate específica de banco (FR-005).
-- [ ] T014 [P] [US2] No `src/main/resources/application.yml`, acrescentar `spring.profiles.group.docker: [postgres, kafka]`, com um comentário de que o perfil `kafka` ganha configuração na etapa 2 (research R1).
-- [ ] T015 [US2] Em `src/main/java/com/outsera/awards/movie/MovieRepository.java`, acrescentar `Optional<Movie> findByYearAndTitle(int year, String title)` (consulta derivada, portável). Em `src/main/java/com/outsera/awards/movie/Movie.java`, acrescentar `update(String studios, String producersRaw, boolean winner, Collection<Producer> producers)`, que substitui os campos e **todos** os vínculos (data-model.md, "Gravação de um filme"). As colunas não mudam: `title VARCHAR(500)`, `studios VARCHAR(1000)` e `producers VARCHAR(1000)`.
-- [ ] T016 [US2] Em `src/main/java/com/outsera/awards/ingestion/MovieImportService.java` (research R5):
+- [X] T014 [P] [US2] No `src/main/resources/application.yml`, acrescentar `spring.profiles.group.docker: [postgres, kafka]`, com um comentário de que o perfil `kafka` ganha configuração na etapa 2 (research R1).
+- [X] T015 [US2] Em `src/main/java/com/outsera/awards/movie/MovieRepository.java`, acrescentar `Optional<Movie> findByYearAndTitle(int year, String title)` (consulta derivada, portável). Em `src/main/java/com/outsera/awards/movie/Movie.java`, acrescentar `update(String studios, String producersRaw, boolean winner, Collection<Producer> producers)`, que substitui os campos e **todos** os vínculos (data-model.md, "Gravação de um filme"). As colunas não mudam: `title VARCHAR(500)`, `studios VARCHAR(1000)` e `producers VARCHAR(1000)`.
+- [X] T016 [US2] Em `src/main/java/com/outsera/awards/ingestion/MovieImportService.java` (research R5):
   - criar `@Transactional public void record(MovieRow row)`. Ele busca por `findByYearAndTitle`; se não
     existe, cria o filme; se existe, chama `update`. Os produtores continuam com `findOrCreate` pelo nome
     exato;
   - `importMovies(List<MovieRow>)` continua numa transação e passa a chamar `record` para cada linha;
   - o javadoc cita o Princípio V e a FR-014.
-- [ ] T017 [US2] Rodar:
+- [X] T017 [US2] Rodar:
   - `./mvnw verify`: verde, com a suíte dos Marcos 1 e 2 sem alteração e a cobertura ≥ 90%;
   - com o Docker: `./mvnw -Ppostgres-it verify` verde. **Verificar (R4):** o `ListingOrderPostgresIT`
     passa com `--locale=C`. Se falhar, registrar a diferença na R4 antes de seguir.
-- [ ] T018 [US2] (Infraestrutura) Em `.github/workflows/ci.yml`, criar o job `postgres` conforme `contracts/ci-pipeline.md`:
+- [X] T018 [US2] (Infraestrutura) Em `.github/workflows/ci.yml`, criar o job `postgres` conforme `contracts/ci-pipeline.md`:
   - service container `postgres:18-alpine` fixado por digest (resolvido com `docker buildx imagetools
     inspect postgres:18-alpine` ou pela API do registro). A tag e o digest vão na descrição do commit;
   - `POSTGRES_HOST_AUTH_METHOD: trust` e `POSTGRES_INITDB_ARGS: --locale=C --encoding=UTF8`;
@@ -192,7 +192,7 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
   - sem `POSTGRES_PASSWORD` e sem `secrets.*`.
 
   Rodar `.github/scripts/check-workflows.sh` (com o `yq`; sem ele, anotar como no T045 do Marco 2).
-- [ ] T019 [US2] Commit `Etapa 1: PostgreSQL, perfil docker e gravação com atualização` com T003 a T018. Na descrição, incluir os números do T001 e o resultado ou o `PULADO` do T011 e do T017.
+- [X] T019 [US2] Commit `Etapa 1: PostgreSQL, perfil docker e gravação com atualização` com T003 a T018. Na descrição, incluir os números do T001 e o resultado ou o `PULADO` do T011 e do T017.
 - [ ] T020 [US2] **Pendente: exige o push, que é do Anderson.** Conferir o job `postgres` verde na execução do branch. Se falhar, corrigir no mesmo branch, num commit de correção da etapa 1.
 
 **Checkpoint**: US2 sem Kafka completa. O modo padrão continua idêntico.

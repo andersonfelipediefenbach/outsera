@@ -5,6 +5,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ApplicationListener;
@@ -56,18 +60,43 @@ public final class ApplicationStarter {
      * mudança de prontidão; spec 002, FR-009).
      */
     public static Result start(String csvPath, ApplicationListener<?>... listeners) {
+        return start(csvPath, List.of(), listeners);
+    }
+
+    /**
+     * Como {@link #start(String, ApplicationListener...)}, com argumentos extras na linha de comando (por
+     * exemplo, o perfil e o banco do PostgreSQL ou o endereço do broker; spec 003).
+     */
+    public static Result start(String csvPath, List<String> extraArgs, ApplicationListener<?>... listeners) {
+        return startAndCall(csvPath, extraArgs, port -> { }, listeners);
+    }
+
+    /**
+     * Sobe a aplicação capturando a saída desde a primeira linha, executa {@code whileUp} com a porta
+     * enquanto ela está no ar e fecha o contexto. Uma falha da subida fica em {@link Result#failure()}.
+     * Uma falha do próprio {@code whileUp}, como uma asserção, é relançada depois de restaurar a saída.
+     */
+    public static Result startAndCall(String csvPath, List<String> extraArgs, IntConsumer whileUp,
+            ApplicationListener<?>... listeners) {
         PrintStream originalOut = System.out;
         PrintStream originalErr = System.err;
         ByteArrayOutputStream captured = new ByteArrayOutputStream();
         System.setOut(tee(originalOut, captured));
         System.setErr(tee(originalErr, captured));
         Throwable failure = null;
+        RuntimeException callFailure = null;
+        AssertionError assertionFailure = null;
         try {
             SpringApplication application = new SpringApplication(AwardsApplication.class);
             application.addListeners(listeners);
-            try (ConfigurableApplicationContext ignored =
-                    application.run("--server.port=0", "--movies.csv.path=" + csvPath)) {
-                // A aplicação subiu: o contexto é fechado pelo try-with-resources.
+            try (ConfigurableApplicationContext context = application.run(args(csvPath, extraArgs))) {
+                try {
+                    whileUp.accept(port(context));
+                } catch (AssertionError ex) {
+                    assertionFailure = ex;
+                } catch (RuntimeException ex) {
+                    callFailure = ex;
+                }
             }
         } catch (Throwable ex) {
             failure = ex;
@@ -76,6 +105,12 @@ public final class ApplicationStarter {
             System.err.flush();
             System.setOut(originalOut);
             System.setErr(originalErr);
+        }
+        if (assertionFailure != null) {
+            throw assertionFailure;
+        }
+        if (callFailure != null) {
+            throw callFailure;
         }
         return new Result(failure, captured.toString(StandardCharsets.UTF_8));
     }
@@ -87,12 +122,36 @@ public final class ApplicationStarter {
      * arquivos diferentes).
      */
     public static <T> T runAndCall(String csvPath, IntFunction<T> call) {
+        return runAndCall(csvPath, List.of(), call);
+    }
+
+    /** Como {@link #runAndCall(String, IntFunction)}, com argumentos extras na linha de comando. */
+    public static <T> T runAndCall(String csvPath, List<String> extraArgs, IntFunction<T> call) {
+        return runWithContext(csvPath, extraArgs, (context, port) -> call.apply(port));
+    }
+
+    /**
+     * Como {@link #runAndCall(String, List, IntFunction)}, entregando também o contexto da aplicação real,
+     * para verificações que o HTTP não observa (por exemplo, que o banco é mesmo o PostgreSQL).
+     */
+    public static <T> T runWithContext(String csvPath, List<String> extraArgs,
+            BiFunction<ConfigurableApplicationContext, Integer, T> call) {
         SpringApplication application = new SpringApplication(AwardsApplication.class);
-        try (ConfigurableApplicationContext context =
-                application.run("--server.port=0", "--movies.csv.path=" + csvPath)) {
-            int port = Integer.parseInt(context.getEnvironment().getRequiredProperty("local.server.port"));
-            return call.apply(port);
+        try (ConfigurableApplicationContext context = application.run(args(csvPath, extraArgs))) {
+            return call.apply(context, port(context));
         }
+    }
+
+    private static String[] args(String csvPath, List<String> extraArgs) {
+        List<String> args = new ArrayList<>();
+        args.add("--server.port=0");
+        args.add("--movies.csv.path=" + csvPath);
+        args.addAll(extraArgs);
+        return args.toArray(String[]::new);
+    }
+
+    private static int port(ConfigurableApplicationContext context) {
+        return Integer.parseInt(context.getEnvironment().getRequiredProperty("local.server.port"));
     }
 
     private static PrintStream tee(PrintStream original, OutputStream copy) {

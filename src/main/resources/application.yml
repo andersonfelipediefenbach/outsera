@@ -1,6 +1,13 @@
 spring:
   application:
     name: awards
+  profiles:
+    # Modo Docker (spec 003, FR-002; research R1): o banco (postgres) e a ingestão (kafka) são perfis
+    # independentes, e o grupo docker liga os dois. Sem perfil, vale o modo padrão.
+    group:
+      docker:
+        - postgres
+        - kafka
   main:
     # Banner desligado em todas as execuções (spec 002, FR-020; research R6)
     banner-mode: off

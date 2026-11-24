@@ -57,6 +57,49 @@ jobs:
             target/failsafe-reports-json-logs/
           if-no-files-found: warn
 
+  postgres:
+    # Testes que dependem do PostgreSQL, no perfil Maven postgres-it (spec 003, FR-007; Princípio VI,
+    # constituição 1.7.0; research R16). O banco é um service container com collation C (research R4).
+    # Nenhuma credencial no workflow: o banco aceita a conexão por trust, e só existe neste runner.
+    name: Testes com PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71
+        env:
+          POSTGRES_DB: awards
+          POSTGRES_USER: awards
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_INITDB_ARGS: --locale=C --encoding=UTF8
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U awards -d awards"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: ./mvnw -Ppostgres-it verify
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/awards
+          DB_USER: awards
+          DB_PASSWORD: ''
+        run: ./mvnw -B -Ppostgres-it verify
+      - name: Relatórios dos testes com PostgreSQL
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: relatorios-postgres
+          path: target/failsafe-reports-postgres/
+          if-no-files-found: warn
+
   codeql:
     name: Análise de segurança do código (CodeQL)
     runs-on: ubuntu-latest
