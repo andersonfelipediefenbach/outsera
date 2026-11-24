@@ -3,6 +3,31 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-24 — Fechamento do bolt do Marco 2 (etapa 6)
+
+- **README (FR-034):** atualizado com o formato do log, a imagem Docker, o ETag e o 304, os endpoints
+  operacionais, as duas execuções do Failsafe e a cobertura, o pipeline e os critérios de reprovação, a
+  tabela dos requisitos do Marco 2, as decisões e o índice dos ADRs. As seções do Marco 1 não foram
+  reescritas.
+- **Clone limpo (T060):** num clone novo do branch, a seção "Avalie em 2 minutos" funcionou só com o
+  JDK: `verify` verde, a aplicação subiu em cerca de 5 s, os dois `curl` responderam o esperado, e o log
+  trouxe o resumo, sem banner. O `verify` levou 273 s no clone novo e 75 s na cópia de trabalho já
+  compilada, e o README registra os dois tempos.
+- **Rastreabilidade (T061):** cada requisito de comportamento da spec 002 (FR-001 a FR-020) aparece no
+  `@DisplayName` de pelo menos um IT do Marco 2. *Observação para o responsável:* os IDs FR-001 a FR-020
+  existem nas duas specs, com significados diferentes. Hoje, quem desfaz a ambiguidade é o pacote do
+  teste (`etag/`, `health/`, `metrics/` e `logging/` são da spec 002). Um prefixo por spec nos
+  `@DisplayName` resolveria isso, mas mudaria os nomes dos testes do Marco 1, e por isso não foi feito sem
+  decisão.
+- **Pendências do bolt:** dependem do push do branch, que é do responsável:
+  - T037 e T038: hadolint, `wget` com 503, variável de log vazia, build e teste de fumaça, que vão para
+    os jobs `dockerfile-lint` e `image`;
+  - T047 a T050: pipeline verde, conferências da execução, Dependabot ativo e a verificação do SC-008 no
+    branch temporário.
+
+  O daemon do Docker não estava rodando na máquina de desenvolvimento, então nada da imagem foi
+  verificado localmente.
+
 ## 2026-11-24 — Decisões de arquitetura sem entrada própria (ADRs)
 
 Registro feito junto com os ADRs da etapa 5 do Marco 2 (FR-031). As decisões abaixo foram tomadas nos

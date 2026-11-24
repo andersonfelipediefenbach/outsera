@@ -4,7 +4,8 @@
 
 **Created**: 2026-11-23
 
-**Status**: Draft
+**Status**: Implemented (pendente a verificação no pipeline, que exige o push: T037, T038 e T047 a T050
+do `tasks.md`)
 
 **Input**: User description: "Marco 2, operação, conforme docs/ai/planejamento/briefing.md. Escopo: 1. ETag no GET de intervalos e na listagem, com 304 quando If-None-Match bate; o contrato de resposta 200 não muda. 2. Health checks de liveness e readiness, com a aplicação pronta só depois da carga do CSV. 3. Métricas de latência e taxa de erro dos endpoints, expostas no formato do Prometheus. 4. Logs estruturados em JSON. 5. Dockerfile multi-stage, com usuário não root e healthcheck, e .dockerignore. A imagem é um caminho alternativo: o projeto continua subindo e testando só com ./mvnw, sem Docker. 6. Pipeline no GitHub Actions: em todo push e pull request, build, testes, cobertura, análise de segurança, lint do Dockerfile, build da imagem e um teste de fumaça que sobe o container e chama o endpoint. Actions fixadas por hash de commit. Dependabot para Maven, Actions e Docker. 7. ADRs curtos para as decisões de arquitetura já tomadas no marco 1 e neste marco. Fora do escopo: PostgreSQL, Kafka, autenticação, publicação de imagem, deploy e front-end. Os testes da aplicação continuam somente de integração; o teste do container roda só no pipeline."
 
