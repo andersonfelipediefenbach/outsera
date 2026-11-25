@@ -230,8 +230,19 @@ research e, se mudar comportamento, para a spec (Princípio IV).
     em paralelo** com outro IT do `postgres-it`;
   - **queda real do banco:** o passo 7b do `compose-test.sh` para o serviço `postgres` do compose,
     publica, religa e confere a gravação.
+- **Classificação das falhas de gravação** (apontamento do Codex no PR do Marco 3):
+  - **permanentes:** SQLState das classes **22** (dado inválido, como o caractere nulo no PostgreSQL ou
+    um valor maior que a coluna) e **23** (restrição de integridade violada). A nova tentativa daria
+    sempre o mesmo erro e travaria a partição para sempre. O ouvinte procura o `SQLException` na cadeia de
+    causas e, com uma dessas classes, envia o evento ao tópico de erros com o motivo `DATABASE_REJECTED`
+    e o SQLState, sem nova tentativa;
+  - **passageiras:** todas as outras, como a tabela inexistente do `RetryPostgresIT` (42P01), a perda
+    de conexão (08xxx) e o tempo esgotado do pool. Elas continuam com a nova tentativa sem limite;
+  - **prevenção:** as recusas conhecidas viram regras da `MovieFieldRules` (`FIELD_TOO_LONG` e
+    `NUL_CHARACTER`), com mensagem clara, nos dois caminhos de carga. A classificação cobre as recusas que
+    a validação não prevê.
 - **Alternativa rejeitada:** `DeadLetterPublishingRecoverer` para todos os erros. Ele trataria uma falha
-  de banco como evento inválido.
+  de banco passageira como evento inválido.
 
 ## R10. Readiness ligada ao evento de carga concluída (FR-013)
 

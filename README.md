@@ -399,12 +399,12 @@ histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{u
 .\mvnw.cmd verify "-Dit.test=ReferenceFileIT"   # no PowerShell, o -D vai entre aspas
 ```
 
-São **255 testes de integração**, executados pelo Maven Failsafe na fase `verify`, **sem Docker**, em duas
+São **261 testes de integração**, executados pelo Maven Failsafe na fase `verify`, **sem Docker**, em duas
 execuções:
 
 - **padrão:** todos os testes, com o log em texto. Os 5 do `JsonLogFormatIT` ficam pulados, porque só
   valem com o JSON ligado;
-- **`json-logs`:** os 81 testes das classes marcadas com `@Tag("log")` rodam de novo, numa JVM própria,
+- **`json-logs`:** os 85 testes das classes marcadas com `@Tag("log")` rodam de novo, numa JVM própria,
   com `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`. Assim, as mesmas verificações de log valem nos dois
   formatos.
 
@@ -412,8 +412,8 @@ Os testes do Kafka rodam no `./mvnw verify` com o **broker embutido** do Spring 
 próprio teste), sem Docker.
 
 A **cobertura** de linhas é medida pelo JaCoCo sobre as duas execuções, e o `verify` falha abaixo de
-**90%**. Hoje ela está em 97,06%, e o relatório fica em `target/site/jacoco-it/index.html`. A execução
-completa leva cerca de 2 min e 40 s numa cópia de trabalho já compilada. Os testes do Kafka usam um perfil
+**90%**. Hoje ela está em 97,35%, e o relatório fica em `target/site/jacoco-it/index.html`. A execução
+completa leva cerca de 3 min numa cópia de trabalho já compilada. Os testes do Kafka usam um perfil
 só de teste (`kafkatest`, em `src/test/resources`), com prazos curtos dos clientes, e reaproveitam o
 contexto do Spring entre as classes que só leem.
 
@@ -443,9 +443,9 @@ docker rm -f awards-pg
 | `metrics/` | Métricas no formato do Prometheus: contagem, status, rota sem parâmetros, rotas inexistentes, 304, histograma e rótulo `application` |
 | `logging/` | Log em texto sem a variável, JSON ECS com ela, banner desligado e nenhum cabeçalho `Authorization` no log |
 | `isolation/` | Sem perfil, o Kafka não é configurado: nenhuma métrica nem cliente Kafka (Marco 3) |
-| `kafka/` | Ingestão por Kafka com o broker embutido: resultado de referência, equivalência byte a byte com a carga direta, readiness só com o evento de carga concluída, linhas inválidas, falhas estruturais, vencedor novo em até 5 s, atualização, idempotência, cada tipo de evento inválido no tópico de erros, tópico de erros fora do ar, broker fora do ar e métricas (Marco 3) |
+| `kafka/` | Ingestão por Kafka com o broker embutido: resultado de referência, equivalência byte a byte com a carga direta, readiness só com o evento de carga concluída, linhas inválidas, falhas estruturais, vencedor novo em até 5 s, atualização, idempotência, cada tipo de evento inválido no tópico de erros (inclusive o caractere nulo, que o PostgreSQL não aceita), tópico de erros fora do ar, broker fora do ar e métricas (Marco 3) |
 | `security/` | Autenticação desligada (guarda do `API_TOKEN`) e ligada: 401 em Problem Details, endpoints públicos, token fora do log, sem senha gerada, cabeçalhos de cache e de proteção e o contrato 1.2.0 (Marco 3) |
-| `postgres/` | Só no perfil `postgres-it`: esquema, equivalência e ordem entre o H2 e o PostgreSQL, reinícios e nova tentativa quando a gravação falha (Marco 3) |
+| `postgres/` | Só no perfil `postgres-it`: esquema, equivalência e ordem entre o H2 e o PostgreSQL, reinícios, nova tentativa quando a gravação falha e recusa permanente do banco por dado inválido, que vai ao tópico de erros (Marco 3) |
 | `support/` | Base comum (`ScenarioIT`, `KafkaScenarioIT`, `TokenScenarioIT`) e apoios (aplicação real por `SpringApplication`, HTTP, Kafka e PostgreSQL reais, leitura do log, do Prometheus e do contrato), sem testes próprios |
 
 **Como os testes funcionam:**

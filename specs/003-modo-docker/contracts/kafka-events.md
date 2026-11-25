@@ -71,9 +71,9 @@ evento com outro `runId` é ignorado. Um cliente externo não tem motivo para en
 | `awards-source-partition` | `0` |
 | `awards-source-offset` | `207` |
 
-**Motivos:** `NOT_UTF8`, `NOT_JSON`, `TYPE_UNKNOWN`, `RUN_ID_MISSING`, `FIELD_TOO_LONG`, `YEAR_MISSING`,
-`YEAR_NOT_NUMERIC`, `YEAR_OUT_OF_RANGE`, `TITLE_MISSING`, `PRODUCERS_MISSING` e `WINNER_INVALID`
-(data-model.md).
+**Motivos:** `NOT_UTF8`, `NOT_JSON`, `TYPE_UNKNOWN`, `RUN_ID_MISSING`, `FIELD_TOO_LONG`, `NUL_CHARACTER`,
+`YEAR_MISSING`, `YEAR_NOT_NUMERIC`, `YEAR_OUT_OF_RANGE`, `TITLE_MISSING`, `PRODUCERS_MISSING`,
+`WINNER_INVALID` e `DATABASE_REJECTED` (recusa permanente do banco, com o SQLState; data-model.md).
 
 ## Garantias
 

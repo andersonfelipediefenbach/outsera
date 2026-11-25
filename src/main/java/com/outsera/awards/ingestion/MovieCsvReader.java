@@ -180,6 +180,10 @@ public class MovieCsvReader {
         if (tooLong != null) {
             return new Rejection(lineNumber, RejectionReason.FIELD_TOO_LONG, tooLong);
         }
+        String nul = MovieFieldRules.nulCharacter(title, record.get(2), record.get(3));
+        if (nul != null) {
+            return new Rejection(lineNumber, RejectionReason.NUL_CHARACTER, nul);
+        }
         Long original = accepted.get(new MovieKey(Integer.parseInt(year), title));
         if (original != null) {
             return new Rejection(lineNumber, RejectionReason.DUPLICATE, "mesmo ano e título da linha " + original);

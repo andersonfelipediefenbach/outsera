@@ -19,7 +19,13 @@ public enum EventRejectionReason {
     TITLE_MISSING(RejectionReason.TITLE_MISSING.message()),
     PRODUCERS_MISSING(RejectionReason.PRODUCERS_MISSING.message()),
     WINNER_INVALID("winner não é booleano"),
-    FIELD_TOO_LONG(RejectionReason.FIELD_TOO_LONG.message());
+    FIELD_TOO_LONG(RejectionReason.FIELD_TOO_LONG.message()),
+    NUL_CHARACTER(RejectionReason.NUL_CHARACTER.message()),
+    /**
+     * O banco recusou a gravação por dado inválido (SQLState das classes 22 e 23). É permanente: o evento vai
+     * ao tópico de erros, sem nova tentativa (spec 003, FR-015a; research R9).
+     */
+    DATABASE_REJECTED("o banco recusou o dado");
 
     private final String message;
 

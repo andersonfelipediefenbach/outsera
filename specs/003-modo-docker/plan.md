@@ -146,10 +146,10 @@ VI, que ficou ambígua na primeira versão deste plano, foi resolvida pela emend
 | FR-013 | `KafkaReadinessIT`, `KafkaBrokerUnavailableIT`, `KafkaBrokerLateStartIT` (tópicos recriados quando o broker volta) |
 | FR-014 | `KafkaIdempotencyIT`, `KafkaUpdateIT`, `RestartDirectPostgresIT`, `RestartPostgresIT` |
 | FR-015 | `KafkaInvalidEventsIT`, `KafkaErrorTopicUnavailableIT` |
-| FR-015a | `RetryPostgresIT` (job `postgres`: nova tentativa quando a gravação falha); passo 7b do job `compose` (queda real do banco) |
+| FR-015a | `RetryPostgresIT` (job `postgres`: nova tentativa quando a gravação falha); `DatabaseRejectionPostgresIT` (job `postgres`: recusa permanente, SQLState 22 e 23, vai ao tópico de erros); passo 7b do job `compose` (queda real do banco) |
 | FR-016 | `KafkaNewWinnerIT` |
 | FR-017 | `KafkaMetricsIT` |
-| FR-018 | `KafkaEquivalenceIT` (inclui `FIELD_TOO_LONG`); `FieldTooLongIT` (carga direta, spec 001 FR-006) |
+| FR-018 | `KafkaEquivalenceIT` (inclui `FIELD_TOO_LONG`); `FieldTooLongIT` e `NulCharacterIT` (carga direta, spec 001 FR-006); `KafkaInvalidEventsIT` (as mesmas regras no evento) |
 | FR-019 a FR-023, FR-025, FR-027 | `AuthDisabledByDefaultIT`, `AuthEnabledIT` (inclui `OPTIONS`), `AuthProblemDetailsIT`, `TokenNotLoggedIT`, `NoGeneratedPasswordIT` |
 | FR-022a | `CacheHeadersIT` |
 | FR-024 | retirado (decisão de design na R11 e no ADR 0017; "Revisão de segurança" do checklist) |

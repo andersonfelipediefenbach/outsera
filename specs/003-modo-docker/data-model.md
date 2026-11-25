@@ -57,13 +57,15 @@ Tópico `awards.movies`, chave `"<ano>|<título>"`, valor JSON em UTF-8. O forma
 | `producers` | texto | sim | separado pelo `ProducerNameParser`, com ao menos um nome | `PRODUCERS_MISSING` |
 | `winner` | booleano JSON | sim | `true` ou `false` | `WINNER_INVALID` |
 | (todos) | — | — | tamanho máximo: `title` ≤ 500, `studios` ≤ 1000, `producers` ≤ 1000 e cada nome de produtor ≤ 500 caracteres (`VARCHAR(500)` e `VARCHAR(1000)` da V1) | `FIELD_TOO_LONG` |
+| `title`, `studios`, `producers` | — | — | nenhum caractere nulo (U+0000), que o PostgreSQL não aceita em texto. Um caractere nulo nas pontas é removido pelo `trim`, como no CSV, e não chega a ser rejeitado | `NUL_CHARACTER` |
 
 **Validação comum aos dois caminhos.** As regras de conteúdo ficam numa única classe, a
 `MovieFieldRules`, usada pelo leitor do CSV e pelo parser de eventos:
 - ano de 1 a 9999;
 - título não vazio;
 - produtores com ao menos um nome;
-- `FIELD_TOO_LONG`.
+- `FIELD_TOO_LONG`;
+- `NUL_CHARACTER` (acrescentado em 2026-11-25, a partir de um apontamento do Codex no PR do Marco 3).
 
 O `FIELD_TOO_LONG` passou a valer também para a linha do CSV (spec 001, FR-006 e data-model, motivo 8).
 Sem ele, o banco recusaria a gravação. Na carga direta, a recusa interrompia a subida. No consumidor, ela
@@ -79,7 +81,14 @@ Motivos que só existem no evento, porque vêm da representação JSON:
 | `TYPE_UNKNOWN` | `type` presente e diferente de `movie` e de `load-completed` |
 
 **Ordem das verificações:** `NOT_UTF8`, `NOT_JSON`, `TYPE_UNKNOWN`, depois a mesma ordem da spec 001:
-ano, título, produtores, `winner` e `FIELD_TOO_LONG`. O primeiro motivo encontrado é o registrado.
+ano, título, produtores, `winner`, `FIELD_TOO_LONG` e `NUL_CHARACTER`. O primeiro motivo encontrado é o
+registrado.
+
+Motivo que vem do banco, depois da validação:
+
+| Motivo | Quando |
+| --- | --- |
+| `DATABASE_REJECTED` | O banco recusou a gravação por dado inválido, com SQLState da classe 22 (dado) ou 23 (restrição de integridade). O detalhe traz o SQLState. É permanente: o evento vai ao tópico de erros, sem nova tentativa (FR-015a; research R9) |
 
 Campos desconhecidos são ignorados (R7).
 

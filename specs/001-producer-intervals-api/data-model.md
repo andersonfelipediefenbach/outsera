@@ -80,7 +80,10 @@ A verificação segue a ordem abaixo, e o primeiro motivo encontrado é o regist
    produtores > 1000 ou um nome de produtor > 500 caracteres (`VARCHAR(500)` e `VARCHAR(1000)` da V1).
    O aviso cita o campo. Acrescentado pela spec 003 em 2026-11-24. A regra fica na `MovieFieldRules`,
    compartilhada com os eventos do Kafka.
-9. `DUPLICATE`: o ano e o título repetem uma linha já aceita. O aviso cita a linha original.
+9. `NUL_CHARACTER`: o título, os estúdios ou os produtores contêm o caractere nulo (U+0000). O aviso cita o
+   campo. Acrescentado pela spec 003 em 2026-11-25 (apontamento do Codex no PR do Marco 3). A regra também
+   fica na `MovieFieldRules`.
+10. `DUPLICATE`: o ano e o título repetem uma linha já aceita. O aviso cita a linha original.
 
 Uma linha em branco não é lida, não conta como linha lida e não gera aviso (FR-005a).
 

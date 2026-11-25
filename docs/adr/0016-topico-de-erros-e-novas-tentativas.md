@@ -21,6 +21,13 @@ gravação falha, por exemplo com o banco fora (FR-015a). As duas situações pe
   segue.
 - **Falha de gravação:** a exceção sobe ao `DefaultErrorHandler`, que tenta de novo sem limite de
   tentativas, com espera crescente até 30 s, sem avançar o offset.
+- **Classificação das falhas de gravação** (atualizado em 2026-11-25, apontamento do Codex no PR do Marco 3):
+  uma recusa do banco por dado inválido (SQLState das classes 22 e 23) é permanente e vai ao tópico de erros
+  com o motivo `DATABASE_REJECTED`, sem nova tentativa. As demais (42P01, perda de conexão, tempo esgotado do
+  pool) continuam com a nova tentativa sem limite. Sem isso, um evento que só o banco recusa travaria a
+  partição para sempre.
+- **Caractere nulo:** a regra `NUL_CHARACTER` (U+0000 no título, nos estúdios ou nos produtores) vale nos dois
+  caminhos de carga, porque o PostgreSQL não aceita esse caractere em texto (atualizado em 2026-11-25).
 - **Tamanho máximo:** a regra `FIELD_TOO_LONG` (campo maior que a coluna) vale nos dois caminhos. Sem ela, o
   banco recusaria a gravação, e a recusa seria tentada de novo para sempre, travando o tópico.
 

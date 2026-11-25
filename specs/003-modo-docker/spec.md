@@ -233,8 +233,15 @@ dashboard provisionado.
 - Evento ilegível (não é um objeto no formato documentado, ou não está em UTF-8): vai ao tópico de
   erros com o conteúdo original, sem derrubar o consumidor.
 - Tópico de erros indisponível: o evento inválido não é gravado e o motivo fica no log; o consumo segue.
-- Falha ao gravar um evento válido (banco indisponível ou recusando a gravação): o evento não é
-  descartado nem vai ao tópico de erros. A gravação é tentada de novo até dar certo (FR-015a).
+- Falha ao gravar um evento válido por um problema passageiro (banco indisponível, conexão perdida,
+  tabela inacessível): o evento não é descartado nem vai ao tópico de erros. A gravação é tentada de novo
+  até dar certo (FR-015a).
+- Recusa do banco por dado inválido (SQLState das classes 22 e 23, como valor inválido ou restrição
+  violada): é permanente. O evento vai ao tópico de erros com o motivo `DATABASE_REJECTED`, sem nova
+  tentativa, e o consumo segue (FR-015a).
+- Caractere nulo (U+0000) no título, nos estúdios ou nos produtores: o PostgreSQL não o aceita em texto.
+  A linha do CSV e o evento são rejeitados pela mesma regra (`NUL_CHARACTER`, spec 001 FR-006), antes de
+  chegar ao banco.
 - Campo maior que a coluna do esquema (título com mais de 500 caracteres, por exemplo): a linha do CSV e
   o evento são rejeitados pela mesma regra (`FIELD_TOO_LONG`, spec 001 FR-006), nos dois caminhos de
   carga.
@@ -299,7 +306,8 @@ dashboard provisionado.
   - ano de 1 a 9999;
   - título não vazio;
   - produtores com ao menos um nome;
-  - tamanho máximo de cada campo (`FIELD_TOO_LONG`).
+  - tamanho máximo de cada campo (`FIELD_TOO_LONG`);
+  - nenhum caractere nulo (U+0000) no título, nos estúdios ou nos produtores (`NUL_CHARACTER`).
 
   O que muda é só a representação, que o JSON impõe:
   - `year` precisa ser um inteiro JSON. Um texto, mesmo só com dígitos, ou um decimal é rejeitado;
@@ -321,12 +329,18 @@ dashboard provisionado.
 - **FR-015**: Um evento inválido MUST NOT ser gravado. Ele MUST ser enviado a um tópico de erros, com o
   conteúdo original e o motivo, e gerar um aviso no log com o motivo. O consumo dos eventos seguintes
   MUST continuar.
-- **FR-015a**: Quando a gravação de um evento válido falha (por exemplo, banco indisponível ou recusando
-  a gravação), o evento MUST NOT ser descartado nem enviado ao tópico de erros. A gravação MUST ser
-  tentada de novo, sem avançar no tópico, até dar certo, e a readiness não muda por causa disso.
-  Comprovação (FR-038):
+- **FR-015a**: Quando a gravação de um evento válido falha por um problema passageiro (por exemplo, banco
+  indisponível, conexão perdida ou tabela inacessível), o evento MUST NOT ser descartado nem enviado ao
+  tópico de erros. A gravação MUST ser tentada de novo, sem avançar no tópico, até dar certo, e a readiness
+  não muda por causa disso. Uma recusa do banco por **dado inválido** (SQLState das classes 22, dado, e 23,
+  restrição de integridade) é permanente: a nova tentativa daria sempre o mesmo erro e travaria a
+  partição. Nesse caso, o evento MUST ir ao tópico de erros com o motivo `DATABASE_REJECTED` e o SQLState,
+  sem nova tentativa, e o consumo MUST continuar (apontamento do Codex no PR do Marco 3). Comprovação
+  (FR-038):
   - o `RetryPostgresIT` prova a nova tentativa quando a gravação falha: a tabela é renomeada e depois
-    devolvida;
+    devolvida (SQLState 42P01);
+  - o `DatabaseRejectionPostgresIT` prova a recusa permanente: dados que só o banco recusa vão ao tópico
+    de erros, e o evento válido seguinte é gravado;
   - a queda real do banco é comprovada pelo passo 7b do teste do compose.
 - **FR-016**: Depois da carga, eventos de filmes novos recebidos pelo mesmo tópico MUST ser gravados e
   refletidos nos intervalos e na listagem, sem reinício e sem mudar a readiness.

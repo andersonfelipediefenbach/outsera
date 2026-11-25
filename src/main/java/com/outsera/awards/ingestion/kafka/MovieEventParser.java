@@ -118,6 +118,10 @@ public final class MovieEventParser {
         if (tooLong != null) {
             return new Rejected(EventRejectionReason.FIELD_TOO_LONG, tooLong);
         }
+        String nul = MovieFieldRules.nulCharacter(title, studios, producers);
+        if (nul != null) {
+            return new Rejected(EventRejectionReason.NUL_CHARACTER, nul);
+        }
         return new Movie(new MovieRow(0, year.intValue(), title, studios == null || studios.isEmpty() ? null : studios,
                 producers, producerNames, winner.booleanValue()));
     }

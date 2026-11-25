@@ -70,6 +70,25 @@ public final class MovieFieldRules {
         return detail;
     }
 
+    /**
+     * O nome do primeiro campo de texto com o caractere nulo (U+0000), ou nulo se nenhum tem (motivo
+     * {@code NUL_CHARACTER}). O PostgreSQL não aceita esse caractere em texto, e sem esta regra a recusa do
+     * banco só apareceria na gravação (apontamento do Codex no PR do Marco 3).
+     */
+    public static String nulCharacter(String title, String studios, String producers) {
+        if (hasNul(title)) {
+            return "título";
+        }
+        if (hasNul(studios)) {
+            return "estúdios";
+        }
+        return hasNul(producers) ? "produtores" : null;
+    }
+
+    private static boolean hasNul(String value) {
+        return value != null && value.indexOf(0) >= 0; // 0 é o caractere nulo (U+0000)
+    }
+
     private static String exceeds(String field, String value, int max) {
         if (value == null) {
             return null;

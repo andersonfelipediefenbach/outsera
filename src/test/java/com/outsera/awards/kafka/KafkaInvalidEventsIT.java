@@ -25,7 +25,7 @@ import org.springframework.test.context.TestPropertySource;
  * travar o consumo (spec 003, FR-015, FR-017, US3-3, US3-4 e SC-006). Os motivos são os do
  * data-model.md, inclusive os de conteúdo, que são as mesmas regras da linha do CSV.
  *
- * <p>Os 16 casos são publicados numa única execução, cada um com a sua chave, seguidos de um evento
+ * <p>Os 17 casos são publicados numa única execução, cada um com a sua chave, seguidos de um evento
  * válido. O tópico tem uma partição e é consumido em ordem: quando o evento válido aparece na listagem,
  * todos os inválidos já foram processados sem travar o consumo. Depois, cada caso é conferido no tópico de
  * erros pela chave, com uma mensagem própria por caso.
@@ -59,11 +59,14 @@ class KafkaInvalidEventsIT extends KafkaScenarioIT {
                 new Case("invalido-13", "WINNER_INVALID", movie("", "2000", "\"" + MARKER + "\"", "\"P\"", "\"yes\"")),
                 new Case("invalido-14", "WINNER_INVALID", movie("", "2000", "\"" + MARKER + "\"", "\"P\"", null)),
                 new Case("invalido-15", "FIELD_TOO_LONG", movie("", "2000", "\"" + MARKER + "T".repeat(501) + "\"", "\"P\"", "true")),
-                new Case("invalido-16", "FIELD_TOO_LONG", movie("", "2000", "\"" + MARKER + "\"", "\"" + "P".repeat(1001) + "\"", "true")));
+                new Case("invalido-16", "FIELD_TOO_LONG", movie("", "2000", "\"" + MARKER + "\"", "\"" + "P".repeat(1001) + "\"", "true")),
+                // Escape JSON do caractere nulo (barra, u, 0000) no meio do título: o trim, como no CSV, só tira os das
+                // pontas. O PostgreSQL não aceita esse caractere em texto (apontamento do Codex).
+                new Case("invalido-17", "NUL_CHARACTER", movie("", "2000", "\"" + MARKER + "\\u0000fim\"", "\"P\"", "true")));
     }
 
     @Test
-    @DisplayName("S003 FR-015 US3-3 US3-4 SC-006 FR-017 os 16 tipos de evento inválido vão ao tópico de erros")
+    @DisplayName("S003 FR-015 US3-3 US3-4 SC-006 FR-017 os 17 tipos de evento inválido vão ao tópico de erros")
     void invalidEventsGoToTheErrorTopic(CapturedOutput output) {
         awaitReady();
         List<Case> cases = cases();

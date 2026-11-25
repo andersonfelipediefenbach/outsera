@@ -277,7 +277,11 @@ máquina e conferir se os dois endpoints estão descritos. Validar as respostas 
   - um campo excede o tamanho da coluna do esquema: título com mais de 500 caracteres, estúdios ou
     produtores com mais de 1000, ou um nome de produtor com mais de 500 (acrescentado pela spec 003 em
     2026-11-24, para que a carga direta e a ingestão por Kafka usem a mesma validação; antes, essa linha
-    interrompia a carga com um erro do banco, sem mensagem clara).
+    interrompia a carga com um erro do banco, sem mensagem clara);
+  - o título, os estúdios ou os produtores contêm o caractere nulo (U+0000), que o PostgreSQL não aceita
+    em texto (acrescentado pela spec 003 em 2026-11-25, a partir de um apontamento do Codex no PR do
+    Marco 3, pelo mesmo motivo: a mesma validação na carga direta e na ingestão por Kafka, e nenhuma
+    recusa do banco no lugar de uma mensagem clara).
 - **FR-006e**: Ano, título e produtores são colunas obrigatórias. A coluna de estúdios é opcional: vazia,
   ela não invalida a linha. `winner` vazio significa não vencedor (FR-004).
 - **FR-006a**: Cada linha ignorada MUST gerar um aviso no log com o número da linha no arquivo e o

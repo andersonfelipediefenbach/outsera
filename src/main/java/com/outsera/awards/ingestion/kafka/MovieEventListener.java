@@ -8,6 +8,7 @@ import com.outsera.awards.ingestion.kafka.MovieEventParser.Rejected;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -27,8 +28,10 @@ import org.springframework.stereotype.Component;
  *   <li>Evento de carga concluída: entregue ao indicador da readiness.</li>
  *   <li>Evento inválido: não é gravado. Vai ao tópico de erros com os bytes originais e o motivo nos
  *       cabeçalhos, e o consumo segue.</li>
- *   <li>Falha ao gravar (banco indisponível, por exemplo): a exceção sobe ao {@code DefaultErrorHandler},
- *       que tenta de novo sem avançar o offset (FR-015a).</li>
+ *   <li>Falha passageira ao gravar (banco indisponível, por exemplo): a exceção sobe ao
+ *       {@code DefaultErrorHandler}, que tenta de novo sem avançar o offset (FR-015a).</li>
+ *   <li>Recusa permanente do banco por dado inválido (SQLState das classes 22 e 23): o evento vai ao
+ *       tópico de erros com o motivo {@code DATABASE_REJECTED}, sem nova tentativa (FR-015a).</li>
  * </ul>
  *
  * <p>O log nunca traz o conteúdo do evento, só o motivo e a posição.
@@ -77,7 +80,16 @@ public class MovieEventListener {
         Parsed parsed = MovieEventParser.parse(record.value());
         switch (parsed) {
             case Movie movie -> {
-                importService.record(movie.row());
+                try {
+                    importService.record(movie.row());
+                } catch (RuntimeException e) {
+                    String sqlState = permanentSqlState(e);
+                    if (sqlState == null) {
+                        throw e; // passageira: o DefaultErrorHandler tenta de novo (FR-015a)
+                    }
+                    reject(record, new Rejected(EventRejectionReason.DATABASE_REJECTED, "SQLState " + sqlState));
+                    return;
+                }
                 recorded.increment();
             }
             case Completed completed -> readiness.complete(completed.event());
@@ -107,6 +119,22 @@ public class MovieEventListener {
                     properties.topicErrors(), record.topic(), record.partition(), record.offset(), e.toString());
         }
         rejected.increment();
+    }
+
+    /**
+     * O SQLState de uma recusa permanente do banco, ou nulo se a falha é passageira. Permanentes são as
+     * classes 22 (dado inválido) e 23 (restrição de integridade): a nova tentativa daria o mesmo erro e
+     * travaria a partição. As demais, como a tabela inexistente (42P01) e a perda de conexão (08xxx),
+     * continuam com a nova tentativa (spec 003, FR-015a; research R9; apontamento do Codex no PR do Marco 3).
+     */
+    static String permanentSqlState(Throwable failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause() == cause ? null : cause.getCause()) {
+            if (cause instanceof SQLException sql && sql.getSQLState() != null
+                    && (sql.getSQLState().startsWith("22") || sql.getSQLState().startsWith("23"))) {
+                return sql.getSQLState();
+            }
+        }
+        return null;
     }
 
     private static void header(ProducerRecord<String, byte[]> record, String name, String value) {
