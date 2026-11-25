@@ -800,3 +800,42 @@ Aplique tudo, rode o /speckit-analyze de novo e me mostre o resultado. Não faç
 ```text
 Aplique o N1 e o N2. Confirme também se a T093 inclui o job compose entre os checks obrigatórios, além do postgres. Se não incluir, acrescente. Os outros (A3, N3 e C4) ficam para as etapas. Não faça commit.
 ```
+
+## 2026-11-24 16:04:38 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+/speckit-implement Execute o bolt único do marco 3, etapa por etapa, fazendo um commit ao fim de cada etapa. Não faça push.
+```
+
+## 2026-11-25 08:29:54 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+Não aceito os 4 min, mas também não corte casos. Reduza o tempo sem perder cobertura: timeouts menores do cliente Kafka só no perfil de teste (como max.block.ms e o request timeout no teste do broker fora do ar), os 16 eventos inválidos publicados numa única execução e conferidos juntos no tópico de erros, e reaproveitamento do contexto do Spring entre os ITs do Kafka, igualando as propriedades. A meta é ficar dentro do limite de 2× da research. Se não chegar lá sem tirar cobertura, me diga quanto conseguiu e o que custaria ir além. Registre o resultado em docs/ai/decisoes.md e faça um commit de correção da etapa 2. Não faça push.
+```
+
+## 2026-11-25 08:56:48 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+
+
+<pasted_content id="03d1">
+O Codex fez 3 apontamentos no PR. Os três procedem. Corrija nesta ordem, com a spec antes do código (Princípio IV):
+
+1. Grupo do consumidor: o @KafkaListener usa o id como grupo (idIsGroup=true) e ignora KAFKA_CONSUMER_GROUP. Faça o listener usar o grupo configurado. Acrescente um IT que suba com um grupo diferente e confira no broker, pelo AdminClient, que o grupo registrado é o configurado.
+
+2. Tópicos depois de falha do broker na subida: com fail-fast false, se o broker estiver fora na subida, nada recria os tópicos depois, e o compose desliga a criação automática. Faça a recuperação tentar criar os tópicos de novo, não só reenviar. Atualize o caso de borda "Broker indisponível" na spec para descrever a recuperação. Comprove por IT, subindo o broker embutido depois da aplicação; se isso não for viável, explique por quê e comprove num passo do compose-test.sh.
+
+3. Evento com \u0000: o PostgreSQL rejeita NUL, a exceção entra na nova tentativa sem limite e trava a partição. Corrija em duas camadas:
+   a) Validação: rejeite NUL nas regras compartilhadas da MovieFieldRules, com um motivo próprio, valendo para o Kafka e para o CSV. Atualize a spec 001 e a 003, registrando a origem como no FIELD_TOO_LONG.
+   b) Classificação: erros de dado do banco (SQLState das classes 22 e 23) são permanentes e vão para o tópico de erros, sem nova tentativa. Os demais, como a tabela inexistente do RetryPostgresIT (42P01) e a perda de conexão, continuam com nova tentativa. Registre a decisão na R9. Cubra com IT: no postgres-it, um caso que só o banco rejeite (sem passar pela validação da camada a) indo ao tópico de erros, seguido de um evento válido gravado; e o RetryPostgresIT continua verde.
+
+Rode o ./mvnw verify e o perfil postgres-it. Informe os tempos. Faça um commit por apontamento, com a referência ao comentário do PR na mensagem. Não faça push.
+</pasted_content id="03d1">
+
+```

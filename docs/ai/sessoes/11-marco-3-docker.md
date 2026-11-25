@@ -12145,3 +12145,1083 @@ um commit ao fim de cada etapa. Não faça push.
   Registrei a medição, as mudanças e esse limite em docs/ai/decisoes.md e na R15
   da research. Também atualizei o README e a T032 no tasks.md.
 ✻ Churned for 16m 59s · done 8:46
+
+❯ /export docs/ai/sessoes/11-marco-3-docker.md                                  
+  ⎿  Conversation exported to
+     D:\Repo\PESSOAIS\outsera-test\outsera\docs\ai\sessoes\11-marco-3-docker.md
+
+❯ O Codex fez 3 apontamentos no PR. Os três procedem. Corrija nesta ordem, com  
+  a spec antes do código (Princípio IV):                                        
+                                                                                
+  1. Grupo do consumidor: o @KafkaListener usa o id como grupo (idIsGroup=true) 
+  e ignora KAFKA_CONSUMER_GROUP. Faça o listener usar o grupo configurado.      
+  Acrescente um IT que suba com um grupo diferente e confira no broker, pelo    
+  AdminClient, que o grupo registrado é o configurado.                          
+  2. Tópicos depois de falha do broker na subida: com fail-fast false, se o     
+  broker estiver fora na subida, nada recria os tópicos depois, e o compose     
+  desliga a criação automática. Faça a recuperação tentar criar os tópicos de   
+  novo, não só reenviar. Atualize o caso de borda "Broker indisponível" na spec 
+  para descrever a recuperação. Comprove por IT, subindo o broker embutido      
+  depois da aplicação; se isso não for viável, explique por quê e comprove num  
+  passo do compose-test.sh.                                                     
+  3. Evento com \u0000: o PostgreSQL rejeita NUL, a exceção entra na nova       
+  tentativa sem limite e trava a partição. Corrija em duas camadas:             
+     a) Validação: rejeite NUL nas regras compartilhadas da MovieFieldRules,    
+  com um motivo próprio, valendo para o Kafka e para o CSV. Atualize a spec 001 
+  e a 003, registrando a origem como no FIELD_TOO_LONG.                         
+     b) Classificação: erros de dado do banco (SQLState das classes 22 e 23)    
+  são permanentes e vão para o tópico de erros, sem nova tentativa. Os demais,  
+  como a tabela inexistente do RetryPostgresIT (42P01) e a perda de conexão,    
+  continuam com nova tentativa. Registre a decisão na R9. Cubra com IT: no      
+  postgres-it, um caso que só o banco rejeite (sem passar pela validação da     
+  camada a) indo ao tópico de erros, seguido de um evento válido gravado; e o   
+  RetryPostgresIT continua verde.                                               
+                                                                                
+  Rode o ./mvnw verify e o perfil postgres-it. Informe os tempos. Faça um       
+  commit por apontamento, com a referência ao comentário do PR na mensagem. Não 
+  faça push.                                                                    
+
+● Vou corrigir os três apontamentos, cada um com a spec primeiro, depois o IT, a
+  confirmação da falha, o código e um commit próprio. Começo pelo 1, o grupo do
+  consumidor.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Update(specs\003-modo-docker\spec.md)
+  ⎿  Added 3 lines, removed 1 line
+      257    ingestão por Kafka. A ingestão por Kafka e o banco MUST pode
+           r ser ligados separadamente, para que os
+      258    testes da ingestão rodem com H2 e o broker embutido no `./mv
+           nw verify`.
+      259  - **FR-003**: Toda configuração do modo Docker (endereço do ba
+           nco, usuário, endereço do broker, nomes
+      260 -  dos tópicos) MUST vir de variáveis de ambiente, com padrões 
+          -que funcionem no compose (Princípio VII).                     
+      260 +  dos tópicos e grupo do consumidor) MUST vir de variáveis de 
+          +ambiente, com padrões que funcionem no                        
+      261 +  compose (Princípio VII). O consumidor MUST se registrar no b
+          +roker com o grupo configurado                                 
+      262 +  (`KAFKA_CONSUMER_GROUP`), e não com um nome fixo no código (
+          +apontamento do Codex no PR do Marco 3).                       
+      263 
+      264  **PostgreSQL**
+      265 
+
+● Write(src\test\java\com\outsera\awards\kafka\KafkaConsumerGroupIT.java)
+  ⎿  Wrote 41 lines to
+     src\test\java\com\outsera\awards\kafka\KafkaConsumerGroupIT.java
+       1 package com.outsera.awards.kafka;
+       2 
+       3 import static org.assertj.core.api.Assertions.assertThat;
+       4 
+       5 import com.outsera.awards.support.KafkaScenarioIT;
+       6 import java.util.Collection;
+       7 import java.util.List;
+       8 import java.util.Map;
+       9 import java.util.concurrent.TimeUnit;
+      10 import org.apache.kafka.clients.admin.Admin;
+     … +31 lines (ctrl+o to expand)
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● O teste reproduz o defeito, com o broker registrando awards-movies em vez do
+  grupo configurado. Vou definir um clientIdPrefix explícito para que o
+  client_id das métricas não dependa do grupo. · summary
+
+● Bash(cd "D:/Repo/PESSOAIS/outsera-test/outsera"; cat > "$TEMP/g1.js" <<'EOF'
+      const fs=require("fs");…)
+  ⎿  ok
+     observability/grafana/dashboards/awards.json:190:          "expr": "ma
+     x(kafka_consumer_fetch_manager_records_lag_max{application=\"awards\",
+     … +6 lines (ctrl+o to expand)
+  ⎿  Updated observability\grafana\dashboards\awards.json +1 -1
+      187              "type": "prometheus",
+      188              "uid": "prometheus"
+      189            },
+      190 -          "expr": "max(kafka_consumer_fetch_manager_records_la
+          -g_max{application=\"awards\",client_id=~\"consumer-awards-movi
+          -es.*\"})",                                                    
+      190 +          "expr": "max(kafka_consumer_fetch_manager_records_la
+          +g_max{application=\"awards\",client_id=~\"awards-movies-.*\"})
+          +",                                                            
+      191            "legendFormat": "atraso"
+      192          }
+      193        ]
+  ⎿  Updated specs\003-modo-docker\contracts\operational-endpoints.md +1 -1
+      63  | Série no Prometheus | Rótulos | Significado |
+      64  | --- | --- | --- |
+      65  | `awards_ingestion_events_total` | `outcome="recorded"` ou `"r
+          ejected"`, `application` | eventos de filme gravados e enviados
+           ao tópico de erros (FR-017) |
+      66 -| `kafka_consumer_fetch_manager_records_lag_max` (verificado, r
+         -esearch R19) | `client_id` (`consumer-awards-movies-<n>`), `spr
+         -ing_id`, `kafka_version`, `application` | atraso máximo do cons
+         -umidor do tópico de filmes (uma partição, um consumidor) |     
+      66 +| `kafka_consumer_fetch_manager_records_lag_max` (verificado, r
+         +esearch R19) | `client_id` (`awards-movies-<n>`), `spring_id`, 
+         +`kafka_version`, `application` | atraso máximo do consumidor do
+         + tópico de filmes (uma partição, um consumidor) |              
+      67 
+      68  No modo padrão, nenhuma série `kafka_*` nem `awards_ingestion_*
+          ` existe (research R2).
+  ⎿  Updated specs\003-modo-docker\research.md +2 -2
+      514    - **requisições por segundo** por rota: `sum by (uri) (rate(
+           http_server_requests_seconds_count{uri=~"/api/.*"}[1m]))`;
+      515    - **taxa de erro:** razão entre `outcome=~"CLIENT_ERROR|SERV
+           ER_ERROR"` e o total, nas rotas de negócio;
+      516    - **p95 e p99 de latência:** `histogram_quantile(0.95|0.99,
+           sum by (le, uri) (rate(http_server_requests_seconds_bucket{uri
+           =~"/api/.*"}[5m])))`;
+      517 -  - **atraso do consumidor:** `max(kafka_consumer_fetch_manage
+          -r_records_lag_max{client_id=~"consumer-awards-movies.*"})`;   
+      517 +  - **atraso do consumidor:** `max(kafka_consumer_fetch_manage
+          +r_records_lag_max{client_id=~"awards-movies-.*"})`;           
+      518    - **eventos gravados e rejeitados:** `rate(awards_ingestion_
+           events_total[5m])` por `outcome`.
+      519  - **Verificado (etapa 2):** com o Spring Kafka 4.1.2, a série
+           que aparece logo depois da carga é a do
+      520    cliente: `kafka_consumer_fetch_manager_records_lag_max`, com
+            o rótulo `client_id` do consumidor do
+      521 -  ouvinte `awards-movies` (`consumer-awards-movies-<n>`). A sé
+          -rie por partição (`..._records_lag`, com                      
+      521 +  ouvinte `awards-movies` (`awards-movies-<n>`, pelo `clientId
+          +Prefix` do ouvinte, que não depende do grupo). A série por par
+          +tição (`..._records_lag`, com                                 
+      522    `topic` e `partition`) só aparece depois da atualização peri
+           ódica do Micrometer. Com um consumidor e
+      523    uma partição, o máximo do cliente é o atraso do tópico de fi
+           lmes. O `KafkaMetricsIT` fixa esse nome, e
+      524    o painel usa o mesmo.
+  ⎿  Updated src\main\java\com\outsera\awards\ingestion\kafka\MovieEventLis
+     tener.java +7 -1
+      66                  .register(registry);
+      67      }
+      68 
+      69 -    @KafkaListener(id = "awards-movies", topics = "${awards.ing
+         -estion.topic-movies}")                                         
+      69 +    /**                                                        
+      70 +     * O grupo é o de {@code spring.kafka.consumer.group-id} ({
+         +@code KAFKA_CONSUMER_GROUP}), e não o id do                    
+      71 +     * ouvinte ({@code idIsGroup = false}; spec 003, FR-003). O
+         + prefixo do {@code client.id} é fixo, para que                 
+      72 +     * a série de atraso das métricas e o dashboard não dependa
+         +m do grupo configurado.                                        
+      73 +     */                                                        
+      74 +    @KafkaListener(id = "awards-movies", idIsGroup = false, cli
+         +entIdPrefix = "awards-movies",                                 
+      75 +            topics = "${awards.ingestion.topic-movies}")       
+      76      public void onEvent(ConsumerRecord<String, byte[]> record)
+          {
+      77          Parsed parsed = MovieEventParser.parse(record.value());
+      78          switch (parsed) {
+  ⎿  Updated src\test\java\com\outsera\awards\kafka\KafkaMetricsIT.java +1
+     -1
+      21  class KafkaMetricsIT extends KafkaScenarioIT {
+      22 
+      23      static final String LAG = "kafka_consumer_fetch_manager_rec
+          ords_lag_max";
+      24 -    static final String CONSUMER_CLIENT = "consumer-awards-movi
+         -es";                                                           
+      24 +    static final String CONSUMER_CLIENT = "awards-movies-";    
+      25 
+      26      private List<Sample> samples() {
+      27          String text = http.get().uri("/actuator/prometheus").ex
+          change().expectStatus().isOk()
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● A correção funciona. Registro a decisão, atualizo a rastreabilidade do plano e
+  faço o commit do apontamento 1. Rodo o verify completo no fim dos três.
+
+● Bash(cd "D:/Repo/PESSOAIS/outsera-test/outsera"; cat > "$TEMP/g2.js" <<'EOF'
+      const fs=require("fs");…)
+  ⎿  e98983d Revisão do PR do Marco 3, apontamento 1: grupo do consumidor c
+     onfigurado
+  ⎿  Updated docs\ai\decisoes.md +22
+       3  Sugestões e decisões relevantes, aceitas ou rejeitadas, com o m
+          otivo (item 5.2 do enunciado). As
+       4  decisões de arquitetura ficam em ADRs, em `docs/adr/`.
+       5 
+       6 +## 2026-11-25 — Revisão do Codex no PR do Marco 3: grupo do con
+         +sumidor (apontamento 1)                                        
+       7 +                                                               
+       8 +- **Apontamento (aceito):** o `@KafkaListener(id = "awards-movi
+         +es")` usa o id como grupo (`idIsGroup`, que é                  
+       9 +  verdadeiro por padrão) e ignora `KAFKA_CONSUMER_GROUP`. A FR-
+         +003 pedia toda a configuração por variável                     
+      10 +  de ambiente, e o grupo estava fixo no código.                
+      11 +- **Por que os testes não pegaram:** cada classe de teste tem o
+         + seu broker, então todas usavam o mesmo grupo                  
+      12 +  fixo sem conflito. Nenhum teste conferia o grupo registrado n
+         +o broker.                                                      
+      13 +- **Correção:**                                                
+      14 +  - a spec veio primeiro: a FR-003 agora cita o grupo do consum
+         +idor;                                                          
+      15 +  - o ouvinte passou a usar `idIsGroup = false`, e o grupo vem 
+         +de `spring.kafka.consumer.group-id`                            
+      16 +    (`KAFKA_CONSUMER_GROUP`, padrão `awards`);                 
+      17 +  - o `clientIdPrefix = "awards-movies"` ficou explícito. Sem e
+         +le, o `client.id` do Kafka seria derivado do                   
+      18 +    grupo, e a série de atraso das métricas e o dashboard mudar
+         +iam de nome conforme a variável. O                             
+      19 +    `client_id` passa a ser `awards-movies-<n>`, e o `KafkaMetr
+         +icsIT`, o dashboard, a R19 e o contrato                        
+      20 +    operacional foram atualizados.                             
+      21 +- **Comprovação:** o `KafkaConsumerGroupIT` sobe com `KAFKA_CON
+         +SUMER_GROUP=grupo-configurado-it` e confere                    
+      22 +  no broker, pelo `AdminClient` real, que esse é o grupo regist
+         +rado, com um membro, e que `awards-movies`                     
+      23 +  não aparece. Antes da correção, ele falhou com o grupo `award
+         +s-movies`.                                                     
+      24 +- **Efeito no compose:** com o padrão, o grupo passa a ser `awa
+         +rds`. Um volume do Kafka criado antes da                       
+      25 +  correção tem os offsets no grupo antigo, então o consumidor n
+         +ovo relê o tópico desde o começo. Isso é                       
+      26 +  inofensivo, porque a gravação é idempotente.                 
+      27 +                                                               
+      28  ## 2026-11-25 — Tempo do `./mvnw verify` do Marco 3 (correção d
+          a etapa 2)
+      29 
+      30  - **Origem:** o `verify` passou de 96 s na linha de base para c
+          erca de 4 min, acima do limite de 2× da
+  ⎿  Updated specs\003-modo-docker\plan.md +1 -1
+      136  | --- | --- |
+      137  | FR-001 | suíte dos Marcos 1 e 2 sem alteração; `DefaultModeI
+           solationIT`; `check-unchanged-tests.sh` |
+      138  | FR-002 | ITs `kafka/` com H2 e `@ActiveProfiles("kafka")`; `
+           *PostgresIT` com `postgres` |
+      139 -| FR-003 | ITs que sobrescrevem `KAFKA_TOPIC_*` e `DB_*`; job 
+          -`compose` |                                                   
+      139 +| FR-003 | ITs que sobrescrevem `KAFKA_TOPIC_*` e `DB_*`; `Kaf
+          +kaConsumerGroupIT` (grupo do consumidor); job `compose` |     
+      140  | FR-004, FR-005 | `SchemaPostgresIT` (job `postgres`); `ddl-a
+           uto: validate` nos dois bancos |
+      141  | FR-006, FR-008 | `EquivalencePostgresIT`, `ListingOrderPostg
+           resIT` (job `postgres`) |
+      142  | FR-007 | job `postgres`, obrigatório na proteção da `main` (
+           T093) |
+
+● Agora o apontamento 2. Primeiro a spec: o caso de borda "Broker indisponível"
+  passa a descrever a recuperação.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Update(specs\003-modo-docker\spec.md)
+  ⎿  Added 6 lines, removed 2 lines
+      211  ### Edge Cases
+      212 
+      213  - Broker indisponível ao subir no modo Docker: a aplicação não
+            se declara pronta enquanto a carga não
+      214 -  for concluída; a liveness continua positiva. O compose só so
+          -be a aplicação depois de o Kafka e o                          
+      215 -  PostgreSQL ficarem saudáveis.                               
+      214 +  for concluída; a liveness continua positiva. A cada nova ten
+          +tativa de publicação, a aplicação também                      
+      215 +  tenta criar de novo os tópicos de filmes e de erros que aind
+          +a não existem, porque o broker pode não                       
+      216 +  criá-los sozinho (no compose, a criação automática fica desl
+          +igada). Quando o broker volta, a aplicação                    
+      217 +  cria os tópicos, publica o arquivo, consome a carga e fica p
+          +ronta, sem reinício. O compose só sobe a                      
+      218 +  aplicação depois de o Kafka e o PostgreSQL ficarem saudáveis
+          +, mas a recuperação não depende disso                         
+      219 +  (apontamento do Codex no PR do Marco 3).                    
+      220  - Evento de carga concluída de uma execução anterior ainda no
+           tópico, ou consumido de novo: não libera a
+      221    readiness da execução atual. Só o evento desta execução cont
+           a.
+      222  - Dois reinícios seguidos, com a primeira publicação interromp
+           ida no meio: a segunda publica o arquivo
+
+● Write(src\test\java\com\outsera\awards\kafka\KafkaBrokerLateStartIT.java)
+  ⎿  Wrote 83 lines to
+     src\test\java\com\outsera\awards\kafka\KafkaBrokerLateStartIT.java
+       1 package com.outsera.awards.kafka;
+       2 
+       3 import static org.assertj.core.api.Assertions.assertThat;
+       4 
+       5 import com.outsera.awards.support.ApplicationStarter;
+       6 import com.outsera.awards.support.ApplicationStarter.Result;
+       7 import com.outsera.awards.support.Http;
+       8 import com.outsera.awards.support.KafkaTestSupport;
+       9 import com.outsera.awards.support.KafkaTestSupport.Topics;
+      10 import java.io.IOException;
+     … +73 lines (ctrl+o to expand)
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● O teste confirma o defeito: com o broker no ar e sem criação automática, o
+  publicador falha sem parar porque o tópico não existe. Vou fazer com que ele
+  peça ao KafkaAdmin para criar os tópicos que faltam antes de cada nova
+  tentativa. · summary
+
+● Bash(cd "D:/Repo/PESSOAIS/outsera-test/outsera"; cat > "$TEMP/t1.js" <<'EOF'
+      const fs=require("fs");…)
+  ⎿  rc=1
+     [ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed
+     : 108.8 s <<< FAILURE! -- in com.outsera.awards.kafka.KafkaBrokerLateS
+     … +6 lines (ctrl+o to expand)
+  ⎿  Updated src\main\java\com\outsera\awards\ingestion\kafka\MovieEventPub
+     lisher.java +26 -1
+      16  import org.springframework.boot.context.event.ApplicationReadyE
+          vent;
+      17  import org.springframework.context.ApplicationListener;
+      18  import org.springframework.context.annotation.Profile;
+      19 +import org.springframework.kafka.core.KafkaAdmin;              
+      20  import org.springframework.kafka.core.KafkaTemplate;
+      21  import org.springframework.stereotype.Component;
+      22  import tools.jackson.databind.json.JsonMapper;
+     ...
+      30   * {@link ApplicationReadyEvent}, publica num fio próprio um ev
+          ento por linha aceita e o evento de carga
+      31   * concluída. Com o broker fora do ar, tenta de novo com espera
+           crescente, sem derrubar a aplicação: ela
+      32   * fica viva e não pronta.
+      33 + *                                                             
+      34 + * <p>A cada nova tentativa, pede ao {@link KafkaAdmin} que cri
+         +e os tópicos que ainda não existem. Com o                      
+      35 + * broker fora na subida, a criação dos tópicos falha (com {@co
+         +de fail-fast} desligado), e o broker pode não                  
+      36 + * criá-los sozinho, como no compose, que desliga a criação aut
+         +omática. Sem isso, a publicação falharia para                  
+      37 + * sempre depois de o broker voltar (spec 003, caso de borda "B
+         +roker indisponível"; apontamento do Codex no                   
+      38 + * PR do Marco 3).                                             
+      39   */
+      40  @Component
+      41  @Profile("kafka")
+     ...
+      54      private final KafkaTemplate<String, byte[]> kafka;
+      55      private final KafkaIngestionProperties properties;
+      56      private final IngestionReadiness readiness;
+      57 +    private final KafkaAdmin admin;                            
+      58 
+      59      private volatile MovieCsvReader.Result result;
+      60      private volatile Thread worker;
+      61 
+      62      public MovieEventPublisher(MovieFileReading reading, KafkaT
+          emplate<String, byte[]> kafka,
+      55 -            KafkaIngestionProperties properties, IngestionReadi
+         -ness readiness) {                                              
+      63 +            KafkaIngestionProperties properties, IngestionReadi
+         +ness readiness, KafkaAdmin admin) {                            
+      64          this.reading = reading;
+      65          this.kafka = kafka;
+      66          this.properties = properties;
+      67          this.readiness = readiness;
+      68 +        this.admin = admin;                                    
+      69      }
+      70 
+      71      @Override
+     ...
+      132                          properties.topicMovies(), backoff, e.g
+           etMessage());
+      133                  Thread.sleep(backoff);
+     … +21 lines (ctrl+o to expand)
+  ⎿  (timeout 10m)
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● O KafkaAdmin continua falhando com o broker já no ar. Vou ver a causa.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● The broker came up on random ports (63677/63678), not on the requested port:
+  kafkaPorts was ignored. Checking how the EmbeddedKafkaKraftBroker uses it.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● kafkaPorts é ignorado pelo EmbeddedKafkaKraftBroker do Spring Kafka 4.1.2,
+  então não dá para fixar a porta do broker. Vou contornar isso apontando a
+  aplicação para uma porta livre e repassando a primeira conexão com um proxy
+  TCP simples, deixando o cliente falar direto com o broker real. · summary
+
+● Write(src\test\java\com\outsera\awards\support\TcpForwarder.java)
+  ⎿  Wrote 89 lines to
+     src\test\java\com\outsera\awards\support\TcpForwarder.java
+       1 package com.outsera.awards.support;
+       2 
+       3 import java.io.IOException;
+       4 import java.io.InputStream;
+       5 import java.io.OutputStream;
+       6 import java.io.UncheckedIOException;
+       7 import java.net.InetAddress;
+       8 import java.net.InetSocketAddress;
+       9 import java.net.ServerSocket;
+      10 import java.net.Socket;
+     … +79 lines (ctrl+o to expand)
+
+● Bash(cd "D:/Repo/PESSOAIS/outsera-test/outsera"; cat > "$TEMP/t2.js" <<'EOF'
+      const fs=require("fs");…)
+  ⎿  ok
+  ⎿  Updated
+     src\test\java\com\outsera\awards\kafka\KafkaBrokerLateStartIT.java +17
+     -5
+       7  import com.outsera.awards.support.Http;
+       8  import com.outsera.awards.support.KafkaTestSupport;
+       9  import com.outsera.awards.support.KafkaTestSupport.Topics;
+      10 +import com.outsera.awards.support.TcpForwarder;                
+      11  import java.io.IOException;
+      12  import java.io.UncheckedIOException;
+      13  import java.net.ServerSocket;
+     ...
+      26   * Broker que só sobe depois da aplicação, sem criação automáti
+          ca de tópicos, como no compose (spec 003,
+      27   * caso de borda "Broker indisponível"; apontamento do Codex no
+           PR do Marco 3).
+      28   *
+      28 - * <p>A aplicação sobe sem o broker, com o {@code KafkaAdmin} f
+         -alhando ao criar os tópicos. Depois, o teste                   
+      29 - * sobe o broker embutido na porta que a aplicação já usa, com 
+         -{@code auto.create.topics.enable=false}. A                     
+      30 - * aplicação precisa criar os tópicos sozinha, publicar o arqui
+         -vo e ficar pronta, sem reinício. Usa                           
+      29 + * <p>A aplicação sobe apontando para uma porta livre, onde nad
+         +a escuta: o broker está fora de verdade, e o                   
+      30 + * {@code KafkaAdmin} falha ao criar os tópicos. Depois, o test
+         +e sobe o broker embutido, com                                  
+      31 + * {@code auto.create.topics.enable=false}, e um {@link TcpForw
+         +arder} na porta que a aplicação usa. O                         
+      32 + * {@code EmbeddedKafkaKraftBroker} do Spring Kafka 4.1.2 ignor
+         +a o {@code kafkaPorts} e sempre sobe numa porta                
+      33 + * aleatória. O repassador só leva a conexão inicial ao broker;
+         + daí em diante, os clientes falam direto com                   
+      34 + * ele, pelo endereço que o próprio broker anuncia.            
+      35 + *                                                             
+      36 + * <p>A aplicação precisa criar os tópicos sozinha, publicar o 
+         +arquivo e ficar pronta, sem reinício. Usa                      
+      37   * {@code SpringApplication} pela cláusula "ordem da subida" do
+           Princípio I: o que se observa é a aplicação
+      38   * real antes e depois de a dependência subir.
+      39   */
+     ...
+      54          String brokers = "localhost:" + kafkaPort;
+      55          Topics topics = KafkaTestSupport.topics(KafkaBrokerLate
+          StartIT.class);
+      56          EmbeddedKafkaBroker[] broker = new EmbeddedKafkaBroker[
+          1];
+      57 +        TcpForwarder[] forwarder = new TcpForwarder[1];        
+      58 
+      59          Result result = ApplicationStarter.startAndCall("classp
+          ath:movielist.csv",
+      60                  KafkaTestSupport.args(brokers, topics), port ->
+           {
+     ...
+      63                                  .as("readiness sem o broker").i
+          sEqualTo(503);
+      64 
+      65                          EmbeddedKafkaKraftBroker late = new Emb
+          eddedKafkaKraftBroker(1, 1);
+      59 -                        late.kafkaPorts(kafkaPort);            
+      66                          late.brokerProperty("auto.create.topics
+          .enable", "false");
+      67                          late.afterPropertiesSet();
+      68                          broker[0] = late;
+      69 +                        int brokerPort = Integer.parseInt(late.
+         +getBrokersAsString().replaceAll(".*:", ""));                   
+      70 +                        forwarder[0] = TcpForwarder.start(kafka
+         +Port, brokerPort);                                             
+     … +20 lines (ctrl+o to expand)
+
+● Rodo com a correção e depois sem ela, para confirmar que o IT falha pelo
+  motivo certo.
+
+  Ran 1 shell command (ctrl+o to expand)
+● O IT passa com a correção (22 s) e falha sem ela: a readiness não chega a 200
+  em 90 s. Registro a decisão e faço o commit do apontamento 2.
+
+● Bash(cd "D:/Repo/PESSOAIS/outsera-test/outsera"; cat > "$TEMP/t3.js" <<'EOF'
+      const fs=require("fs");…)
+  ⎿  5ca8876 Revisão do PR do Marco 3, apontamento 2: tópicos recriados dep
+     ois de falha do broker
+  ⎿  Updated docs\ai\decisoes.md +27
+       3  Sugestões e decisões relevantes, aceitas ou rejeitadas, com o m
+          otivo (item 5.2 do enunciado). As
+       4  decisões de arquitetura ficam em ADRs, em `docs/adr/`.
+       5 
+       6 +## 2026-11-25 — Revisão do Codex no PR do Marco 3: tópicos depo
+         +is de falha do broker (apontamento 2)                          
+       7 +                                                               
+       8 +- **Apontamento (aceito):** com `spring.kafka.admin.fail-fast: 
+         +false`, se o broker estiver fora na subida, o                  
+       9 +  `KafkaAdmin` não cria os tópicos e nada os recria depois. O p
+         +ublicador só reenviava os eventos. Como o                      
+      10 +  compose desliga a criação automática de tópicos, a publicação
+         + falharia para sempre depois de o broker                       
+      11 +  voltar.                                                      
+      12 +- **Correção:**                                                
+      13 +  - a spec veio primeiro: o caso de borda "Broker indisponível"
+         + descreve a recuperação. A cada nova                           
+      14 +    tentativa, a aplicação tenta criar os tópicos que faltam e,
+         + quando o broker volta, publica, consome a                     
+      15 +    carga e fica pronta, sem reinício;                         
+      16 +  - antes de cada nova tentativa de envio, o `MovieEventPublish
+         +er` chama `KafkaAdmin.initialize()`, que cria                  
+      17 +    os `NewTopic` que ainda não existem. Com o broker ainda for
+         +a, a falha só é registrada, e a tentativa                      
+      18 +    seguinte repete (R8).                                      
+      19 +- **Comprovação, por IT:** o `KafkaBrokerLateStartIT` reproduz 
+         +o caso.                                                        
+      20 +  1. A aplicação sobe apontando para uma porta livre, onde nada
+         + escuta: o broker está fora de verdade.                        
+      21 +  2. O teste confere a readiness 503.                          
+      22 +  3. Sobe o broker embutido com `auto.create.topics.enable=fals
+         +e`, como no compose.                                           
+      23 +  4. Confere a readiness 200, o resultado de referência e os do
+         +is tópicos criados.                                            
+      24 +                                                               
+      25 +  Sem a correção, o IT falhou: a readiness não chegou a 200 em 
+         +90 s. Com ela, passou em 22 s.                                 
+      26 +- **Por que há um repassador TCP no teste:** o `EmbeddedKafkaKr
+         +aftBroker` do Spring Kafka 4.1.2 guarda o                      
+      27 +  `kafkaPorts`, mas não o usa ao subir o cluster KRaft (conferi
+         +do no bytecode), e o broker sempre sobe numa                   
+      28 +  porta aleatória. O `TcpForwarder` de `src/test/` escuta na po
+         +rta que a aplicação usa e só leva a conexão                    
+      29 +  inicial ao broker. Daí em diante, os clientes falam direto co
+         +m o broker, pelo endereço que ele anuncia.                     
+      30 +  Não é um dublê: só copia bytes, sem ler nem alterar o protoco
+         +lo. Por isso não foi preciso a alternativa                     
+      31 +  de comprovar num passo do `compose-test.sh`.                 
+      32 +                                                               
+      33  ## 2026-11-25 — Revisão do Codex no PR do Marco 3: grupo do con
+          sumidor (apontamento 1)
+      34 
+      35  - **Apontamento (aceito):** o `@KafkaListener(id = "awards-movi
+          es")` usa o id como grupo (`idIsGroup`, que é
+  ⎿  Updated specs\003-modo-docker\plan.md +1 -1
+      143  | FR-009 | `KafkaInvalidLinesIT`, `KafkaStructuralFailureIT`,
+           `PublisherSummaryIT` |
+      144  | FR-010, FR-011 | `KafkaReadinessIT` (lê o tópico) e `KafkaRe
+           ferenceFileIT` |
+      145  | FR-012 | `KafkaEquivalenceIT`, `KafkaNewWinnerIT` (separação
+            de nomes) |
+      146 -| FR-013 | `KafkaReadinessIT`, `KafkaBrokerUnavailableIT` |   
+      146 +| FR-013 | `KafkaReadinessIT`, `KafkaBrokerUnavailableIT`, `Ka
+          +fkaBrokerLateStartIT` (tópicos recriados quando o broker volta
+          +) |                                                           
+      147  | FR-014 | `KafkaIdempotencyIT`, `KafkaUpdateIT`, `RestartDire
+           ctPostgresIT`, `RestartPostgresIT` |
+      148  | FR-015 | `KafkaInvalidEventsIT`, `KafkaErrorTopicUnavailable
+           IT` |
+      149  | FR-015a | `RetryPostgresIT` (job `postgres`: nova tentativa
+           quando a gravação falha); passo 7b do job `compose` (queda rea
+           l do banco) |
+  ⎿  Updated specs\003-modo-docker\research.md +4
+      180    - a falha estrutural continua rápida e antes do servidor;
+      181    - um broker fora do ar não derruba o processo, então a liven
+           ess fica positiva e a readiness negativa
+      182      (caso de borda da spec);
+      183 +  - **tópicos recriados nas novas tentativas** (apontamento do
+          + Codex no PR do Marco 3): com o broker fora na                
+      184 +    subida, o `KafkaAdmin` não cria os tópicos (`fail-fast: fa
+          +lse`), e no compose o broker não os cria                      
+      185 +    sozinho. Por isso, antes de cada nova tentativa de envio, 
+          +o publicador chama `KafkaAdmin.initialize()`,                 
+      186 +    que cria os tópicos que faltam. Comprovado pelo `KafkaBrok
+          +erLateStartIT`;                                               
+      187    - publicar no `ApplicationReadyEvent` garante que o consumid
+           or já está registrado.
+      188  - **Comprovação do resumo:** o teste de log do Marco 1 (`LoadS
+           ummaryIT`) não muda. Um IT novo confere a
+      189    mensagem de publicação nos dois formatos de log (`@Tag("log"
+           )`).
+
+● Agora o apontamento 3. Primeiro as specs 001 e 003, o data-model, o contrato
+  de eventos e a R9.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Bash(cd "D:/Repo/PESSOAIS/outsera-test/outsera"; cat > "$TEMP/n1.js" <<'EOF'
+      const fs=require("fs");…)
+  ⎿  ok
+  ⎿  Updated specs\001-producer-intervals-api\data-model.md +4 -1
+      80     produtores > 1000 ou um nome de produtor > 500 caracteres (`
+          VARCHAR(500)` e `VARCHAR(1000)` da V1).
+      81     O aviso cita o campo. Acrescentado pela spec 003 em 2026-11-
+          24. A regra fica na `MovieFieldRules`,
+      82     compartilhada com os eventos do Kafka.
+      83 -9. `DUPLICATE`: o ano e o título repetem uma linha já aceita. O
+         - aviso cita a linha original.                                  
+      83 +9. `NUL_CHARACTER`: o título, os estúdios ou os produtores cont
+         +êm o caractere nulo (U+0000). O aviso cita o                   
+      84 +   campo. Acrescentado pela spec 003 em 2026-11-25 (apontamento
+         + do Codex no PR do Marco 3). A regra também                    
+      85 +   fica na `MovieFieldRules`.                                  
+      86 +10. `DUPLICATE`: o ano e o título repetem uma linha já aceita. 
+         +O aviso cita a linha original.                                 
+      87 
+      88  Uma linha em branco não é lida, não conta como linha lida e não
+           gera aviso (FR-005a).
+      89 
+  ⎿  Updated specs\001-producer-intervals-api\spec.md +5 -1
+      277    - um campo excede o tamanho da coluna do esquema: título com
+            mais de 500 caracteres, estúdios ou
+      278      produtores com mais de 1000, ou um nome de produtor com ma
+           is de 500 (acrescentado pela spec 003 em
+      279      2026-11-24, para que a carga direta e a ingestão por Kafka
+            usem a mesma validação; antes, essa linha
+      280 -    interrompia a carga com um erro do banco, sem mensagem cla
+          -ra).                                                          
+      280 +    interrompia a carga com um erro do banco, sem mensagem cla
+          +ra);                                                          
+      281 +  - o título, os estúdios ou os produtores contêm o caractere 
+          +nulo (U+0000), que o PostgreSQL não aceita                    
+      282 +    em texto (acrescentado pela spec 003 em 2026-11-25, a part
+          +ir de um apontamento do Codex no PR do                        
+      283 +    Marco 3, pelo mesmo motivo: a mesma validação na carga dir
+          +eta e na ingestão por Kafka, e nenhuma                        
+      284 +    recusa do banco no lugar de uma mensagem clara).          
+      285  - **FR-006e**: Ano, título e produtores são colunas obrigatóri
+           as. A coluna de estúdios é opcional: vazia,
+      286    ela não invalida a linha. `winner` vazio significa não vence
+           dor (FR-004).
+      287  - **FR-006a**: Cada linha ignorada MUST gerar um aviso no log
+           com o número da linha no arquivo e o
+  ⎿  Updated specs\003-modo-docker\contracts\kafka-events.md +3 -3
+      71  | `awards-source-partition` | `0` |
+      72  | `awards-source-offset` | `207` |
+      73 
+      74 -**Motivos:** `NOT_UTF8`, `NOT_JSON`, `TYPE_UNKNOWN`, `RUN_ID_MI
+         -SSING`, `FIELD_TOO_LONG`, `YEAR_MISSING`,                      
+      75 -`YEAR_NOT_NUMERIC`, `YEAR_OUT_OF_RANGE`, `TITLE_MISSING`, `PROD
+         -UCERS_MISSING` e `WINNER_INVALID`                              
+      76 -(data-model.md).                                               
+      74 +**Motivos:** `NOT_UTF8`, `NOT_JSON`, `TYPE_UNKNOWN`, `RUN_ID_MI
+         +SSING`, `FIELD_TOO_LONG`, `NUL_CHARACTER`,                     
+      75 +`YEAR_MISSING`, `YEAR_NOT_NUMERIC`, `YEAR_OUT_OF_RANGE`, `TITLE
+         +_MISSING`, `PRODUCERS_MISSING`,                                
+      76 +`WINNER_INVALID` e `DATABASE_REJECTED` (recusa permanente do ba
+         +nco, com o SQLState; data-model.md).                           
+      77 
+      78  ## Garantias
+      79 
+  ⎿  Updated specs\003-modo-docker\data-model.md +11 -2
+      57  | `producers` | texto | sim | separado pelo `ProducerNameParser
+          `, com ao menos um nome | `PRODUCERS_MISSING` |
+      58  | `winner` | booleano JSON | sim | `true` ou `false` | `WINNER_
+          INVALID` |
+      59  | (todos) | — | — | tamanho máximo: `title` ≤ 500, `studios` ≤
+          1000, `producers` ≤ 1000 e cada nome de produtor ≤ 500 caracter
+          es (`VARCHAR(500)` e `VARCHAR(1000)` da V1) | `FIELD_TOO_LONG`
+          |
+      60 +| `title`, `studios`, `producers` | — | — | nenhum caractere nu
+         +lo (U+0000), que o PostgreSQL não aceita em texto | `NUL_CHARAC
+         +TER` |                                                         
+      61 
+      62  **Validação comum aos dois caminhos.** As regras de conteúdo fi
+          cam numa única classe, a
+      63  `MovieFieldRules`, usada pelo leitor do CSV e pelo parser de ev
+          entos:
+      64  - ano de 1 a 9999;
+      65  - título não vazio;
+      66  - produtores com ao menos um nome;
+      66 -- `FIELD_TOO_LONG`.                                            
+      67 +- `FIELD_TOO_LONG`;                                            
+      68 +- `NUL_CHARACTER` (acrescentado em 2026-11-25, a partir de um a
+         +pontamento do Codex no PR do Marco 3).                         
+      69 
+      70  O `FIELD_TOO_LONG` passou a valer também para a linha do CSV (s
+          pec 001, FR-006 e data-model, motivo 8).
+      71  Sem ele, o banco recusaria a gravação. Na carga direta, a recus
+          a interrompia a subida. No consumidor, ela
+     ...
+      81  | `TYPE_UNKNOWN` | `type` presente e diferente de `movie` e de
+          `load-completed` |
+      82 
+      83  **Ordem das verificações:** `NOT_UTF8`, `NOT_JSON`, `TYPE_UNKNO
+          WN`, depois a mesma ordem da spec 001:
+      82 -ano, título, produtores, `winner` e `FIELD_TOO_LONG`. O primeir
+         -o motivo encontrado é o registrado.                            
+      84 +ano, título, produtores, `winner`, `FIELD_TOO_LONG` e `NUL_CHAR
+         +ACTER`. O primeiro motivo encontrado é o                       
+      85 +registrado.                                                    
+      86 +                                                               
+      87 +Motivo que vem do banco, depois da validação:                  
+      88 +                                                               
+      89 +| Motivo | Quando |                                            
+      90 +| --- | --- |                                                  
+      91 +| `DATABASE_REJECTED` | O banco recusou a gravação por dado inv
+         +álido, com SQLState da classe 22 (dado) ou 23 (restrição de int
+         +egridade). O detalhe traz o SQLState. É permanente: o evento va
+         +i ao tópico de erros, sem nova tentativa (FR-015a; research R9)
+         + |                                                             
+      92 
+      93  Campos desconhecidos são ignorados (R7).
+      94 
+  ⎿  Updated specs\003-modo-docker\research.md +12 -1
+      230      em paralelo** com outro IT do `postgres-it`;
+      231    - **queda real do banco:** o passo 7b do `compose-test.sh` p
+           ara o serviço `postgres` do compose,
+      232      publica, religa e confere a gravação.
+      233 +- **Classificação das falhas de gravação** (apontamento do Cod
+          +ex no PR do Marco 3):                                         
+      234 +  - **permanentes:** SQLState das classes **22** (dado inválid
+          +o, como o caractere nulo no PostgreSQL ou                     
+      235 +    um valor maior que a coluna) e **23** (restrição de integr
+          +idade violada). A nova tentativa daria                        
+      236 +    sempre o mesmo erro e travaria a partição para sempre. O o
+          +uvinte procura o `SQLException` na cadeia de                  
+      237 +    causas e, com uma dessas classes, envia o evento ao tópico
+          + de erros com o motivo `DATABASE_REJECTED`                    
+      238 +    e o SQLState, sem nova tentativa;                         
+      239 +  - **passageiras:** todas as outras, como a tabela inexistent
+          +e do `RetryPostgresIT` (42P01), a perda                       
+      240 +    de conexão (08xxx) e o tempo esgotado do pool. Elas contin
+          +uam com a nova tentativa sem limite;                          
+      241 +  - **prevenção:** as recusas conhecidas viram regras da `Movi
+          +eFieldRules` (`FIELD_TOO_LONG` e                              
+      242 +    `NUL_CHARACTER`), com mensagem clara, nos dois caminhos de
+          + carga. A classificação cobre as recusas que                  
+      243 +    a validação não prevê.                                    
+      244  - **Alternativa rejeitada:** `DeadLetterPublishingRecoverer` p
+           ara todos os erros. Ele trataria uma falha
+      234 -  de banco como evento inválido.                              
+      245 +  de banco passageira como evento inválido.                   
+      246 
+      247  ## R10. Readiness ligada ao evento de carga concluída (FR-013)
+      248 
+  ⎿  … +1 file changed
+     specs\003-modo-docker\spec.md
+
+● Specs atualizadas. Agora os testes: o NulCharacterIT (CSV), o 17º caso no
+  KafkaInvalidEventsIT e o DatabaseRejectionPostgresIT.
+
+● Bash(cd "D:/Repo/PESSOAIS/outsera-test/outsera"; node -e '
+      const lines=["year;title;studios;producers;winner",…)
+  ⎿  15
+  ⎿  1 file changed (binary, mode only or too large to show)
+     src\test\resources\scenarios\nul-character.csv
+
+● Write(src\test\java\com\outsera\awards\ingestion\NulCharacterIT.java)
+  ⎿  Wrote 51 lines to
+     src\test\java\com\outsera\awards\ingestion\NulCharacterIT.java
+       1 package com.outsera.awards.ingestion;
+       2 
+       3 import static org.assertj.core.api.Assertions.assertThat;
+       4 
+       5 import com.outsera.awards.support.IntervalItem;
+       6 import com.outsera.awards.support.LoaderLog;
+       7 import com.outsera.awards.support.LoaderLog.Summary;
+       8 import com.outsera.awards.support.ScenarioIT;
+       9 import java.util.List;
+      10 import org.junit.jupiter.api.DisplayName;
+     … +41 lines (ctrl+o to expand)
+
+● Bash(cd "D:/Repo/PESSOAIS/outsera-test/outsera"; cat > "$TEMP/n2.js" <<'EOF'
+      const fs=require("fs");…)
+  ⎿  Binary file src/test/java/com/outsera/awards/kafka/KafkaInvalidEventsI
+     T.java matches
+  ⎿  1 file changed (binary, mode only or too large to show)
+     src\test\java\com\outsera\awards\kafka\KafkaInvalidEventsIT.java
+
+● O grep acusou arquivo binário. Vou conferir se entrou um caractere nulo
+  literal no fonte.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Um NUL literal entrou no comentário e virou um escape do Java onde deveria
+  haver o escape do JSON; corrijo as duas linhas. · summary
+
+● Bash(cd "D:/Repo/PESSOAIS/outsera-test/outsera"; cat > "$TEMP/n3.js" <<'EOF'
+      const fs=require("fs"); const
+      f="src/test/java/com/outsera/awards/kafka/KafkaInvalidEven…)
+  ⎿  sem NUL literal
+     63-                // Escape JSON do caractere nulo (barra, u, 0000),
+     que o PostgreSQL não aceita em texto (apontamento do Codex).
+     … +2 lines (ctrl+o to expand)
+  ⎿  1 file changed (binary, mode only or too large to show)
+     src\test\java\com\outsera\awards\kafka\KafkaInvalidEventsIT.java
+
+● Agora vou ver o DatabaseRejectionPostgresIT, que provoca recusas do próprio
+  banco com uma restrição (classe 23) e uma coluna encolhida (classe 22). 
+  · summary
+
+● Write(src\test\java\com\outsera\awards\postgres\DatabaseRejectionPostgresIT.ja
+       va)
+  ⎿  Wrote 96 lines to src\test\java\com\outsera\awards\postgres\DatabaseRe
+     jectionPostgresIT.java
+       1 package com.outsera.awards.postgres;
+       2 
+       3 import static org.assertj.core.api.Assertions.assertThat;
+       4 
+       5 import com.outsera.awards.support.ApplicationStarter;
+       6 import com.outsera.awards.support.ApplicationStarter.Result;
+       7 import com.outsera.awards.support.Http;
+       8 import com.outsera.awards.support.KafkaTestSupport;
+       9 import com.outsera.awards.support.KafkaTestSupport.Record;
+      10 import com.outsera.awards.support.KafkaTestSupport.Topics;
+     … +86 lines (ctrl+o to expand)
+
+● Confirmo a falha antes da implementação, com o PostgreSQL local no ar para o
+  IT do banco.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Os três testes falham como esperado: o DatabaseRejectionPostgresIT mostra o
+  defeito, já que a recusa do banco é retentada (5 vezes no log) e o evento
+  válido seguinte nunca é gravado. Agora parto para a implementação das duas
+  camadas. · summary
+
+  Ran 1 shell command · 1 failed (ctrl+o to expand)
+
+● Entrou de novo um caractere nulo literal, agora no MovieFieldRules. Troco por
+  indexOf(0), que não precisa de escape nenhum.
+
+● Bash(cd "D:/Repo/PESSOAIS/outsera-test/outsera";
+      f=src/main/java/com/outsera/awards/ingestion/MovieFieldRules.java; cat >
+      "$TEMP/n5.js" <<'EOF'
+      const fs=require("fs"…)
+  ⎿  89:        return value != null && value.indexOf(0) >= 0; // 0 é o car
+     actere nulo (U+0000)
+  ⎿  1 file changed (binary, mode only or too large to show)
+     src\main\java\com\outsera\awards\ingestion\MovieFieldRules.java
+
+● Nenhum outro arquivo tem NUL literal, exceto o CSV do cenário, de propósito.
+  Rodo os testes afetados, no H2 e no PostgreSQL.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● O caso 17 foi gravado em vez de rejeitado, porque o NUL no fim do título é
+  removido pelo trim(). Vou colocar o NUL no meio do texto, como no CSV do
+  cenário. · summary
+
+● Bash(cd "D:/Repo/PESSOAIS/outsera-test/outsera"; cat > "$TEMP/n6.js" <<'EOF'
+      const fs=require("fs"); const
+      f="src/test/java/com/outsera/awards/kafka/KafkaInvalidEven…)
+  ⎿  63-                // Escape JSON do caractere nulo (barra, u, 0000) n
+     o meio do título: o trim, como no CSV, só tira os das
+     64-                // pontas. O PostgreSQL não aceita esse caractere e
+     … +8 lines (ctrl+o to expand)
+  ⎿  Updated
+     src\test\java\com\outsera\awards\kafka\KafkaInvalidEventsIT.java +3 -2
+      60                  new Case("invalido-14", "WINNER_INVALID", movie
+          ("", "2000", "\"" + MARKER + "\"", "\"P\"", null)),
+      61                  new Case("invalido-15", "FIELD_TOO_LONG", movie
+          ("", "2000", "\"" + MARKER + "T".repeat(501) + "\"", "\"P\"", "
+          true")),
+      62                  new Case("invalido-16", "FIELD_TOO_LONG", movie
+          ("", "2000", "\"" + MARKER + "\"", "\"" + "P".repeat(1001) + "\
+          "", "true")),
+      63 -                // Escape JSON do caractere nulo (barra, u, 000
+         -0), que o PostgreSQL não aceita em texto (apontamento do Codex)
+         -.                                                              
+      64 -                new Case("invalido-17", "NUL_CHARACTER", movie(
+         -"", "2000", "\"" + MARKER + "\\u0000\"", "\"P\"", "true")));   
+      63 +                // Escape JSON do caractere nulo (barra, u, 000
+         +0) no meio do título: o trim, como no CSV, só tira os das      
+      64 +                // pontas. O PostgreSQL não aceita esse caracte
+         +re em texto (apontamento do Codex).                            
+      65 +                new Case("invalido-17", "NUL_CHARACTER", movie(
+         +"", "2000", "\"" + MARKER + "\\u0000fim\"", "\"P\"", "true")));
+      66      }
+      67 
+      68      @Test
+  ⎿  (timeout 10m)
+
+● Agora passa. Registro o detalhe do trim no data-model e atualizo o ADR 0016, o
+  plano e o README. Depois rodo o verify completo e o postgres-it inteiro.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Bash(cd "D:/Repo/PESSOAIS/outsera-test/outsera"; cat > "$TEMP/n7.js" <<'EOF'
+      const fs=require("fs");…)
+  ⎿  ok
+  ⎿  Updated README.md +2 -2
+      443  | `metrics/` | Métricas no formato do Prometheus: contagem, st
+           atus, rota sem parâmetros, rotas inexistentes, 304, histograma
+            e rótulo `application` |
+      444  | `logging/` | Log em texto sem a variável, JSON ECS com ela,
+           banner desligado e nenhum cabeçalho `Authorization` no log |
+      445  | `isolation/` | Sem perfil, o Kafka não é configurado: nenhum
+           a métrica nem cliente Kafka (Marco 3) |
+      446 -| `kafka/` | Ingestão por Kafka com o broker embutido: resulta
+          -do de referência, equivalência byte a byte com a carga direta,
+          - readiness só com o evento de carga concluída, linhas inválida
+          -s, falhas estruturais, vencedor novo em até 5 s, atualização, 
+          -idempotência, cada tipo de evento inválido no tópico de erros,
+          - tópico de erros fora do ar, broker fora do ar e métricas (Mar
+          -co 3) |                                                       
+      446 +| `kafka/` | Ingestão por Kafka com o broker embutido: resulta
+          +do de referência, equivalência byte a byte com a carga direta,
+          + readiness só com o evento de carga concluída, linhas inválida
+          +s, falhas estruturais, vencedor novo em até 5 s, atualização, 
+          +idempotência, cada tipo de evento inválido no tópico de erros 
+          +(inclusive o caractere nulo, que o PostgreSQL não aceita), tóp
+          +ico de erros fora do ar, broker fora do ar e métricas (Marco 3
+          +) |                                                           
+      447  | `security/` | Autenticação desligada (guarda do `API_TOKEN`)
+            e ligada: 401 em Problem Details, endpoints públicos, token f
+           ora do log, sem senha gerada, cabeçalhos de cache e de proteçã
+           o e o contrato 1.2.0 (Marco 3) |
+      448 -| `postgres/` | Só no perfil `postgres-it`: esquema, equivalên
+          -cia e ordem entre o H2 e o PostgreSQL, reinícios e nova tentat
+          -iva quando a gravação falha (Marco 3) |                       
+      448 +| `postgres/` | Só no perfil `postgres-it`: esquema, equivalên
+          +cia e ordem entre o H2 e o PostgreSQL, reinícios, nova tentati
+          +va quando a gravação falha e recusa permanente do banco por da
+          +do inválido, que vai ao tópico de erros (Marco 3) |           
+      449  | `support/` | Base comum (`ScenarioIT`, `KafkaScenarioIT`, `T
+           okenScenarioIT`) e apoios (aplicação real por `SpringApplicati
+           on`, HTTP, Kafka e PostgreSQL reais, leitura do log, do Promet
+           heus e do contrato), sem testes próprios |
+      450 
+      451  **Como os testes funcionam:**
+  ⎿  Updated docs\adr\0016-topico-de-erros-e-novas-tentativas.md +7
+      21    segue.
+      22  - **Falha de gravação:** a exceção sobe ao `DefaultErrorHandler
+          `, que tenta de novo sem limite de
+      23    tentativas, com espera crescente até 30 s, sem avançar o offs
+          et.
+      24 +- **Classificação das falhas de gravação** (atualizado em 2026-
+         +11-25, apontamento do Codex no PR do Marco 3):                 
+      25 +  uma recusa do banco por dado inválido (SQLState das classes 2
+         +2 e 23) é permanente e vai ao tópico de erros                  
+      26 +  com o motivo `DATABASE_REJECTED`, sem nova tentativa. As dema
+         +is (42P01, perda de conexão, tempo esgotado do                 
+      27 +  pool) continuam com a nova tentativa sem limite. Sem isso, um
+         + evento que só o banco recusa travaria a                       
+      28 +  partição para sempre.                                        
+      29 +- **Caractere nulo:** a regra `NUL_CHARACTER` (U+0000 no título
+         +, nos estúdios ou nos produtores) vale nos dois                
+      30 +  caminhos de carga, porque o PostgreSQL não aceita esse caract
+         +ere em texto (atualizado em 2026-11-25).                       
+      31  - **Tamanho máximo:** a regra `FIELD_TOO_LONG` (campo maior que
+           a coluna) vale nos dois caminhos. Sem ela, o
+      32    banco recusaria a gravação, e a recusa seria tentada de novo
+          para sempre, travando o tópico.
+      33 
+  ⎿  Updated specs\003-modo-docker\data-model.md +1 -1
+      57  | `producers` | texto | sim | separado pelo `ProducerNameParser
+          `, com ao menos um nome | `PRODUCERS_MISSING` |
+      58  | `winner` | booleano JSON | sim | `true` ou `false` | `WINNER_
+          INVALID` |
+      59  | (todos) | — | — | tamanho máximo: `title` ≤ 500, `studios` ≤
+          1000, `producers` ≤ 1000 e cada nome de produtor ≤ 500 caracter
+          es (`VARCHAR(500)` e `VARCHAR(1000)` da V1) | `FIELD_TOO_LONG`
+          |
+      60 -| `title`, `studios`, `producers` | — | — | nenhum caractere nu
+         -lo (U+0000), que o PostgreSQL não aceita em texto | `NUL_CHARAC
+         -TER` |                                                         
+      60 +| `title`, `studios`, `producers` | — | — | nenhum caractere nu
+         +lo (U+0000), que o PostgreSQL não aceita em texto. Um caractere
+         + nulo nas pontas é removido pelo `trim`, como no CSV, e não che
+         +ga a ser rejeitado | `NUL_CHARACTER` |                         
+      61 
+      62  **Validação comum aos dois caminhos.** As regras de conteúdo fi
+          cam numa única classe, a
+      63  `MovieFieldRules`, usada pelo leitor do CSV e pelo parser de ev
+          entos:
+  ⎿  Updated specs\003-modo-docker\plan.md +2 -2
+      146  | FR-013 | `KafkaReadinessIT`, `KafkaBrokerUnavailableIT`, `Ka
+           fkaBrokerLateStartIT` (tópicos recriados quando o broker volta
+           ) |
+      147  | FR-014 | `KafkaIdempotencyIT`, `KafkaUpdateIT`, `RestartDire
+           ctPostgresIT`, `RestartPostgresIT` |
+      148  | FR-015 | `KafkaInvalidEventsIT`, `KafkaErrorTopicUnavailable
+           IT` |
+      149 -| FR-015a | `RetryPostgresIT` (job `postgres`: nova tentativa 
+          -quando a gravação falha); passo 7b do job `compose` (queda rea
+          -l do banco) |                                                 
+      149 +| FR-015a | `RetryPostgresIT` (job `postgres`: nova tentativa 
+          +quando a gravação falha); `DatabaseRejectionPostgresIT` (job `
+          +postgres`: recusa permanente, SQLState 22 e 23, vai ao tópico 
+          +de erros); passo 7b do job `compose` (queda real do banco) |  
+      150  | FR-016 | `KafkaNewWinnerIT` |
+      151  | FR-017 | `KafkaMetricsIT` |
+      152 -| FR-018 | `KafkaEquivalenceIT` (inclui `FIELD_TOO_LONG`); `Fi
+          -eldTooLongIT` (carga direta, spec 001 FR-006) |               
+      152 +| FR-018 | `KafkaEquivalenceIT` (inclui `FIELD_TOO_LONG`); `Fi
+          +eldTooLongIT` e `NulCharacterIT` (carga direta, spec 001 FR-00
+          +6); `KafkaInvalidEventsIT` (as mesmas regras no evento) |     
+      153  | FR-019 a FR-023, FR-025, FR-027 | `AuthDisabledByDefaultIT`,
+            `AuthEnabledIT` (inclui `OPTIONS`), `AuthProblemDetailsIT`, `
+           TokenNotLoggedIT`, `NoGeneratedPasswordIT` |
+      154  | FR-022a | `CacheHeadersIT` |
+      155  | FR-024 | retirado (decisão de design na R11 e no ADR 0017; "
+           Revisão de segurança" do checklist) |
+
+● Rodo o ./mvnw verify completo, com o tempo medido, e o postgres-it inteiro.
+
+  Ran 1 shell command (ctrl+o to expand)
+● Ambos os testes passaram: ./mvnw verify levou 181 s, dentro do limite de 192
+  s, e postgres-it levou 75 s. Em seguida atualizo o README, registro a decisão
+  e faço o commit do apontamento 3. · summary
+
+● Bash(cd "D:/Repo/PESSOAIS/outsera-test/outsera"; cat > "$TEMP/n8.js" <<'EOF'
+      const fs=require("fs");…)
+  ⎿  M  README.md
+     M  docs/adr/0016-topico-de-erros-e-novas-tentativas.md
+     M  docs/ai/decisoes.md
+     … +23 lines (ctrl+o to expand)
+  ⎿  Updated README.md +4 -4
+  ⎿  … +1 file changed
+     docs\ai\decisoes.md
+  ⎿  (a git step in this command can move the working tree, so these may be
+     its changes, not edits) (ctrl+o to expand)
+
+● Corrigi os três apontamentos do Codex, um commit por apontamento, e não fiz
+  push.
+
+  Tempos:
+  - ./mvnw verify: 181 s sem clean, ainda dentro do limite de 2× da R15 (192 s).
+    São 261 testes mais 85 com o log em JSON, e a cobertura ficou em 97,35%. Os
+    testes novos somam cerca de 12 s, quase tudo no teste que sobe o broker
+    depois da aplicação.
+  - ./mvnw -Ppostgres-it verify: 75 s, com 8 testes.
+
+  Os testes novos falharam antes de cada correção e passam depois. Os 59 ITs da
+  v0.2.0 continuam sem alteração.
+
+  1. Grupo do consumidor (e98983d)
+  - A FR-003 da spec 003 agora exige o grupo configurado.
+  - O consumidor passou a usar o grupo de KAFKA_CONSUMER_GROUP. Fixei o prefixo
+    do client_id em awards-movies, para que a série de atraso das métricas e o
+    dashboard não mudem de nome com o grupo. O KafkaMetricsIT, o dashboard e a
+    research foram ajustados.
+  - O KafkaConsumerGroupIT sobe com outro grupo e confere no broker, pelo
+    AdminClient, que o grupo registrado é o configurado. Antes da correção, ele
+    encontrava awards-movies.
+  - Num volume do Kafka anterior à correção, o consumidor relê o tópico desde o
+    começo, porque o grupo mudou. Isso é inofensivo, porque a gravação é
+    idempotente.
+
+  2. Tópicos depois de falha do broker (5ca8876)
+  - O caso de borda "Broker indisponível" da spec 003 agora descreve a
+    recuperação.
+  - Antes de cada nova tentativa de envio, o publicador pede ao Kafka que crie
+    os tópicos que faltam.
+  - O IT foi viável, e por isso não precisei do passo no compose-test.sh. O
+    KafkaBrokerLateStartIT sobe a aplicação sem broker e depois sobe o broker
+    embutido sem criação automática de tópicos, como no compose. A aplicação
+    cria os tópicos, publica e fica pronta. Sem a correção, a readiness não
+    chegou a 200 em 90 s.
+  - Uma diferença do que você pediu: o broker embutido do Spring Kafka 4.1.2
+    ignora a porta fixa e sempre sobe numa porta aleatória. Por isso, o teste
+    usa um repassador TCP simples na porta da aplicação, que só entrega a
+    conexão inicial; depois o cliente fala direto com o broker real. Não é um
+    dublê: só copia bytes.
+
+  3. Caractere nulo (d3b00fb)
+  - Validação: nova regra NUL_CHARACTER, comum ao CSV e ao Kafka. As specs 001 e
+    003 registram a origem, como no FIELD_TOO_LONG. Na carga direta, uma linha
+    com o caractere nulo passa a ser ignorada com aviso; antes, o H2 a aceitava.
+  - Classificação: recusas do banco com SQLState das classes 22 e 23 vão ao
+    tópico de erros como DATABASE_REJECTED, sem nova tentativa. As demais, como
+    a tabela inexistente (42P01) e a perda de conexão, continuam com a nova
+    tentativa. A decisão está na R9 e no ADR 0016.
+  - Testes:
+    - NulCharacterIT, para a carga direta;
+    - um 17º caso no KafkaInvalidEventsIT;
+    - DatabaseRejectionPostgresIT, que muda o esquema com a aplicação no ar para
+      que só o banco recuse (SQLState 23514 e 22001). Os dois eventos vão ao
+      tópico de erros, e o evento válido seguinte é gravado;
+    - o RetryPostgresIT continua verde.
+  - Detalhe que encontrei: um caractere nulo no fim do título é removido pelo
+    trim, nos dois caminhos, e nunca chega ao banco. Por isso o teste coloca o
+    caractere nulo no meio do texto. Registrei isso no data-model.
+
+  As três decisões estão em docs/ai/decisoes.md. Nas mensagens dos commits, cito
+  os apontamentos pelo assunto, porque não tenho o link dos comentários do PR.
+
+✻ Cogitated for 26m 33s · done 9:23
