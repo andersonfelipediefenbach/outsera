@@ -17,6 +17,19 @@ documentação continuam públicas. O ETag do Marco 2 precisa continuar útil.
 - `spring-boot-starter-security`, com uma `SecurityFilterChain` sem estado: sem CSRF, `formLogin`,
   `httpBasic`, `logout`, cache de requisição nem sessão. O usuário gerado pelo Boot fica excluído
   (`UserDetailsServiceAutoConfiguration`).
+- **CSRF desligado, de propósito:** o ataque de CSRF depende de o navegador anexar sozinho uma credencial
+  ambiente, como um cookie de sessão ou a autenticação Basic, a uma requisição forjada por outro site. Esta
+  API não tem nenhuma credencial assim:
+  - ela é sem estado (`SessionCreationPolicy.STATELESS`): não cria sessão e não emite cookie;
+  - `formLogin`, `httpBasic` e `logout` estão desligados;
+  - a única credencial é o token no cabeçalho `Authorization: Bearer`, que o navegador nunca envia sozinho.
+    Uma página de outra origem não consegue ler o token nem acrescentar esse cabeçalho sem passar pelo
+    CORS, que não está liberado para nenhuma origem;
+  - os endpoints protegidos são só de leitura (`GET`), e os demais métodos respondem 401 ou 405.
+
+  Um token de CSRF não protegeria nada e exigiria que todo cliente o buscasse antes. O alerta "Disabled
+  Spring CSRF protection" do CodeQL foi dispensado como falso positivo por esse motivo (registro em
+  `docs/ai/decisoes.md`). Se um dia a API passar a usar cookie ou sessão, o CSRF precisa voltar.
 - O token vem de `API_TOKEN`. Vazio ou ausente, tudo fica liberado e nenhum filtro de token é registrado.
 - Com o token ligado:
   - `/api/producers/intervals`, `/api/movies` e `/actuator/prometheus` exigem
