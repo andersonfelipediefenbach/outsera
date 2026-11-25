@@ -26,6 +26,33 @@
   documentadas no README como o token. O Princípio VII foi emendado para permiti-las (constituição
   1.6.0), com as condições da FR-033. FR-033.
 
+### Session 2026-11-25 (testador adversário da ingestão por Kafka, spec 004, FR-035)
+
+Achados dos casos do Codex, decididos pelo Anderson (registro em `docs/ai/decisoes.md`, "Testador
+adversário: ingestão por Kafka").
+
+- Q: Qual o motivo de um campo de texto presente com tipo errado (`"title": 17`, `"producers": [...]`,
+  `"studios": {...}`)? → A: O motivo novo `FIELD_TYPE_INVALID`. `null` vale ausente em todos os campos:
+  `title` nulo é `TITLE_MISSING`, `producers` nulo é `PRODUCERS_MISSING`, `studios` nulo é aceito e `type`
+  nulo vale ausente, então o evento é um filme. Antes, um `studios` de outro tipo era gravado como ausente.
+  FR-012.
+- Q: Uma propriedade repetida no objeto, um BOM antes dele e um ano com expoente são aceitos? → A: Não. O
+  valor precisa ser um único objeto JSON sem propriedade repetida. A repetição e o BOM são `NOT_JSON`, e a
+  tolerância ao BOM continua só no arquivo CSV (spec 001, FR-005a). O ano precisa ser o token de inteiro
+  JSON: `2.001e3` é `YEAR_NOT_NUMERIC`, como um decimal. FR-012.
+- Q: Em que unidade se conta o tamanho de um campo, e o que são os "espaços em volta"? → A: Em unidades
+  UTF-16, como o H2 mede as colunas (spec 001, FR-006). Os espaços em volta são os caracteres de U+0001 a
+  U+0020. NBSP e U+200B fazem parte do texto. A tabulação e as quebras de linha
+  contam como espaço em volta do `and` (spec 001, FR-007 e FR-008).
+- Q: Um U+0000 nas pontas do campo é retirado ou rejeitado? → A: Rejeitado, em qualquer posição
+  (`NUL_CHARACTER`), nos dois caminhos. Ele nunca é retirado como espaço (spec 001, FR-006).
+- Q: O `count` do marcador é validado e serve de barreira? → A: É validado, mas não é barreira. Ele
+  precisa ser um inteiro JSON ≥ 0. Sem ele, ou com outro tipo, o marcador vai ao tópico de erros
+  (`COUNT_INVALID`) e não libera a readiness. Um inteiro que não bate com os filmes publicados é
+  informativo e libera. O marcador vale pelo `runId`. Um marcador com o `runId` certo que chega antes do
+  último filme só acontece com escrita indevida no tópico. A readiness é um sinal operacional, não uma
+  barreira de segurança, e a proteção do tópico é do broker (ACLs), fora do escopo. FR-013.
+
 ## User Scenarios & Testing *(mandatory)*
 
 Os atores são:
@@ -310,16 +337,24 @@ dashboard provisionado.
   - nenhum caractere nulo (U+0000) no título, nos estúdios ou nos produtores (`NUL_CHARACTER`).
 
   O que muda é só a representação, que o JSON impõe:
-  - `year` precisa ser um inteiro JSON. Um texto, mesmo só com dígitos, ou um decimal é rejeitado;
+  - o valor precisa ser um único objeto JSON, sem propriedade repetida. Um BOM antes do objeto, duas
+    raízes no mesmo valor ou uma propriedade repetida são `NOT_JSON` (Clarifications, 2026-11-25);
+  - `year` precisa ser o token de inteiro JSON. Um texto, mesmo só com dígitos, um decimal ou um número
+    com expoente (`2.001e3`) é rejeitado;
   - `winner` precisa ser booleano JSON e é obrigatório. O `yes` e o vazio do CSV não existem no
     evento;
+  - `title`, `producers` e `studios`, quando presentes e não nulos, precisam ser texto JSON. Outro tipo é
+    `FIELD_TYPE_INVALID`. `null` vale ausente em todos os campos, inclusive no `type`;
   - motivos que só existem no evento: bytes fora de UTF-8, conteúdo que não é objeto JSON, `type`
-    desconhecido e marcador sem `runId`.
+    desconhecido, campo de texto com outro tipo, marcador sem `runId` e marcador com `count` inválido.
 
   Entre eventos com o mesmo ano e título, vale a FR-014.
 - **FR-013**: A readiness MUST ficar negativa até o consumidor processar o evento de carga concluída da
   execução atual, e nesse momento todos os filmes publicados nessa execução MUST estar gravados. Eventos
-  de carga concluída de execuções anteriores MUST NOT liberar a readiness.
+  de carga concluída de execuções anteriores MUST NOT liberar a readiness. O marcador MUST ter `count`
+  inteiro JSON ≥ 0. Sem ele, ou com outro tipo, o marcador MUST ir ao tópico de erros (`COUNT_INVALID`) e
+  MUST NOT liberar a readiness. O valor do `count` é informativo: o marcador vale pelo `runId`
+  (Clarifications, 2026-11-25).
 - **FR-014**: A gravação MUST ser idempotente por ano e título: republicar o arquivo, ou receber o mesmo
   evento mais de uma vez, MUST NOT duplicar filmes, produtores ou vínculos. Um evento com o ano e o
   título de um filme já gravado MUST atualizar esse filme: estúdios, produtores e `winner` passam a ser

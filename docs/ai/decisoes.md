@@ -94,13 +94,150 @@ T064, na entrada "Proteção da main depois do Marco 4".
 
 ## 2026-11-25 — Testador adversário: ingestão por Kafka
 
-**PENDENTE.** É o T005 da spec 004 (FR-035, R13; T050 da spec 003). O Codex ainda não foi acionado como
-testador adversário da ingestão por Kafka. O acionamento é do Anderson e foi pedido no fim da etapa 1.
+T005 da spec 004 (FR-035, R13; T050 da spec 003). O Anderson acionou o Codex como testador adversário
+da ingestão por Kafka. O Codex escreveu 30 casos a partir da spec 003, do contrato dos eventos, da spec
+001, do data-model da spec 001, do OpenAPI e do enunciado, sem ler `src/main`. Os casos ficaram fora do
+repositório. Todos os casos viraram ITs permanentes em `src/test/java/com/outsera/awards/kafka/adversario/`,
+com o `@DisplayName` começando por `S004 FR-035`. Nenhum caso foi cortado.
 
-- Até lá, não há lista de ataques, falhas, ITs nem correções a registrar.
-- Esta entrada recebe o resultado, com ou sem falhas.
-- Se a execução não acontecer antes da etapa 6, a pendência é repetida no README e no fechamento do bolt
-  (T062 e T066).
+**Como os casos foram agrupados.** A consolidação segue a do `KafkaInvalidEventsIT` do Marco 3 e foi
+pedida pelo Anderson.
+- **`KafkaAdversarialEventsIT`:** 24 casos numa única aplicação e num único broker, um depois do outro
+  (01 a 21, 27, 28 e 30). São os que não mexem no marcador, na readiness nem na subida.
+  - Cada caso tem chaves (`cNN/...`) e títulos (`CNN ...`) próprios. Só ficam sem prefixo os títulos que
+    são o próprio dado testado (500 letras, emojis, só NBSP), e eles já são únicos.
+  - Cada conferência é uma `SoftAssertions` com a mensagem do caso. Uma exceção num caso vira falha dele,
+    e os seguintes rodam.
+  - O caso confere os filmes novos ou alterados desde o início dele, que nenhum filme anterior mudou, e os
+    registros novos do tópico de erros.
+  - No fim de cada caso, todo vencedor gravado é reenviado como indicado, pelo próprio caminho de
+    atualização (spec 003, FR-014). Assim, `min` e `max` continuam conferidos exatamente por caso.
+- **Contexto próprio:** só os casos que mexem no marcador ou na readiness (22, 23, 24, 25 e as três
+  variantes do 26, uma classe cada) e o que mexe na subida (29, no PostgreSQL).
+- **Prova de que o agrupamento não enfraqueceu o teste:** com as correções de `src/main` guardadas num
+  `git stash`, o `KafkaAdversarialEventsIT` reprovou exatamente os casos 05, 11, 13 e 17, cada um com as
+  mensagens dele. Os outros 20 passaram, sem efeito em cascata. Depois, as correções voltaram.
+- **Medição local** (`./mvnw verify` sem `clean`, na mesma máquina e no mesmo dia, todas verdes). A
+  referência do limite de 2× da research R15 da spec 003 é o tempo do job `build` no pipeline, e não a
+  máquina local (decisão do Anderson). Os números abaixo servem para comparar a consolidação:
+
+  | Execução | Tempo | Testes |
+  | --- | --- | --- |
+  | HEAD do Marco 3, sem os ITs novos (T001 e T010 da spec 004) | 233 a 252 s | 261 (5 pulados) e 85 |
+  | Com os ITs novos, um contexto por caso (31 classes) | 563 s | 292 (5 pulados) e 85 |
+  | Depois da consolidação (8 classes) | **260 s** | 269 (5 pulados) e 85 |
+
+  - Os ITs do testador somam cerca de 69 s no verify: 39 s do `KafkaAdversarialEventsIT` com os 24 casos,
+    contra cerca de 10 s **por caso** com contexto próprio, e de 3,4 s a 6,4 s para cada uma das sete
+    classes do marcador.
+  - O número de testes caiu de 292 para 269 só porque 24 classes viraram uma, com os mesmos 24 casos.
+  - `./mvnw -Ppostgres-it verify` contra um PostgreSQL 18 local descartável, com a mesma imagem e a mesma
+    configuração do job `postgres` (porta 55432, para não tocar outro container da máquina): 9 testes,
+    verdes, em 71 s. O caso 29 levou 18,8 s.
+  - A confirmação do limite fica para o tempo do job `build` na primeira execução do pipeline no
+    branch.
+
+**Como os ITs verificam.**
+- Aplicação completa, broker embutido e H2, sem mocks (Princípio I). O resultado é lido por HTTP:
+  listagem, intervalos, ETag e readiness.
+- O tópico de erros é lido pelo broker. Para cada rejeição, o IT confere os bytes originais, o código do
+  motivo, os cabeçalhos de origem, o offset do evento no tópico de filmes e o aviso no log.
+- O README dos casos pedia filmes, produtores e vínculos conferidos no banco. Os vínculos aparecem nos
+  intervalos, por HTTP, e o banco não é consultado.
+- O fim de cada sequência é o offset que o consumidor confirmou no grupo (`ack-mode: record`), sem
+  esperas fixas.
+- **Retenção do marcador** (casos 22 a 26 e 29): os casos pedem para reter no transporte o marcador que
+  a aplicação publica. O `HoldingProducerInterceptor`, de `src/test`, é um `ProducerInterceptor` do
+  próprio Kafka, ligado só nos testes por `spring.kafka.producer.properties.interceptor.classes`. Ele
+  desvia o registro, com chave, valor e cabeçalhos intactos, para o tópico `<filmes>.held`, e o teste o
+  solta depois pelo broker real. Não substitui nenhuma classe da aplicação: o publicador envia como
+  sempre. Por isso não conta como mock.
+
+**Resultado de cada ataque**, rodado antes de qualquer correção ("passou" quer dizer que a aplicação já
+fazia o esperado):
+
+| Caso | Ataque | Antes | Ação |
+| --- | --- | --- | --- |
+| 01 | JSON truncado, vazio, `null`, array e vírgula final | passou | — |
+| 02 | duas raízes JSON no mesmo valor | passou | — |
+| 03 | bytes `C3 28` dentro do título | passou | — |
+| 04 | ano, título, produtores e `winner` ausentes | passou | — |
+| 05 | título número, produtores array, estúdios objeto, título e produtores `null` | **falhou**: o `studios` objeto era gravado como ausente, e o título número e os produtores array saíam como `TITLE_MISSING` e `PRODUCERS_MISSING` | achado decidido; corrigido |
+| 06 | `winner` `"yes"`, `" YES "`, `"true"`, `"false"`, `""`, `1`, `0` e `null` | passou | — |
+| 07 | ano texto, fração, `2001.0`, `2.001e3` e booleano | passou | achado (expoente) decidido sem mudança |
+| 08 | anos 1 e 9999; 0, 10000, -1 e maiores que 32 e 64 bits | passou | — |
+| 09 | campos extras, `type` explícito e chave alheia ou nula | passou | — |
+| 10 | `type` `"Movie"`, `7` e `null` | passou | achado decidido sem mudança (`null` vale ausente) |
+| 11 | propriedade `winner` repetida com valores opostos | **falhou**: valia a última ocorrência | achado decidido; corrigido |
+| 12 | BOM UTF-8 antes do objeto | passou (`NOT_JSON`) | achado decidido sem mudança |
+| 13 | U+0000 escapado no título, nos estúdios e nos produtores; NUL literal | **falhou**: o U+0000 nas pontas era retirado pelo `trim` e o filme gravado sem ele | conflito entre a spec 001 e o data-model 003 decidido; corrigido nos dois caminhos |
+| 14 | NFC e NFD no título e no nome | passou | oráculo ajustado (abaixo) |
+| 15 | título só com NBSP, produtor U+200B, Iris com NBSP, título só com espaços | passou | achado decidido sem mudança |
+| 16 | título 500/501, estúdios 1000/1001, produtores 1000/1001, nome 500/501 | passou | — |
+| 17 | 1, 250, 251, 500 e 501 emojis no título | **falhou**: 251 e 500 passavam na validação e o H2 recusava (`DATABASE_REJECTED`, SQLState 22001) | achado decidido; corrigido |
+| 18 | `and` repetido, em caixa mista, nas pontas e embutido em nomes | passou | — |
+| 19 | tabulação em volta do `and` | passou | achado decidido sem mudança |
+| 20 | reentrega byte a byte antes e depois de outra vitória, com ETag | passou | — |
+| 21 | atualização pelo título com espaços, troca de vínculos e replay antigo | passou | — |
+| 22 | filmes do publicador com o marcador retido | passou | — |
+| 23 | marcador de outra execução repetido; marcador atual repetido | passou | — |
+| 24 | marcador sem `runId`; filme com a chave `load-completed` | passou | — |
+| 25 | cópia do marcador atual antes do último filme | passou, como documentado (a cópia libera a readiness) | achado decidido; documentado no contrato |
+| 26-A | `count` 1 com nenhum filme | passou (libera) | achado decidido sem mudança |
+| 26-B | marcador sem `count` | **falhou**: liberava a readiness | achado decidido; corrigido |
+| 26-C | `count` `"0"` | **falhou**: liberava a readiness | achado decidido; corrigido |
+| 27 | empates em `min` e `max`, vitórias no mesmo ano e ordem Unicode | passou | — |
+| 28 | atualização inválida de um filme existente | passou | — |
+| 29 | reinício com o PostgreSQL: reaplica o CSV, mantém o filme externo e ignora o marcador antigo | passou | — |
+| 30 | três vitórias no mesmo ano, com replay | passou | — |
+
+**Achados de ambiguidade, decididos pelo Anderson** e escritos na spec antes do código: spec 003,
+Clarifications de 2026-11-25, FR-012 e FR-013, data-model e contrato dos eventos; spec 001, FR-006, FR-007
+e FR-008, e data-model.
+
+1. **Tipos errados (05, 10):** motivo novo `FIELD_TYPE_INVALID` para `title`, `producers` ou `studios`
+   presente com outro tipo que texto. `null` vale ausente em todos os campos. Assim, título e produtores
+   nulos continuam `TITLE_MISSING` e `PRODUCERS_MISSING`, e `type` nulo é um filme.
+2. **Rigor do JSON (07, 11, 12):** propriedade repetida é `NOT_JSON`, pela detecção estrita do Jackson. O
+   BOM continua `NOT_JSON`, porque a tolerância é só do arquivo CSV. O ano com expoente continua
+   `YEAR_NOT_NUMERIC`, porque só o token de inteiro é aceito.
+3. **Unicode (15, 17, 19):** o tamanho é contado em unidades UTF-16, como o H2 mede, e o limite fica igual
+   nos dois bancos. Os espaços em volta são os caracteres de U+0001 a U+0020; NBSP e U+200B fazem parte
+   do texto. A tabulação e as quebras de linha separam o `and`.
+4. **U+0000 nas pontas (13):** a spec 001 (FR-006, "contém") e o data-model da spec 003 ("removido pelo
+   `trim` … não chega a ser rejeitado") se contradiziam. Vale a FR-006: o U+0000 é rejeitado em qualquer
+   posição, e o data-model foi corrigido.
+5. **Marcador (25, 26):** o `count` é validado como inteiro JSON ≥ 0, com o motivo novo `COUNT_INVALID`,
+   mas não é barreira. O caso 25 só acontece com escrita indevida no tópico. O contrato agora diz que a
+   readiness é um sinal operacional, não uma barreira de segurança, e que a proteção do tópico é do
+   broker (ACLs), fora do escopo.
+
+**Correções em `src/main`:**
+- `MovieFieldRules.strip`: a regra única dos espaços em volta, usada pelo CSV e pelo Kafka;
+- `MovieFieldRules.tooLong`: o tamanho passa a ser `String.length`;
+- `MovieCsvReader`: sem o `setTrim` do Commons CSV, que usa o `String.trim`; os campos passam pelo
+  `strip`;
+- `MovieEventParser`: `STRICT_DUPLICATE_DETECTION`, `FIELD_TYPE_INVALID` e `COUNT_INVALID`;
+- `EventRejectionReason`: os dois motivos novos.
+
+Essas mudanças valem também para a carga direta. Um campo do CSV com U+0000 nas pontas, ou com 251 a 500
+caracteres fora do plano básico, passa a ser rejeitado com aviso. Antes, ele era gravado sem o U+0000 ou
+interrompia a carga com um erro do H2. O `movielist.csv` não tem nenhum dos dois, e o resultado de
+referência não muda.
+
+**Desvios dos oráculos dos casos:**
+- Caso 14: o oráculo escreve os dois produtores como `José` em NFC. Na resposta, um deles vem em NFD. O
+  NFD vem primeiro pela FR-015 da spec 001 (`e` < `é`), e o IT confere os nomes reais.
+- Caso 23: o `runId` da "execução anterior" é um UUID novo, com a serialização do publicador. Para o
+  consumidor, outra execução é qualquer `runId` diferente.
+- Caso 29: roda no perfil `postgres-it` (`KafkaCase29RestartReappliesCsvPostgresIT`), como os outros
+  testes de reinício. O H2 do modo padrão é em memória e não sobrevive ao reinício.
+
+**Ponto em aberto, sem decisão:** no CSV, o léxico do Commons CSV (`ignoreSurroundingSpaces`) também
+ignora, nas pontas, os espaços Unicode do `Character.isWhitespace`, como o EM SPACE (U+2003). No Kafka,
+eles fazem parte do texto. A divergência já existia antes deste bolt e não aparece no `movielist.csv` nem
+nos casos do testador (NBSP e U+200B são iguais nos dois caminhos). Por isso a spec não afirma nada sobre
+esses espaços.
 
 ## 2026-11-25 — Pipeline do PR do Marco 3: endereço do broker vazando entre os testes pela propriedade de sistema
 

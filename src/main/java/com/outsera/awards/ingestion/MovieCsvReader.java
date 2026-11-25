@@ -42,7 +42,8 @@ public class MovieCsvReader {
             .setDelimiter(';')
             .setQuote('"')
             .setIgnoreEmptyLines(true)
-            .setTrim(true)
+            // Sem o setTrim: ele usa o String.trim, que retira também o U+0000 das pontas. Os espaços em
+            // volta saem pela MovieFieldRules.strip, a mesma regra dos eventos do Kafka (field()).
             .setIgnoreSurroundingSpaces(true)
             .get();
 
@@ -131,7 +132,7 @@ public class MovieCsvReader {
     }
 
     private static void validateHeader(CSVRecord header, String path) {
-        List<String> columns = header.toList();
+        List<String> columns = header.stream().map(MovieFieldRules::strip).toList();
         String found = String.join(";", columns);
 
         if (columns.size() == 1 && columns.getFirst().contains(",")) {
@@ -154,7 +155,7 @@ public class MovieCsvReader {
         if (record.size() != EXPECTED_HEADER.size()) {
             return new Rejection(lineNumber, RejectionReason.COLUMN_COUNT, "encontradas " + record.size());
         }
-        String year = record.get(0);
+        String year = field(record, 0);
         if (year.isEmpty()) {
             return new Rejection(lineNumber, RejectionReason.YEAR_MISSING, null);
         }
@@ -164,23 +165,25 @@ public class MovieCsvReader {
         if (!MovieFieldRules.isYearInRange(year)) {
             return new Rejection(lineNumber, RejectionReason.YEAR_OUT_OF_RANGE, year);
         }
-        String title = record.get(1);
+        String title = field(record, 1);
         if (!MovieFieldRules.hasTitle(title)) {
             return new Rejection(lineNumber, RejectionReason.TITLE_MISSING, null);
         }
-        List<String> producerNames = MovieFieldRules.producerNames(record.get(3));
+        String studios = field(record, 2);
+        String producers = field(record, 3);
+        List<String> producerNames = MovieFieldRules.producerNames(producers);
         if (producerNames.isEmpty()) {
             return new Rejection(lineNumber, RejectionReason.PRODUCERS_MISSING, null);
         }
-        String winner = record.get(4);
+        String winner = field(record, 4);
         if (!winner.isEmpty() && !winner.equalsIgnoreCase("yes")) {
             return new Rejection(lineNumber, RejectionReason.WINNER_INVALID, winner);
         }
-        String tooLong = MovieFieldRules.tooLong(title, record.get(2), record.get(3), producerNames);
+        String tooLong = MovieFieldRules.tooLong(title, studios, producers, producerNames);
         if (tooLong != null) {
             return new Rejection(lineNumber, RejectionReason.FIELD_TOO_LONG, tooLong);
         }
-        String nul = MovieFieldRules.nulCharacter(title, record.get(2), record.get(3));
+        String nul = MovieFieldRules.nulCharacter(title, studios, producers);
         if (nul != null) {
             return new Rejection(lineNumber, RejectionReason.NUL_CHARACTER, nul);
         }
@@ -192,11 +195,16 @@ public class MovieCsvReader {
     }
 
     private static MovieRow toRow(CSVRecord record, long lineNumber) {
-        String studios = record.get(2);
-        String producers = record.get(3);
-        return new MovieRow(lineNumber, Integer.parseInt(record.get(0)), record.get(1),
+        String studios = field(record, 2);
+        String producers = field(record, 3);
+        return new MovieRow(lineNumber, Integer.parseInt(field(record, 0)), field(record, 1),
                 studios.isEmpty() ? null : studios, producers, ProducerNameParser.parse(producers),
-                record.get(4).equalsIgnoreCase("yes"));
+                field(record, 4).equalsIgnoreCase("yes"));
+    }
+
+    /** A coluna {@code index} sem os espaços em volta ({@link MovieFieldRules#strip}). */
+    private static String field(CSVRecord record, int index) {
+        return MovieFieldRules.strip(record.get(index));
     }
 
     /**

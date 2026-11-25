@@ -50,14 +50,17 @@ Tópico `awards.movies`, chave `"<ano>|<título>"`, valor JSON em UTF-8. O forma
 
 | Campo | Tipo | Obrigatório | Regra (mesma da spec 001 quando existe no CSV) | Motivo de rejeição |
 | --- | --- | --- | --- | --- |
-| `type` | texto | não | ausente ou `movie` | `TYPE_UNKNOWN` |
-| `year` | inteiro JSON | sim | 1 a 9999 | `YEAR_MISSING`, `YEAR_NOT_NUMERIC`, `YEAR_OUT_OF_RANGE` |
-| `title` | texto | sim | não vazio depois do `trim`; a chave usa o título sem espaços em volta | `TITLE_MISSING` |
-| `studios` | texto ou `null` | não | vazio ou ausente vira nulo | — |
-| `producers` | texto | sim | separado pelo `ProducerNameParser`, com ao menos um nome | `PRODUCERS_MISSING` |
+| `type` | texto | não | ausente, `null` ou `movie` | `TYPE_UNKNOWN` |
+| `year` | token de inteiro JSON | sim | 1 a 9999 | `YEAR_MISSING`, `YEAR_NOT_NUMERIC`, `YEAR_OUT_OF_RANGE` |
+| `title` | texto | sim | não vazio depois de retirar os espaços em volta; a chave usa o título sem eles | `TITLE_MISSING`, `FIELD_TYPE_INVALID` |
+| `studios` | texto ou `null` | não | vazio ou ausente vira nulo | `FIELD_TYPE_INVALID` |
+| `producers` | texto | sim | separado pelo `ProducerNameParser`, com ao menos um nome | `PRODUCERS_MISSING`, `FIELD_TYPE_INVALID` |
 | `winner` | booleano JSON | sim | `true` ou `false` | `WINNER_INVALID` |
-| (todos) | — | — | tamanho máximo: `title` ≤ 500, `studios` ≤ 1000, `producers` ≤ 1000 e cada nome de produtor ≤ 500 caracteres (`VARCHAR(500)` e `VARCHAR(1000)` da V1) | `FIELD_TOO_LONG` |
-| `title`, `studios`, `producers` | — | — | nenhum caractere nulo (U+0000), que o PostgreSQL não aceita em texto. Um caractere nulo nas pontas é removido pelo `trim`, como no CSV, e não chega a ser rejeitado | `NUL_CHARACTER` |
+| (todos) | — | — | tamanho máximo, em unidades UTF-16 (`String.length`, como o H2 mede): `title` ≤ 500, `studios` ≤ 1000, `producers` ≤ 1000 e cada nome de produtor ≤ 500 (`VARCHAR(500)` e `VARCHAR(1000)` da V1). Um emoji conta 2 | `FIELD_TOO_LONG` |
+| `title`, `studios`, `producers` | — | — | nenhum caractere nulo (U+0000) em nenhuma posição, que o PostgreSQL não aceita em texto. O U+0000 não é espaço e nunca é retirado das pontas (testador adversário, 2026-11-25) | `NUL_CHARACTER` |
+
+**Espaços em volta**, em qualquer campo e nos dois caminhos: os caracteres de U+0001 a U+0020. NBSP
+(U+00A0) e U+200B fazem parte do texto. `null` vale ausente em todos os campos.
 
 **Validação comum aos dois caminhos.** As regras de conteúdo ficam numa única classe, a
 `MovieFieldRules`, usada pelo leitor do CSV e pelo parser de eventos:
@@ -77,12 +80,15 @@ Motivos que só existem no evento, porque vêm da representação JSON:
 | Motivo | Quando |
 | --- | --- |
 | `NOT_UTF8` | Os bytes não são UTF-8 válido |
-| `NOT_JSON` | O texto não é um objeto JSON |
-| `TYPE_UNKNOWN` | `type` presente e diferente de `movie` e de `load-completed` |
+| `NOT_JSON` | O texto não é um único objeto JSON: JSON inválido, outra raiz (array, `null`, valor vazio), duas raízes, BOM antes do objeto ou propriedade repetida |
+| `TYPE_UNKNOWN` | `type` presente, não nulo e diferente das strings `movie` e `load-completed` |
+| `FIELD_TYPE_INVALID` | `title`, `producers` ou `studios` presente, não nulo e de outro tipo que texto JSON |
+| `COUNT_INVALID` | marcador sem `count`, ou com `count` que não é inteiro JSON ≥ 0 |
 
 **Ordem das verificações:** `NOT_UTF8`, `NOT_JSON`, `TYPE_UNKNOWN`, depois a mesma ordem da spec 001:
-ano, título, produtores, `winner`, `FIELD_TOO_LONG` e `NUL_CHARACTER`. O primeiro motivo encontrado é o
-registrado.
+ano, título (`FIELD_TYPE_INVALID` e `TITLE_MISSING`), produtores (`FIELD_TYPE_INVALID` e
+`PRODUCERS_MISSING`), `winner`, estúdios (`FIELD_TYPE_INVALID`), `FIELD_TOO_LONG` e `NUL_CHARACTER`. O
+primeiro motivo encontrado é o registrado. No marcador: `RUN_ID_MISSING` e depois `COUNT_INVALID`.
 
 Motivo que vem do banco, depois da validação:
 
@@ -100,9 +106,11 @@ Mesmo tópico, chave `"load-completed"`.
 | --- | --- | --- |
 | `type` | texto | `load-completed` |
 | `runId` | texto (UUID) | identifica a execução que publicou |
-| `count` | inteiro ≥ 0 | filmes publicados nessa execução |
+| `count` | inteiro JSON ≥ 0, obrigatório | filmes publicados nessa execução; informativo |
 
-Um evento `load-completed` sem `runId` vai para o tópico de erros com o motivo `RUN_ID_MISSING`.
+Um evento `load-completed` sem `runId` vai para o tópico de erros com o motivo `RUN_ID_MISSING`. Sem
+`count`, ou com `count` que não é inteiro JSON ≥ 0, ele vai com o motivo `COUNT_INVALID` e não libera a
+readiness. O valor do `count` não é conferido contra os filmes gravados (spec 003, FR-013).
 
 ## Registro de erro
 

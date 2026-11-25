@@ -8,6 +8,7 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import tools.jackson.core.JacksonException;
+import tools.jackson.core.StreamReadFeature;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -21,7 +22,14 @@ import tools.jackson.databind.json.JsonMapper;
  */
 public final class MovieEventParser {
 
-    private static final JsonMapper JSON = JsonMapper.builder().build();
+    /**
+     * Com a detecção estrita, um objeto com uma propriedade repetida é {@code NOT_JSON}, em vez de valer a
+     * última ocorrência. O Jackson 3 já reprova duas raízes no mesmo valor e não aceita BOM num texto
+     * (spec 003, FR-012, Clarifications de 2026-11-25).
+     */
+    private static final JsonMapper JSON = JsonMapper.builder()
+            .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
+            .build();
     private static final int DETAIL_MAX = 60;
 
     private MovieEventParser() {
@@ -83,9 +91,12 @@ public final class MovieEventParser {
         if (runId == null || !runId.isString() || runId.asString().isBlank()) {
             return new Rejected(EventRejectionReason.RUN_ID_MISSING, null);
         }
+        // O count é validado, mas é informativo: o marcador vale pelo runId (spec 003, FR-013).
         JsonNode count = node.get("count");
-        long published = count != null && count.canConvertToLong() ? count.longValue() : 0;
-        return new Completed(new LoadCompletedEvent(runId.asString(), published));
+        if (count == null || !count.isIntegralNumber() || !count.canConvertToLong() || count.longValue() < 0) {
+            return new Rejected(EventRejectionReason.COUNT_INVALID, count == null ? "ausente" : shorten(count.toString()));
+        }
+        return new Completed(new LoadCompletedEvent(runId.asString(), count.longValue()));
     }
 
     private static Parsed movie(JsonNode node) {
@@ -99,9 +110,15 @@ public final class MovieEventParser {
         if (!year.canConvertToLong() || !MovieFieldRules.isYearInRange(year.longValue())) {
             return new Rejected(EventRejectionReason.YEAR_OUT_OF_RANGE, shorten(year.toString()));
         }
+        if (!isTextOrAbsent(node, "title")) {
+            return new Rejected(EventRejectionReason.FIELD_TYPE_INVALID, "title");
+        }
         String title = text(node, "title");
         if (!MovieFieldRules.hasTitle(title)) {
             return new Rejected(EventRejectionReason.TITLE_MISSING, null);
+        }
+        if (!isTextOrAbsent(node, "producers")) {
+            return new Rejected(EventRejectionReason.FIELD_TYPE_INVALID, "producers");
         }
         String producers = text(node, "producers");
         List<String> producerNames = MovieFieldRules.producerNames(producers);
@@ -112,6 +129,9 @@ public final class MovieEventParser {
         if (winner == null || !winner.isBoolean()) {
             return new Rejected(EventRejectionReason.WINNER_INVALID,
                     winner == null ? "ausente" : shorten(winner.toString()));
+        }
+        if (!isTextOrAbsent(node, "studios")) {
+            return new Rejected(EventRejectionReason.FIELD_TYPE_INVALID, "studios");
         }
         String studios = text(node, "studios");
         String tooLong = MovieFieldRules.tooLong(title, studios, producers, producerNames);
@@ -126,10 +146,19 @@ public final class MovieEventParser {
                 producers, producerNames, winner.booleanValue()));
     }
 
-    /** O texto do campo sem os espaços em volta, como no CSV, ou nulo se ausente ou não for texto. */
+    /** O campo está ausente, é {@code null} (que vale ausente) ou é texto JSON. */
+    private static boolean isTextOrAbsent(JsonNode node, String field) {
+        JsonNode value = node.get(field);
+        return value == null || value.isNull() || value.isString();
+    }
+
+    /**
+     * O texto do campo sem os espaços em volta, pela mesma regra do CSV ({@link MovieFieldRules#strip}), ou
+     * nulo se ausente ou {@code null}. O tipo já foi conferido por {@link #isTextOrAbsent}.
+     */
     private static String text(JsonNode node, String field) {
         JsonNode value = node.get(field);
-        return value == null || !value.isString() ? null : value.asString().trim();
+        return value == null || !value.isString() ? null : MovieFieldRules.strip(value.asString());
     }
 
     private static String shorten(String detail) {

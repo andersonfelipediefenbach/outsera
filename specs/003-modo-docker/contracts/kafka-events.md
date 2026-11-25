@@ -19,7 +19,8 @@ concluída seja consumido depois dos filmes publicados antes dele (research R6).
 - **Cabeçalho `awards-run-id`:** o publicador da aplicação põe o `runId` da execução em cada evento. É
   informativo, o consumidor não depende dele e um cliente externo não precisa enviá-lo. Os testes usam o
   cabeçalho para descobrir o `runId` (research R10).
-- **Valor:** objeto JSON em UTF-8.
+- **Valor:** um único objeto JSON em UTF-8, sem propriedade repetida e sem BOM antes dele. Duas raízes no
+  mesmo valor, uma propriedade repetida ou um BOM inicial são `NOT_JSON`.
 
 ```json
 {
@@ -33,14 +34,21 @@ concluída seja consumido depois dos filmes publicados antes dele (research R6).
 
 | Campo | Tipo | Obrigatório | Regra |
 | --- | --- | --- | --- |
-| `type` | string | não | ausente ou `"movie"` |
-| `year` | integer | sim | 1 a 9999 |
-| `title` | string | sim | não vazio depois de retirar os espaços em volta |
-| `studios` | string ou null | não | vazio equivale a ausente |
-| `producers` | string | sim | mesmo formato da coluna do CSV: vírgula, ` and ` e `, and` separam nomes (spec 001, FR-007 a FR-010); precisa gerar ao menos um nome |
+| `type` | string | não | ausente, `null` ou `"movie"` |
+| `year` | integer | sim | 1 a 9999, escrito como inteiro JSON: texto, decimal (`2001.0`) e expoente (`2.001e3`) são `YEAR_NOT_NUMERIC` |
+| `title` | string | sim | não vazio depois de retirar os espaços em volta; no máximo 500 |
+| `studios` | string ou null | não | vazio equivale a ausente; no máximo 1000 |
+| `producers` | string | sim | mesmo formato da coluna do CSV: vírgula, ` and ` e `, and` separam nomes (spec 001, FR-007 a FR-010); precisa gerar ao menos um nome; no máximo 1000 no texto e 500 em cada nome |
 | `winner` | boolean | sim | `true` para vencedor, `false` para indicado |
 
-Campos não listados são ignorados.
+Campos não listados são ignorados. `null` vale ausente em qualquer campo. `title`, `producers` ou
+`studios` presente com outro tipo que string (número, array, objeto ou booleano) é `FIELD_TYPE_INVALID`.
+
+- **Tamanhos:** contados em unidades UTF-16, como o H2 mede as colunas. Um emoji fora do plano básico
+  conta 2, então um título tem no máximo 250 deles.
+- **Espaços em volta:** os caracteres de U+0001 a U+0020. NBSP (U+00A0) e U+200B fazem parte do texto. Em volta do `and`, a tabulação e as quebras de linha também separam.
+- **Caractere nulo:** U+0000 em qualquer posição de `title`, `studios` ou `producers`, inclusive nas
+  pontas, é `NUL_CHARACTER`. Escrito sem escape dentro da string, ele torna o JSON inválido (`NOT_JSON`).
 
 **Efeito:** o filme identificado por `year` + `title` é criado ou, se já existir, passa a ter os valores
 do evento (spec 003, FR-014). Receber o mesmo evento de novo não muda nada.
@@ -54,8 +62,30 @@ do evento (spec 003, FR-014). Receber o mesmo evento de novo não muda nada.
 { "type": "load-completed", "runId": "3f0c2a8e-6d1b-4a59-9a63-0f7e1f4d2b10", "count": 206 }
 ```
 
+| Campo | Tipo | Regra |
+| --- | --- | --- |
+| `type` | string | `"load-completed"` |
+| `runId` | string | não vazio; sem ele, `RUN_ID_MISSING` |
+| `count` | integer | obrigatório, inteiro JSON ≥ 0; ausente ou de outro tipo, `COUNT_INVALID`. O valor é informativo |
+
 Só a aplicação que gerou o `runId` muda de estado ao consumi-lo: a readiness passa a 200 (FR-013). Um
-evento com outro `runId` é ignorado. Um cliente externo não tem motivo para enviar este evento.
+evento com outro `runId` é ignorado, sem ir ao tópico de erros. Um evento rejeitado (`RUN_ID_MISSING` ou
+`COUNT_INVALID`) não libera a readiness. Um cliente externo não tem motivo para enviar este evento.
+
+**Marcador antecipado.** O marcador vale pelo `runId`. O `count` não é conferido contra os filmes
+gravados. O publicador nunca antecipa o marcador: o tópico tem uma partição, e ele envia cada evento e
+espera a confirmação antes do próximo. Um marcador com o `runId` certo que chega antes do último filme da
+carga só acontece com **escrita indevida no tópico**. O `runId` aparece no cabeçalho `awards-run-id` de
+todo evento do publicador, então quem lê o tópico pode copiá-lo. Nesse caso, a readiness fica positiva
+antes de a carga terminar.
+
+- **A readiness é um sinal operacional, e não uma barreira de segurança.** Ela diz ao orquestrador quando
+  mandar tráfego. Ela não protege os dados: quem escreve no tópico já pode gravar qualquer filme.
+- **A proteção do tópico é responsabilidade do broker,** com ACLs que limitem quem escreve em
+  `awards.movies`. Isso fica fora do escopo deste projeto. O compose de desenvolvimento roda o broker sem
+  autenticação.
+
+Comprovação: o `KafkaCase25EarlyMarkerIT` fixa esse comportamento (spec 004, FR-035).
 
 ## Registro no tópico de erros
 
@@ -71,9 +101,11 @@ evento com outro `runId` é ignorado. Um cliente externo não tem motivo para en
 | `awards-source-partition` | `0` |
 | `awards-source-offset` | `207` |
 
-**Motivos:** `NOT_UTF8`, `NOT_JSON`, `TYPE_UNKNOWN`, `RUN_ID_MISSING`, `FIELD_TOO_LONG`, `NUL_CHARACTER`,
-`YEAR_MISSING`, `YEAR_NOT_NUMERIC`, `YEAR_OUT_OF_RANGE`, `TITLE_MISSING`, `PRODUCERS_MISSING`,
-`WINNER_INVALID` e `DATABASE_REJECTED` (recusa permanente do banco, com o SQLState; data-model.md).
+**Motivos:** `NOT_UTF8`, `NOT_JSON`, `TYPE_UNKNOWN`, `RUN_ID_MISSING`, `COUNT_INVALID`,
+`FIELD_TYPE_INVALID`, `FIELD_TOO_LONG`, `NUL_CHARACTER`, `YEAR_MISSING`, `YEAR_NOT_NUMERIC`,
+`YEAR_OUT_OF_RANGE`, `TITLE_MISSING`, `PRODUCERS_MISSING`, `WINNER_INVALID` e `DATABASE_REJECTED` (recusa
+permanente do banco, com o SQLState; data-model.md). `COUNT_INVALID` e `FIELD_TYPE_INVALID` entraram em
+2026-11-25, com o testador adversário (spec 004, FR-035).
 
 ## Garantias
 

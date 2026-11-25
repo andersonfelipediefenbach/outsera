@@ -96,7 +96,7 @@ verdes no `./mvnw verify`.
 ### Implementação da etapa 1
 
 - [X] T004 [US7] Registrar em `docs/ai/decisoes.md`, numa entrada "Decisões do plano do Marco 4", as quatro decisões de `specs/004-acabamento-operacional/plan.md` ("Decisões do responsável sobre o plano (2026-11-25)") e as duas clarificações da spec (cache só da JVM; assinatura num registro temporário), sem dado pessoal.
-- [ ] T005 [US7] **PENDENTE (etapa 1: não acionado; ver "Testador adversário: ingestão por Kafka" em docs/ai/decisoes.md).** **Pedido ao Anderson:** acionar o testador adversário (Codex) para a ingestão por Kafka (T050 da spec 003, FR-035, R13). Ele cria eventos de ataque a partir de `specs/003-modo-docker/spec.md` e de `specs/003-modo-docker/contracts/kafka-events.md`, sem ler `src/main`. Para cada falha encontrada:
+- [X] T005 [US7] **Pedido ao Anderson:** acionar o testador adversário (Codex) para a ingestão por Kafka (T050 da spec 003, FR-035, R13). Ele cria eventos de ataque a partir de `specs/003-modo-docker/spec.md` e de `specs/003-modo-docker/contracts/kafka-events.md`, sem ler `src/main`. Para cada falha encontrada:
   - se a correção muda comportamento, atualizar primeiro `specs/003-modo-docker/spec.md` (Princípio IV);
   - escrever o IT em `src/test/java/com/outsera/awards/kafka/adversario/<Nome>IT.java`, com o broker embutido, sem mocks e verificação por HTTP (Princípio I), `@DisplayName` começando por `S004 FR-035` e pelo requisito da spec 003 violado. Confirmar que ele **falha**;
   - corrigir em `src/main` e confirmar que o IT passa.
