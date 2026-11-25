@@ -3,6 +3,598 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-25 — Pipeline do PR do Marco 3: endereço do broker vazando entre os testes pela propriedade de sistema
+
+- **Falha:** no commit `230dffc`, o job `build` reprovou nos dois eventos. No `push`, só o
+  `KafkaBrokerLateStartIT` falhou, em 2,4 s: o broker tardio não tinha os tópicos. No `pull_request`, ele
+  falhou do mesmo jeito, e o `KafkaEquivalenceIT` também falhou, três vezes, sem readiness 200 em 60 s. As
+  duas falhas acontecem na primeira execução do Failsafe, a de log em texto, com 261 testes. A execução com
+  log em JSON (85 testes) passou nos dois eventos, porque não roda essas classes.
+- **Causa** (a mesma nas duas classes e nos dois eventos):
+  - todo `EmbeddedKafkaKraftBroker` do spring-kafka-test 4.1.2 grava o próprio endereço na propriedade de
+    sistema `spring.kafka.bootstrap-servers` ao subir. O valor padrão do `bootstrapServersProperty` do
+    `@EmbeddedKafka` é esse nome. O comportamento vale para todo broker embutido: os dos contextos
+    `KafkaScenarioIT`, o compartilhado e os criados à mão;
+  - essa propriedade de sistema vence o `bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:...}` do
+    `application-kafka.yml`. Por isso, toda aplicação que um IT sobe com `SpringApplication` se ligava ao
+    último broker criado na JVM, e não ao que o teste passou em `KAFKA_BOOTSTRAP_SERVERS`;
+  - `KafkaBrokerLateStartIT`: o broker do contexto do `KafkaConsumerGroupIT`, que roda antes, continuava no
+    ar no cache do Spring. A aplicação criou os tópicos e publicou nele em vez de esperar o broker tardio;
+  - `KafkaEquivalenceIT`: o broker compartilhado já existia, criado antes pelo `KafkaStructuralFailureIT`.
+    A propriedade guardava o endereço do broker do `KafkaIdempotencyIT`, que o `@DirtiesContext` já tinha
+    fechado. A aplicação nunca ficava pronta.
+- **O que muda no runner:** a ordem das classes. O Failsafe roda na ordem do sistema de arquivos:
+  - no Windows (NTFS), ela é alfabética. O `KafkaBrokerLateStartIT` roda antes de qualquer
+    `@EmbeddedKafka`, quando a propriedade ainda não existe. O `KafkaEquivalenceIT` é o primeiro a pedir o
+    broker compartilhado, e a criação dele regrava a propriedade com o endereço certo. Ele passava por
+    sorte, às vezes ligado a outro broker que ainda estava no ar;
+  - no runner (ext4), a ordem segue o hash dos nomes e mudou até entre os checkouts do `push` e do
+    `pull_request`.
+
+  Não é problema de porta, de paralelismo nem de prazo.
+- **Diagnóstico anterior corrigido:** na rodada passada, atribuí a falha do `KafkaBrokerLateStartIT` a uma
+  corrida na porta com um IT em paralelo. O log mostra as classes rodando em sequência, e a falha voltou
+  com a porta reservada.
+- **Correção**, sem mudar nenhum prazo:
+  - `KafkaTestSupport.BROKERS_PROPERTY` (`awards.test.embedded-kafka.brokers`) recebe o endereço em vez da
+    propriedade do Boot;
+  - o `KafkaScenarioIT` usa `bootstrapServersProperty = BROKERS_PROPERTY`. O broker compartilhado, o
+    `startBroker()` e o broker tardio passam pelo novo `KafkaTestSupport.newBroker()`, que faz o mesmo;
+  - o `KafkaTestSupport.properties()` reprova com uma mensagem clara se a `spring.kafka.bootstrap-servers`
+    estiver definida na JVM. Um broker novo criado sem esses cuidados quebra na hora, em vez de ligar a
+    aplicação ao broker errado em silêncio.
+- **Comprovação:** a falha foi reproduzida localmente, forçando a ordem com
+  `-Dfailsafe.runOrder=reversealphabetical`. Sem a correção:
+  - com `KafkaConsumerGroupIT` e `KafkaBrokerLateStartIT`, o segundo falha na mesma asserção, em 2,6 s;
+  - com `KafkaStructuralFailureIT`, `KafkaIdempotencyIT` e `KafkaEquivalenceIT`, o último falha três
+    vezes, sem readiness 200 em 60 s (193 s no total, contra 191 s no runner).
+
+  Com a correção, as cinco classes passam nessa ordem, e o log mostra a aplicação do `KafkaEquivalenceIT`
+  ligada ao broker compartilhado. O `./mvnw verify` completo passa.
+
+## 2026-11-25 — Pipeline do PR do Marco 3: lz4-java e snappy-java com correção
+
+- **Falha:** a porta da imagem (Trivy, alta e crítica com versão corrigida) reprovou o `54cae85` com três
+  vulnerabilidades altas em bibliotecas que o `kafka-clients` 4.2.2 traz em runtime e que o BOM do Spring
+  Boot 4.1.2 não gerencia:
+  - `lz4-java` 1.11.2: CVE-2026-106451, corrigida na 1.11.4;
+  - `snappy-java` 1.1.10.7: CVE-2026-108106 e CVE-2026-93451, corrigidas na 1.1.10.9.
+
+  Elas entraram com a ingestão por Kafka, neste marco. O job `dependencies`, que analisa o repositório, não
+  as apontou. A causa disso não foi investigada.
+- **Correção:** o `pom.xml` fixa as versões no `dependencyManagement`, com a última correção de cada linha:
+  `lz4-java` 1.11.4 e `snappy-java` 1.1.10.12. As versões ficam em propriedades, com um comentário para
+  retirá-las quando o `kafka-clients` trouxer versões corrigidas.
+- **Comprovação:** os ITs de Kafka passam no `./mvnw verify`. O Trivy 0.70.0, com a mesma porta do
+  pipeline, não acha nada nas 103 bibliotecas do jar, extraídas como na imagem. Nos jars antigos, ele acha
+  as três vulnerabilidades. A comprovação definitiva é o job `image` (Princípio VI).
+
+## 2026-11-25 — Pipeline do PR do Marco 3: porta reservada no KafkaBrokerLateStartIT
+
+> **Diagnóstico corrigido:** a causa descrita abaixo estava errada. Os ITs não rodam em paralelo, e a
+> falha voltou com a porta reservada. A causa real está na entrada "Pipeline do PR do Marco 3: endereço do
+> broker vazando entre os testes pela propriedade de sistema". A reserva da porta foi mantida, porque não
+> faz mal e tira a janela entre escolher a porta e usá-la.
+
+- **Falha:** o job `build` reprovou o `54cae85` no `KafkaBrokerLateStartIT`, em 2,2 s: o broker que sobe
+  depois não tinha os tópicos da aplicação.
+- **Causa:** uma corrida na porta, no teste, e não na aplicação. O teste escolhia uma porta livre abrindo e
+  fechando um `ServerSocket`, e só ligava o repassador nela depois de subir a aplicação e o broker tardio.
+  Nesse intervalo, a porta ficava livre, e o Failsafe roda outros ITs de Kafka em paralelo na mesma JVM. No
+  pipeline, outro broker embutido ocupou a porta. O log mostra a aplicação criando os tópicos e publicando
+  os 206 filmes nesse outro broker, 1,3 s depois de subir. Por isso a readiness ficou pronta sem o broker
+  tardio, e a verificação dos tópicos falhou.
+- **Correção:** o `TcpForwarder` reserva a porta desde o início (`reserve()`). Enquanto não há destino, ele
+  fecha cada conexão logo depois de aceitá-la, como um serviço fora do ar. Depois, `forwardTo()` o liga ao
+  broker. A porta não fica livre em nenhum momento.
+- **Comprovação:** o IT passa sozinho e na suíte completa. Sem a recriação dos tópicos do apontamento 2, ele
+  continua reprovando, porque a readiness não chega a 200 em 90 s. Assim o teste ainda prova o caso de
+  borda "Broker indisponível".
+
+## 2026-11-25 — Pipeline do PR do Marco 3: porta do CodeQL com exceções registradas
+
+- **Falha:** o job `codeql` reprovou o `54cae85` com os dois alertas de severidade alta já analisados na
+  entrada "Alertas do CodeQL no PR do Marco 3, dispensados como falso positivo". Dispensá-los no GitHub não
+  resolve, porque a porta de severidade lê o SARIF da análise, e não o estado dos alertas.
+- **Correção:** a porta passa a ser o `.github/scripts/codeql-gate.sh`, com as exceções em
+  `.github/codeql-exceptions.txt`, no mesmo padrão do `unchanged-tests-exceptions.txt`:
+  - cada linha tem o id da regra, o caminho do arquivo e o título da entrada do `decisoes.md` que justifica;
+  - a porta ignora só os achados listados e reprova se uma exceção citar uma entrada que não existe;
+  - o resumo do job mostra os achados ignorados numa tabela própria, com a justificativa.
+- **Exceções registradas:** os ids e caminhos foram conferidos no SARIF da análise do PR:
+  - `java/spring-disabled-csrf-protection` no `SecurityConfiguration` (severidade 8,8);
+  - `java/user-controlled-bypass` no `TokenAuthenticationFilter` (severidade 7,8).
+- **Comprovação local**, com o SARIF do PR: com as exceções, a porta passa e lista os dois achados como
+  ignorados. Sem elas, ou com um título inexistente, ela reprova. A comprovação definitiva é a execução do
+  pipeline (Princípio VI).
+
+## 2026-11-25 — Pipeline do PR do Marco 3: byte NUL no decisoes.md e verificação nova na política
+
+- **Falha:** o job `workflow-policy` reprovou o commit `54cae85`. A entrada do apontamento 3 tinha um byte
+  NUL literal no lugar do texto `\u0000`. Com ele, o `grep` passou a tratar o `docs/ai/decisoes.md` como
+  binário, e o `check-unchanged-tests.sh` não achou o título da exceção do `ApiDocsIT`.
+- **Correção:** o byte virou o texto `\u0000` entre crases (commit `25e4b38`).
+- **Prevenção:** o `check-text-files.sh`, num passo novo do job de política, reprova qualquer byte NUL em
+  arquivo de texto versionado. Um arquivo com NUL de propósito precisa ser declarado `binary` no
+  `.gitattributes` e aparece na saída do passo. Hoje só o cenário `nul-character.csv` está nessa situação.
+  O contrato do pipeline da spec 003 descreve a regra.
+- **Comprovação:** o script passa no HEAD e reprova o `54cae85`, apontando o `decisoes.md`. Ele foi rodado
+  numa cópia de trabalho temporária desse commit.
+
+## 2026-11-25 — Alertas do CodeQL no PR do Marco 3, dispensados como falso positivo
+
+O job `codeql` abriu dois alertas de severidade alta no PR. O responsável os dispensa como falso positivo,
+pelos motivos abaixo. Nenhum código mudou.
+
+- **"Disabled Spring CSRF protection"** (`java/spring-disabled-csrf-protection`), no `SecurityConfiguration`:
+  - o CSRF só é explorável quando o navegador anexa sozinho uma credencial ambiente (cookie de sessão ou
+    autenticação Basic) a uma requisição forjada por outro site;
+  - a API é sem estado, não cria sessão, não emite cookie e tem `formLogin`, `httpBasic` e `logout`
+    desligados. A única credencial é o token no cabeçalho `Authorization: Bearer`, que o navegador não envia
+    sozinho, e o CORS não está liberado para nenhuma origem;
+  - os endpoints protegidos são só de leitura.
+
+  A justificativa foi acrescentada ao ADR 0017, que antes só dizia "sem CSRF". O ADR também registra que o
+  CSRF precisa voltar se a API passar a usar cookie ou sessão.
+- **"User-controlled bypass of sensitive method"** (`java/user-controlled-bypass`), no
+  `TokenAuthenticationFilter`:
+  - a regra aponta uma condição que depende de um dado da requisição e decide se uma ação sensível
+    acontece. Aqui, a condição é a própria verificação de autenticação: o cabeçalho `Authorization` é
+    comparado com o token esperado, e só um valor igual autentica a requisição. Decidir pelo cabeçalho é
+    exatamente o que um filtro de autenticação faz;
+  - não há desvio: sem o cabeçalho, ou com outro valor, o filtro não autentica, e a autorização nega com
+    401. Isso é comprovado pelo `AuthEnabledIT` (sem token, token errado, outro esquema, espaço a mais,
+    outra caixa) e pelo `AuthProblemDetailsIT`;
+  - a comparação é feita em tempo constante, sobre o SHA-256 dos dois valores (research R11, ADR 0017), e
+    nenhum caminho autentica sem a comparação.
+- **Onde fica a dispensa:** em `.github/codeql-exceptions.txt`, que a porta de severidade do job `codeql`
+  lê, com uma linha por alerta (regra, arquivo e esta entrada). Dispensar o alerta na interface do code
+  scanning do GitHub não basta, porque a porta lê o SARIF da análise (ver a entrada "Pipeline do PR do Marco
+  3: porta do CodeQL com exceções registradas").
+
+## 2026-11-25 — Revisão do Codex no PR do Marco 3: evento com caractere nulo (apontamento 3)
+
+- **Apontamento (aceito):** o PostgreSQL não aceita o caractere nulo (U+0000) em texto. Um evento com
+  `\u0000` passava pela validação, a recusa do banco entrava na nova tentativa sem limite (R9) e travava a
+  partição para sempre: nenhum evento seguinte era gravado.
+- **Correção em duas camadas**, com as specs primeiro (Princípio IV):
+  - **validação:** nova regra `NUL_CHARACTER` na `MovieFieldRules`, comum ao CSV e ao Kafka (título,
+    estúdios e produtores). As specs 001 (FR-006 e o data-model, motivo 9) e 003 (FR-012, caso de borda e
+    data-model) registram a origem, como no `FIELD_TOO_LONG`. Na carga direta, uma linha com o caractere
+    nulo passa a ser ignorada com aviso. No H2 ela era aceita, mas o PostgreSQL a recusaria. Um caractere
+    nulo nas pontas é removido pelo `trim`, como no CSV, e não chega ao banco;
+  - **classificação:** uma recusa do banco por dado inválido, com SQLState das classes 22 (dado) e 23
+    (restrição de integridade), é permanente. O evento vai ao tópico de erros com o motivo
+    `DATABASE_REJECTED` e o SQLState, sem nova tentativa. As demais falhas continuam com a nova tentativa,
+    como a tabela inexistente (42P01) e a perda de conexão. A FR-015a e a R9 registram a regra, e o ADR 0016
+    foi atualizado.
+- **Comprovação:**
+  - `NulCharacterIT` (carga direta): três linhas com o caractere nulo no título, nos estúdios e nos
+    produtores são rejeitadas com aviso, e a carga continua;
+  - `KafkaInvalidEventsIT`: o 17º caso, com o caractere nulo no meio do título, vai ao tópico de erros como
+    `NUL_CHARACTER`;
+  - `DatabaseRejectionPostgresIT` (`postgres-it`): o teste muda o esquema com a aplicação no ar, para que
+    só o banco recuse, sem passar pela validação. Um `CHECK` dá o SQLState 23514, e a coluna `studios`
+    reduzida a 5 caracteres dá o 22001. Os dois eventos vão ao tópico de erros com `DATABASE_REJECTED` e o
+    SQLState, o evento válido seguinte é gravado, e o log não mostra nova tentativa;
+  - `RetryPostgresIT` continua verde (42P01, com a nova tentativa).
+
+  Antes da correção, o `DatabaseRejectionPostgresIT` falhou: as recusas foram tentadas de novo sem parar,
+  e o evento válido nunca foi gravado. O `NulCharacterIT` e o `KafkaInvalidEventsIT` também falharam.
+- **Tempos depois dos três apontamentos:**
+  - `./mvnw verify`: **181 s** sem `clean`, ainda dentro do limite de 2× da R15 (192 s), com 261 + 85
+    testes e cobertura de 97,35%. Os ITs novos somam cerca de 12 s, a maior parte no
+    `KafkaBrokerLateStartIT`, que sobe um broker depois da aplicação;
+  - `./mvnw -Ppostgres-it verify`: **75 s**, com 8 testes.
+
+## 2026-11-25 — Revisão do Codex no PR do Marco 3: tópicos depois de falha do broker (apontamento 2)
+
+- **Apontamento (aceito):** com `spring.kafka.admin.fail-fast: false`, se o broker estiver fora na subida, o
+  `KafkaAdmin` não cria os tópicos e nada os recria depois. O publicador só reenviava os eventos. Como o
+  compose desliga a criação automática de tópicos, a publicação falharia para sempre depois de o broker
+  voltar.
+- **Correção:**
+  - a spec veio primeiro: o caso de borda "Broker indisponível" descreve a recuperação. A cada nova
+    tentativa, a aplicação tenta criar os tópicos que faltam e, quando o broker volta, publica, consome a
+    carga e fica pronta, sem reinício;
+  - antes de cada nova tentativa de envio, o `MovieEventPublisher` chama `KafkaAdmin.initialize()`, que cria
+    os `NewTopic` que ainda não existem. Com o broker ainda fora, a falha só é registrada, e a tentativa
+    seguinte repete (R8).
+- **Comprovação, por IT:** o `KafkaBrokerLateStartIT` reproduz o caso.
+  1. A aplicação sobe apontando para uma porta livre, onde nada escuta: o broker está fora de verdade.
+  2. O teste confere a readiness 503.
+  3. Sobe o broker embutido com `auto.create.topics.enable=false`, como no compose.
+  4. Confere a readiness 200, o resultado de referência e os dois tópicos criados.
+
+  Sem a correção, o IT falhou: a readiness não chegou a 200 em 90 s. Com ela, passou em 22 s.
+- **Por que há um repassador TCP no teste:** o `EmbeddedKafkaKraftBroker` do Spring Kafka 4.1.2 guarda o
+  `kafkaPorts`, mas não o usa ao subir o cluster KRaft (conferido no bytecode), e o broker sempre sobe numa
+  porta aleatória. O `TcpForwarder` de `src/test/` escuta na porta que a aplicação usa e só leva a conexão
+  inicial ao broker. Daí em diante, os clientes falam direto com o broker, pelo endereço que ele anuncia.
+  Não é um dublê: só copia bytes, sem ler nem alterar o protocolo. Por isso não foi preciso a alternativa
+  de comprovar num passo do `compose-test.sh`.
+
+## 2026-11-25 — Revisão do Codex no PR do Marco 3: grupo do consumidor (apontamento 1)
+
+- **Apontamento (aceito):** o `@KafkaListener(id = "awards-movies")` usa o id como grupo (`idIsGroup`, que é
+  verdadeiro por padrão) e ignora `KAFKA_CONSUMER_GROUP`. A FR-003 pedia toda a configuração por variável
+  de ambiente, e o grupo estava fixo no código.
+- **Por que os testes não pegaram:** cada classe de teste tem o seu broker, então todas usavam o mesmo grupo
+  fixo sem conflito. Nenhum teste conferia o grupo registrado no broker.
+- **Correção:**
+  - a spec veio primeiro: a FR-003 agora cita o grupo do consumidor;
+  - o ouvinte passou a usar `idIsGroup = false`, e o grupo vem de `spring.kafka.consumer.group-id`
+    (`KAFKA_CONSUMER_GROUP`, padrão `awards`);
+  - o `clientIdPrefix = "awards-movies"` ficou explícito. Sem ele, o `client.id` do Kafka seria derivado do
+    grupo, e a série de atraso das métricas e o dashboard mudariam de nome conforme a variável. O
+    `client_id` passa a ser `awards-movies-<n>`, e o `KafkaMetricsIT`, o dashboard, a R19 e o contrato
+    operacional foram atualizados.
+- **Comprovação:** o `KafkaConsumerGroupIT` sobe com `KAFKA_CONSUMER_GROUP=grupo-configurado-it` e confere
+  no broker, pelo `AdminClient` real, que esse é o grupo registrado, com um membro, e que `awards-movies`
+  não aparece. Antes da correção, ele falhou com o grupo `awards-movies`.
+- **Efeito no compose:** com o padrão, o grupo passa a ser `awards`. Um volume do Kafka criado antes da
+  correção tem os offsets no grupo antigo, então o consumidor novo relê o tópico desde o começo. Isso é
+  inofensivo, porque a gravação é idempotente.
+
+## 2026-11-25 — Tempo do `./mvnw verify` do Marco 3 (correção da etapa 2)
+
+- **Origem:** o `verify` passou de 96 s na linha de base para cerca de 4 min, acima do limite de 2× da
+  research R15 (entrada da etapa 2). O responsável não aceitou os 4 min nem o corte de casos, e pediu a
+  redução sem perder cobertura.
+- **Medição** (`./mvnw verify` sem `clean`, com o código já compilado, na mesma máquina):
+
+  | | Tempo | Razão sobre a linha de base (96 s) |
+  | --- | --- | --- |
+  | Antes | 249 s | 2,6× |
+  | Depois | **161 s** | **1,68×**, dentro do limite de 2× |
+
+  Os ITs do Kafka passaram de cerca de 130 s para 59 s, somadas as duas execuções do Failsafe. A cobertura
+  de linhas foi de 96,32% para 97,06%.
+- **O que mudou, sem tirar nenhum caso:**
+  - **perfil de teste `kafkatest`** (`src/test/resources/application-kafkatest.yml`, fora do JAR): prazos
+    curtos dos clientes Kafka (`max.block.ms`, `request.timeout.ms`, `delivery.timeout.ms`,
+    `default.api.timeout.ms` e os prazos do `KafkaAdmin`). Todos os ITs do Kafka o ligam junto com o perfil
+    `kafka`. A produção não muda;
+  - **`KafkaInvalidEventsIT` numa única execução:** os 16 eventos inválidos são publicados de uma vez,
+    seguidos de um evento válido. Como o tópico tem uma partição, quando o válido aparece na listagem,
+    todos os inválidos já foram processados sem travar o consumo. Cada caso é conferido pela chave no tópico
+    de erros, com uma mensagem própria por caso:
+    - os bytes originais;
+    - o motivo e os cabeçalhos;
+    - o aviso no log, agora comparado com o offset do próprio evento, o que é mais forte que antes.
+
+    Passou de 16 s para 4 s por execução. O número de testes caiu de 270 para 255 (e de 96 para 81 na
+    execução `json-logs`) só porque as 16 invocações parametrizadas viraram um teste com os mesmos 16 casos;
+  - **reaproveitamento do contexto:** o `@DirtiesContext` saiu da base `KafkaScenarioIT`.
+    - As classes que só leem e têm as mesmas propriedades compartilham o contexto e o broker. O
+      `KafkaReferenceFileIT` reaproveita o do `KafkaMetricsIT` e passou de 5,7 s para 0,6 s.
+    - As classes que mudam dados ou a readiness declaram `@DirtiesContext` e uma propriedade própria
+      (`awards.test.context`): ganham um contexto só delas e nunca sujam o de outra.
+    - Os testes com `SpringApplication` (`KafkaEquivalenceIT` e `KafkaStructuralFailureIT`) passaram a
+      usar um broker embutido compartilhado na JVM, com tópicos e grupo próprios por classe;
+  - **esperas fixas trocadas por condições determinísticas, com a mesma comprovação:**
+    - `KafkaStructuralFailureIT`: o tópico vazio é conferido pelos offsets, sem esperar 3 s por caso. Foi
+      de 8 s para 1 s;
+    - `KafkaReadinessIT`: depois do marcador de outra execução, um filme sentinela, cuja gravação prova que o
+      marcador já foi processado, no lugar de 3 s de espera. Foi de 8,6 s para 3,6 s;
+    - `KafkaIdempotencyIT`: os 206 eventos são reenviados sem esperar cada confirmação, com um `flush` no
+      fim. Foi de 9,4 s para 4,2 s.
+- **O que sobrou de mais caro**, se um dia for preciso ir além:
+  - `KafkaBrokerUnavailableIT`, cerca de 9 s: a subida sem broker espera o `KafkaAdmin`, e a observação
+    dura 5 s;
+  - `KafkaEquivalenceIT`, cerca de 8 s: seis subidas da aplicação.
+
+  Reduzir esses dois exigiria encurtar a observação ou comparar menos arquivos, ou seja, tirar
+  comprovação, e por isso não foi feito.
+- **Verificações:** `./mvnw verify` verde, `./mvnw -Ppostgres-it verify` verde (7 testes, com o
+  `RestartPostgresIT` e o `RetryPostgresIT` no perfil de teste) e `check-unchanged-tests.sh v0.2.0` verde.
+
+## 2026-11-24 — Fechamento do bolt do Marco 3 (etapa 5)
+
+- **ADRs (FR-037):**
+  - de 0013 a 0019, no formato da spec 002, cada um citando a sua entrada neste registro;
+  - o 0017 cita o mecanismo de comparação do token e registra, como decisão intencional, os cabeçalhos
+    `X-Content-Type-Options` e `X-Frame-Options` em todas as respostas e o `Cache-Control` fora dos
+    endpoints de negócio;
+  - o 0004 ganhou os quatro casos de `SpringApplication` (emenda 1.5.0) e o perfil dedicado (emenda
+    1.7.0);
+  - o índice foi atualizado.
+- **README (FR-036):**
+  - o modo Docker: serviços, portas, carga por Kafka, publicação de um vencedor novo e leitura do tópico
+    de erros;
+  - as credenciais de demonstração do compose;
+  - a autenticação, com a matriz de acesso e o token de demonstração, definido só no README, que é o
+    único lugar do repositório com esse valor;
+  - os testes do Marco 3 e o perfil `postgres-it`;
+  - os jobs `postgres` e `compose`;
+  - a tabela de requisitos do Marco 3;
+  - a arquitetura do modo Docker e as decisões do Marco 3.
+
+  As pendências deixadas pela emenda 1.5.0 na seção de testes e na tabela de rastreabilidade foram
+  resolvidas. A seção "Avalie em 2 minutos" não mudou.
+- **Clone limpo (T089):** num clone novo do commit da etapa 4, só com o JDK:
+  - `./mvnw verify` verde em 275 s, com 270 + 96 testes;
+  - `./mvnw spring-boot:run` respondeu o resultado de referência e a listagem do README, com o `ETag` e
+    sem `Cache-Control`;
+  - com `API_TOKEN` igual ao token de demonstração: 401 sem token e com token errado, 200 com ele, 401 nas
+    métricas sem token, e a readiness e o Swagger UI públicos. O token não apareceu no log.
+
+  As seções 3 e 4 do quickstart (PostgreSQL e compose) foram verificadas pelo `postgres-it` e pelo
+  `compose-test.sh` locais, nas etapas 2 a 4. Os comandos rodaram na porta 18081, porque a 8080 da
+  máquina estava ocupada por um processo do usuário.
+- **Verificado localmente, com o Docker:**
+  - `./mvnw -Ppostgres-it verify`: 7 testes, inclusive a nova tentativa quando a gravação falha;
+  - `compose-test.sh`: todos os passos, inclusive a queda real do banco (7b), com os passos 1 a 4 em
+    28 s.
+- **Pendências** (exigem o push ou o PR, que são do responsável):
+  - T020, T051 e T084: os jobs `postgres` e `compose` e os demais no pipeline;
+  - T050: o testador adversário (Codex) na ingestão por Kafka;
+  - T093: `postgres` e `compose` como checks obrigatórios da `main`, com o bypass desligado.
+
+  Fica também a decisão sobre o tempo do `./mvnw verify`, cerca de 4 min (entrada da etapa 2).
+- **Pontos A3, N3 e C4 da segunda análise:**
+  - A3: o `DefaultModeIsolationIT` e o `NoGeneratedPasswordIT` já passavam antes da implementação e
+    ficaram como guardas;
+  - N3: o `OPTIONS` do Marco 2 responde 2xx com `Allow`, verificado e fixado no
+    `AuthDisabledByDefaultIT`;
+  - C4: a única propriedade usada por teste que restou é a `publish-completion`, documentada no ADR 0014.
+    A `create-error-topic` não foi necessária.
+
+## 2026-11-24 — Etapa 4 do Marco 3: compose, verificações e ajustes
+
+- **Imagens (T074):** as versões estáveis mais recentes no Docker Hub, fixadas por tag e digest:
+  - `apache/kafka-native:4.4.0` e `apache/kafka:4.4.0` (o `kafka-cli`, sob demanda);
+  - `prom/prometheus:v3.16.0`;
+  - `grafana/grafana:13.3.2`;
+  - `postgres:18-alpine`, com o mesmo digest do job `postgres`.
+
+  O cliente da aplicação (kafka-clients 4.2.2) conversa com o broker 4.4.
+- **Healthchecks (R17, verificado):** a imagem nativa do Kafka tem `nc`, e o healthcheck é
+  `nc -z localhost 9092`. O Prometheus tem `sh`, `wget` e `printf`, e o Grafana tem `wget`. Nenhuma saída
+  alternativa foi necessária.
+- **Volume do Kafka:** a imagem roda com o usuário `appuser`. Um volume num caminho que não existe na
+  imagem seria criado com dono root, então o volume `kafkadata` fica em `/home/appuser`, que já pertence ao
+  `appuser`, com `KAFKA_LOG_DIRS=/home/appuser/kraft-logs`. O `CLUSTER_ID` é fixo, para que o volume sirva
+  a um container recriado.
+- **Token do Prometheus (R18, verificado):** o `credentials_file` vazio é aceito com a autenticação
+  desligada, e a coleta funciona. Com `API_TOKEN` definido, o alvo volta a `up` com o token.
+- **Imagem da aplicação na política:** o serviço `app` é construído pelo próprio compose (`build: .`) e
+  não tem digest. A regra do `check-workflows.sh` vale para as imagens baixadas.
+- **Passo 7b (FR-015a, ajuste):** uma queda curta do PostgreSQL não chega a gerar falha, porque o pool de
+  conexões (Hikari) espera até 30 s por uma conexão. O passo passou a manter o banco fora até o log da
+  aplicação mostrar `Falha ao gravar o evento`, prova de que a gravação falhou de verdade e foi tentada de
+  novo, e só então o religa. O filme é gravado, e o tópico de erros não recebe o evento.
+- **Git Bash:** o `compose-test.sh` exporta `MSYS_NO_PATHCONV=1`, para que `/opt/kafka/bin/...` não vire
+  um caminho do Windows. No runner Linux, isso não muda nada.
+- **Execução local (T081):**
+  - `compose-test.sh` verde, com todos os passos de 0 a 8 e o 7b;
+  - os passos de 1 a 4 levaram 28 s, para um limite de 180 s (SC-008);
+  - rodou com `APP_PORT=18080`, porque a porta 8080 da máquina estava ocupada por um processo Java do
+    usuário, fora da sessão.
+
+## 2026-11-24 — Etapa 3 do Marco 3: verificações e ajustes da autenticação
+
+- **Nome da autoconfiguração (verificado):** no Boot 4.1.2, é
+  `org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration`. Ela está excluída
+  no `application.yml` e no `application-kafka.yml`, e o `NoGeneratedPasswordIT` confere que o log não
+  traz senha gerada.
+- **`OPTIONS` no Marco 2 (N3 da segunda análise, verificado):** antes do Spring Security, `OPTIONS` nos
+  endpoints de negócio respondia 2xx com `Allow`. O `AuthDisabledByDefaultIT` fixa esse comportamento com
+  o token desligado. Com o token ligado, a resposta é 401.
+- **`Cache-Control` no 401 (R12, ajuste):**
+  - o `DelegatingRequestMatcherHeaderWriter` previsto decide só pelo caminho e deixava o 401 dos
+    endpoints de negócio sem os cabeçalhos de cache, ao contrário do contrato operacional;
+  - foi trocado por um `HeaderWriter` próprio, que aplica o `CacheControlHeadersWriter` fora dos
+    endpoints de negócio e em todo 401. O status é conhecido, porque os cabeçalhos são escritos quando a
+    resposta é confirmada;
+  - os endpoints de negócio continuam sem `Cache-Control` nas respostas 200, 304, 400 e 405.
+- **`CacheHeadersIT` em duas classes:** a tarefa previa classes aninhadas, uma para cada estado do token.
+  Ficaram duas classes, `CacheHeadersIT` e `CacheHeadersWithTokenIT`, porque cada estado do token precisa
+  de um contexto próprio, e a base `ScenarioIT` já faz isso por classe.
+- **Validador de contrato:** o `ContractValidator` valida só a resposta, e não o requisito de segurança da
+  requisição. O `security: [{}, {bearerAuth: []}]` do contrato 1.2.0 não muda os ITs dos Marcos 1 e 2, e
+  o validador não precisou de sobrecarga (R13).
+- **Prova de que os Marcos 1 e 2 não mudaram (R14):**
+  - o `AuthDisabledByDefaultIT` é a guarda contra `API_TOKEN` definido;
+  - o `check-unchanged-tests.sh v0.2.0` passa, com os 59 ITs da tag sem alteração e o `ApiDocsIT` como
+    única exceção (só a constante `SPEC_CONTRACT`);
+  - o script foi testado com um IT alterado (reprova), com o `ApiDocsIT` alterado (passa) e com uma
+    exceção de título inexistente (reprova).
+- **Tempo do `./mvnw clean verify`:** 227 s, depois de encurtar os prazos do `KafkaBrokerUnavailableIT`.
+
+## 2026-11-24 — Etapa 2 do Marco 3: verificações e decisões da ingestão por Kafka
+
+- **Nome da autoconfiguração (R2, verificado):** no Boot 4.1.2, são
+  `org.springframework.boot.kafka.autoconfigure.KafkaAutoConfiguration` e
+  `...kafka.autoconfigure.metrics.KafkaMetricsAutoConfiguration`, excluídas no `application.yml` e
+  liberadas no `application-kafka.yml`. Versões: Spring Kafka 4.1.2 e kafka-clients 4.2.2.
+- **Nome inválido de tópico (T034c, verificado):**
+  - um tópico de erros com um nome que o Kafka não aceita **não derruba a subida**. Com
+    `spring.kafka.admin.fail-fast: false`, o `KafkaAdmin` registra o `InvalidTopicException` e a aplicação
+    fica pronta;
+  - o `KafkaErrorTopicUnavailableIT` usa esse nome, e cada envio é recusado de verdade pelo cliente;
+  - a propriedade alternativa `awards.ingestion.create-error-topic` não foi necessária e foi descartada:
+    menos uma configuração usada só por teste.
+- **Broker fora do ar (T034b, verificado):** a aplicação sobe sem o broker, com a liveness 200 e a
+  readiness 503. A subida, com os prazos do `KafkaAdmin`, e o encerramento, com envios pendentes, levam
+  cerca de 15 s. O teste encurta os prazos do `KafkaAdmin` e do produtor só para ele.
+- **Série de atraso do consumidor (R19, verificado):** a série que aparece logo depois da carga é
+  `kafka_consumer_fetch_manager_records_lag_max`, por cliente (`client_id=consumer-awards-movies-<n>`). A
+  série por partição só aparece depois da atualização periódica do Micrometer. Com um consumidor e uma
+  partição, o máximo do cliente é o atraso do tópico. A R19 e o contrato operacional foram atualizados.
+- **Captura de saída por teste:** o resumo da publicação é registrado num fio próprio, durante o
+  primeiro teste da classe, e o `OutputCaptureExtension` descarta a captura de cada teste no fim dele.
+  Por isso, a verificação do resumo ficou só no `PublisherSummaryIT`, que tem um único teste, e saiu do
+  `KafkaInvalidLinesIT`, que confere o tópico e os avisos.
+- **Tempo do `./mvnw verify` acima do limite da R15:** 256 s sem `clean`, contra 96 s na linha de base,
+  ou seja, 2,7× (limite de 2×). A R15 previa compartilhar o broker entre as classes, mas a medição mostra
+  que o broker não é o custo: uma classe inteira, como o `KafkaUpdateIT`, leva 2,9 s com broker e
+  contexto. O tempo está em poucos testes que esperam de propósito:
+  - `KafkaBrokerUnavailableIT`, cerca de 20 s;
+  - `KafkaInvalidEventsIT`, 16 casos, cerca de 18 s em cada uma das duas execuções do Failsafe;
+  - `KafkaReadinessIT`, 3 s de espera pelo marcador errado;
+  - `KafkaEquivalenceIT`, seis subidas.
+
+  Foram feitos dois ajustes: o produtor dos testes passou a ser reutilizado e a leitura passou a ser feita
+  sem grupo de consumidores, o que tirou cerca de 20 s do `KafkaInvalidEventsIT`. O resto foi mantido.
+  **Pendente de decisão do responsável:** aceitar os cerca de 4 min do `verify`, ou cortar casos.
+- **Nova tentativa quando a gravação falha (FR-015a):** o `RetryPostgresIT` passou no `postgres-it`
+  local, com a mensagem `Falha ao gravar o evento … nova tentativa` no log, e o filme foi gravado depois
+  de a tabela ser devolvida. A queda real do banco fica para o passo 7b do compose (etapa 4).
+- **Validação comum (I1 da segunda análise):** o `FIELD_TOO_LONG` está na `MovieFieldRules`, usada pelo
+  leitor do CSV e pelo parser de eventos. O `FieldTooLongIT` (carga direta) e o `KafkaEquivalenceIT` (com
+  o arquivo `field-too-long.csv`) passam.
+
+## 2026-11-24 — Segunda análise da spec 003 (`/speckit-analyze`)
+
+O responsável aceitou as correções, com os ajustes abaixo. Elas foram aplicadas na spec, no plano, na
+research, nos contratos e nas tarefas. A spec 001 também mudou (I1).
+
+- **C1, nova tentativa quando a gravação falha:**
+  - nova FR-015a e o `RetryPostgresIT` no `postgres-it`, que renomeia a tabela `movie` e a devolve num
+    `finally`. Ele é `@Isolated` e roda sem paralelismo;
+  - a spec e a R9 dizem o que o teste comprova de fato: a nova tentativa quando a gravação falha;
+  - a queda real do banco continua comprovada pelo passo 7b do compose.
+- **C2, comparação do token:**
+  - a FR-024 saiu da spec, e o número ficou reservado;
+  - a comparação em tempo constante virou decisão de design na R11, com o mecanismo
+    (`MessageDigest.isEqual` sobre SHA-256 em UTF-8);
+  - o ADR 0017 cita o mecanismo, e a "Revisão de segurança" o confere.
+- **C3, checks obrigatórios:** nova tarefa T093, um pedido ao responsável depois da primeira execução do
+  pipeline no PR e antes do merge:
+  - incluir `postgres` e `compose` como checks obrigatórios;
+  - conferir os seis jobs existentes;
+  - deixar desligado o bypass para administradores.
+- **I1, `FIELD_TOO_LONG` sem exceção:** a pedido do responsável, a diferença não foi documentada. A
+  regra de tamanho máximo passou para a `MovieFieldRules` e vale nos dois caminhos.
+  - **Custo, avaliado como baixo:** uma regra, um motivo no `RejectionReason` e um IT novo
+    (`FieldTooLongIT`).
+  - **Efeito no Marco 1:** uma linha do CSV com campo maior que a coluna deixa de interromper a subida
+    com um erro do banco. Ela passa a ser ignorada com aviso, e a spec 001 (FR-006) e o data-model 001
+    foram atualizados.
+  - Nenhum IT do Marco 1 depende desse caso, e o `KafkaEquivalenceIT` passa a incluir um arquivo com
+    esse caso.
+  - As diferenças de representação do evento (`winner` booleano, `year` inteiro JSON) foram para a
+    FR-010 e a FR-012.
+- **I2:** a linha de exceção do `ApiDocsIT` cita o título exato, com as crases.
+- **G1:** novo `KafkaBrokerUnavailableIT` (liveness 200 e readiness 503 com o broker fora).
+- **G2:** novo `KafkaErrorTopicUnavailableIT`. Antes, a tarefa verifica se um nome inválido de tópico
+  derruba a subida; se derrubar, usa um tópico válido não criado.
+- **G3:** o passo 7 do compose usa `down` sem `-v` e `up`, e não mais `restart app`.
+- **A1:** o `OPTIONS` segue a matriz de acesso, e o CORS fica para o Marco 6.
+- **A2:** o valor do token de demonstração é definido só no README (T088), e o quickstart o cita sem
+  repeti-lo.
+- **I3:** nova FR-022a, com os cabeçalhos de proteção e a ausência de `Cache-Control` nos endpoints de
+  negócio, e a definição de "como no Marco 2" na FR-019.
+- **I4:** a saúde geral entra na FR-022.
+- **I5:** o `RestartPostgresIT` faz 4 subidas (3 reinícios), como o SC-004.
+- **Não aplicados**, porque o responsável não os pediu: I6 (deriva entre a estrutura do plano e as
+  tarefas, só em parte resolvida pelas mudanças acima), I7 ("aceitas" × "publicadas"), A3 (o T036
+  aceita que o `DefaultModeIsolationIT` passe) e C4 (propriedade `publish-completion` usada por teste).
+
+## 2026-11-24 — Exceção do `ApiDocsIT` à regra dos testes sem alteração
+
+- **Origem:** plano 003. O `ApiDocsIT` (Marco 2, tag `v0.2.0`) compara o `/openapi.yaml` publicado, byte
+  a byte, com `specs/002-operacao/contracts/openapi.yaml`. O contrato 1.2.0 (autenticação opcional e
+  resposta 401, spec 003 FR-026) faz esse teste falhar. Pela R14 do plano, os ITs dos Marcos 1 e 2 não
+  podem mudar.
+- **Alternativas apresentadas ao responsável:**
+  - **A:** trocar só a constante `SPEC_CONTRACT` para o contrato da spec 003, como o Marco 2 fez ao
+    trocar a spec 001 pela 002;
+  - **B:** sobrescrever o contrato da spec 002 com o 1.2.0;
+  - **C:** não publicar o 1.2.0.
+- **Decisão do responsável:** opção A, sem mudar nenhuma asserção. O `ApiDocsIT` é a única linha de
+  `.github/unchanged-tests-exceptions.txt`, com o título desta entrada. O `check-unchanged-tests.sh`
+  aceita a mudança desse arquivo e reprova a de qualquer outro IT da tag.
+- **Rejeitadas:**
+  - B: o artefato de uma spec já entregue passaria a descrever o marco seguinte;
+  - C: a FR-026 deixaria de ser cumprida.
+
+## 2026-11-24 — Cabeçalhos de proteção do Spring Security em todas as respostas
+
+- **Origem:** plano 003, research R12. O Spring Security acrescenta `Cache-Control`, `Pragma`,
+  `Expires`, `X-Content-Type-Options` e `X-Frame-Options` a toda resposta. Os três primeiros anulariam o
+  ETag, e o Marco 2 não mandava `Cache-Control`.
+- **Decisão do responsável:**
+  - o `Cache-Control` do Security fica fora dos dois endpoints de negócio (pedido do plano);
+  - `X-Content-Type-Options` e `X-Frame-Options` ficam em **todas** as respostas, com o token ligado ou
+    desligado;
+  - o ADR da autenticação os registra como decisão intencional (spec 003, FR-037, e item do checklist).
+- **Leitura da FR-019** ("comportamento idêntico ao do Marco 2"): status, corpo, ETag, 304 e os
+  cabeçalhos que o Marco 2 já mandava continuam iguais. Os dois cabeçalhos de proteção são acréscimos
+  que não mudam nada do que os testes dos Marcos 1 e 2 verificam.
+- **Rejeitada:** desligar também esses dois escritores, para uma igualdade literal de cabeçalhos. Isso
+  removeria proteção sem nenhum ganho para o ETag nem para o contrato.
+
+## 2026-11-24 — Emenda 1.7.0 da constituição: comprovação de comportamento que depende de infraestrutura
+
+- **Origem:** Constitution Check do plano 003:
+  - o Princípio VI exigia o teste de integração de cada comportamento "no `./mvnw verify`";
+  - o Princípio II põe os testes de PostgreSQL num perfil Maven separado, fora do `verify` padrão;
+  - o plano tinha lido os dois juntos e pedido a confirmação do responsável.
+- **Decisão do responsável:** emenda MINOR do Princípio VI. O comportamento da aplicação que depende de
+  infraestrutura indisponível no modo padrão, como o PostgreSQL, é comprovado por testes de integração
+  num perfil Maven dedicado, executado obrigatoriamente no pipeline. Todo o resto continua exigindo teste
+  no `./mvnw verify`.
+- **Detalhes da redação:**
+  - os testes do perfil seguem o Princípio I (contexto completo, sem mocks, HTTP);
+  - o comportamento comum aos dois modos continua testado no `verify`, com H2;
+  - uma dependência com substituto embutido sem Docker, como o broker Kafka do Spring, não entra na
+    exceção.
+- **Impacto:**
+  - 1.6.0 → 1.7.0 (MINOR): é regra nova, e nenhum requisito que cumpria a versão anterior deixa de
+    cumprir;
+  - foram alinhados a constituição (Princípio VI e Sync Impact Report), o `AGENTS.md` (rastreabilidade e
+    seção Testes), a spec 003 (FR-038) e o plano 003 (Constitution Check). O checklist da spec 003 também
+    foi atualizado.
+
+## 2026-11-24 — Emenda 1.6.0 da constituição: credenciais de demonstração no compose local
+
+- **Origem:** clarificação da spec 003 (Marco 3). O compose precisa de usuário e senha para o
+  PostgreSQL e o Grafana, e o Princípio VII só permitia o token de demonstração no repositório.
+- **Alternativas apresentadas ao responsável:**
+  - sem credencial: PostgreSQL só na rede interna do compose, sem senha, e Grafana com acesso anônimo;
+  - senhas de demonstração, documentadas no README;
+  - `.env` não versionado, com um passo obrigatório antes do `docker compose up`.
+- **Decisão do responsável:** senhas de demonstração, com emenda do Princípio VII antes do plano. Elas
+  são permitidas só no compose de desenvolvimento local e precisam cumprir quatro condições:
+  - aparecem só nos arquivos do compose local e na configuração que ele monta;
+  - são identificadas como de demonstração no README e no próprio arquivo;
+  - podem ser sobrescritas por variável de ambiente;
+  - nunca são usadas em ambiente publicado.
+
+  O token de demonstração continua como estava.
+- **Motivo:** é a forma mais comum de um compose local subir com um único comando, num clone limpo. Uma
+  senha de demonstração restrita à máquina de quem executa não protege nada de valor.
+- **Ponto interpretado na redação:** o estágio do pipeline que sobe o mesmo compose num runner
+  temporário (spec 003, FR-035) foi declarado como não sendo ambiente publicado. Sem isso, o teste do
+  compose no pipeline violaria a condição "só no compose local".
+- **Impacto:** MINOR (1.5.0 → 1.6.0), porque amplia o permitido e não proíbe nada que valia antes.
+  Foram alinhados a constituição (Princípio VII, motivo e Sync Impact Report), o `AGENTS.md` (seção
+  Segurança), a spec 003 (Clarifications e FR-033) e o checklist dela. O README só ganha a
+  identificação das credenciais quando o compose existir (spec 003, FR-036).
+
+## 2026-11-24 — T050 do Marco 2 (SC-008) não executada
+
+- **Situação:** a T050, que prova que o pipeline reprova (SC-008), não foi executada antes do merge do
+  PR do Marco 2 nem da tag `v0.2.0`. O branch temporário de verificação não chegou a ser criado, e
+  nenhum dos sete defeitos foi enviado ao pipeline.
+- **Motivo (decisão do responsável):** prazo de entrega. A verificação exige um push e uma execução
+  do pipeline por defeito, e isso não cabia no prazo do marco.
+- **O que está comprovado:** os demais requisitos de pipeline (FR-028, FR-028b e FR-029) foram
+  comprovados pelas execuções verdes do workflow `CI` no branch `marco/2-operacao` e no PR. Depois do
+  merge, o pipeline também validou o primeiro pull request do Dependabot (grupo
+  `maven-minor-e-patch`, "Bump the maven-minor-e-patch group with 4 updates"), o que confirma que o
+  Dependabot está ativo e que os PRs dele passam pelo mesmo portão.
+- **O que fica sem comprovação:** que cada job reprova diante do defeito correspondente. As execuções
+  verdes mostram que o pipeline aprova código correto, não que ele recusa código com defeito. O único
+  portão já visto falhando de propósito é o da cobertura mínima, localmente, com
+  `-Djacoco.line.minimum=0.99` (T041).
+- **Impacto:** a T050 fica marcada como não executada em `specs/002-operacao/tasks.md`, com referência
+  a esta entrada. O SC-008 continua aberto e pode ser comprovado depois, seguindo o roteiro da T050 sem
+  mudança, num branch temporário a partir da `main`. Quando isso acontecer, o resultado entra numa
+  entrada "Verificação do SC-008", como a T050 prevê.
+
 ## 2026-11-24 — Emenda 1.5.0 da constituição: `SpringApplication` para controlar o ciclo de vida
 
 - **Origem:** revisão do Codex no PR do Marco 2. O `EtagAcrossRunsIT` e o `ReadinessAfterLoadIT` usam

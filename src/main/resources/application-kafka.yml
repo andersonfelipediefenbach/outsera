@@ -1,0 +1,50 @@
+# Perfil kafka (spec 003, FR-009 a FR-018; research R1, R2 e R6 a R10). Troca só a origem dos dados: o
+# arquivo é publicado no tópico de filmes e consumido pelo mesmo serviço de gravação do modo padrão. A
+# carga direta não roda neste perfil.
+spring:
+  autoconfigure:
+    # Redefine a lista do application.yml sem a autoconfiguração do Kafka.
+    exclude:
+      - org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+      properties:
+        enable.idempotence: true
+        # Um envio não espera mais que 10 s pelos metadados do tópico (research R9): o tópico de erros
+        # indisponível não trava o consumo por muito tempo.
+        max.block.ms: 10000
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP:awards}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      # Bytes crus: o consumidor decodifica e valida, para enviar o conteúdo original ao tópico de erros
+      # (research R7).
+      value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+    listener:
+      concurrency: 1
+      ack-mode: record
+    admin:
+      # Broker fora do ar na subida não derruba a aplicação (caso de borda da spec; research R8).
+      fail-fast: false
+      operation-timeout: 10s
+
+awards:
+  ingestion:
+    topic-movies: ${KAFKA_TOPIC_MOVIES:awards.movies}
+    topic-errors: ${KAFKA_TOPIC_ERRORS:awards.movies.errors}
+    # Envio do evento de carga concluída ao fim da publicação (research R10). Desligado, a readiness
+    # espera um marcador publicado por outro cliente, com o runId desta execução.
+    publish-completion: true
+
+management:
+  endpoint:
+    health:
+      group:
+        readiness:
+          # A readiness só fica positiva depois do evento de carga concluída desta execução (FR-013).
+          include: readinessState,ingestion

@@ -27,7 +27,33 @@
         <!-- Cobertura mínima de linhas dos testes de integração (spec 002, FR-028a). Medido: 97,06% no
              fim do Marco 1. Sobrescrevível na linha de comando, para provar que o portão funciona. -->
         <jacoco.line.minimum>0.90</jacoco.line.minimum>
+        <!-- O perfil postgres-it liga as duas propriedades abaixo: roda só os *PostgresIT e não aplica a
+             cobertura mínima, que é a do ./mvnw verify padrão (spec 003, research R16). -->
+        <it.default.skip>false</it.default.skip>
+        <jacoco.check.skip>false</jacoco.check.skip>
+        <!-- Dependências de runtime do kafka-clients 4.2.2, fora do BOM do Spring Boot 4.1.2. As versões
+             trazidas por ele (lz4-java 1.11.2 e snappy-java 1.1.10.7) têm vulnerabilidades altas com
+             correção, que reprovaram a porta da imagem no PR do Marco 3: CVE-2026-106451 no lz4-java e
+             CVE-2026-108106 e CVE-2026-93451 no snappy-java. Fica a última correção da mesma linha.
+             Retirar quando o kafka-clients trouxer versões corrigidas. -->
+        <lz4-java.version>1.11.4</lz4-java.version>
+        <snappy-java.version>1.1.10.12</snappy-java.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>at.yawk.lz4</groupId>
+                <artifactId>lz4-java</artifactId>
+                <version>${lz4-java.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.xerial.snappy</groupId>
+                <artifactId>snappy-java</artifactId>
+                <version>${snappy-java.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>
@@ -53,6 +79,18 @@
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
         <dependency>
+            <!-- Autenticação por token, desligada sem API_TOKEN (spec 003, FR-019 a FR-026; research R11).
+                 O usuário gerado pelo Boot fica excluído no application.yml. -->
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <!-- Ingestão por Kafka no perfil kafka (spec 003, FR-009 a FR-018). A autoconfiguração do Boot
+                 fica excluída fora do perfil (research R2). -->
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-kafka</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-csv</artifactId>
             <version>${commons-csv.version}</version>
@@ -72,6 +110,18 @@
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <!-- Banco do perfil postgres (spec 003, FR-004; research R3). Só é usado com o perfil. -->
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <!-- Desde o Flyway 10, o suporte a cada banco fica num módulo próprio (research R3) -->
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
 
@@ -96,6 +146,12 @@
             <!-- RestTestClient e @AutoConfigureRestTestClient (Spring Boot 4) -->
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-resttestclient</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <!-- Broker Kafka embutido (KRaft) nos testes, sem Docker (Princípio II; research R15) -->
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -129,6 +185,12 @@
                     <includes>
                         <include>**/*IT.java</include>
                     </includes>
+                    <!-- Os testes que exigem PostgreSQL rodam só no perfil postgres-it, no pipeline
+                         (spec 003, FR-007; Princípio VI, constituição 1.7.0; research R16). -->
+                    <excludes>
+                        <exclude>**/*PostgresIT.java</exclude>
+                    </excludes>
+                    <skip>${it.default.skip}</skip>
                 </configuration>
                 <executions>
                     <execution>
@@ -185,6 +247,7 @@
                             <goal>check</goal>
                         </goals>
                         <configuration>
+                            <skip>${jacoco.check.skip}</skip>
                             <dataFile>${project.build.directory}/jacoco-it.exec</dataFile>
                             <rules>
                                 <rule>
@@ -204,4 +267,44 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <!-- ./mvnw -Ppostgres-it verify: só os *PostgresIT, contra o PostgreSQL de DB_URL, DB_USER e
+                 DB_PASSWORD. Executado obrigatoriamente pelo job postgres do pipeline (spec 003, FR-007;
+                 Princípio VI, constituição 1.7.0; research R16). Sem paralelismo do JUnit: o
+                 RetryPostgresIT não pode rodar ao mesmo tempo que outro IT. -->
+            <id>postgres-it</id>
+            <properties>
+                <it.default.skip>true</it.default.skip>
+                <jacoco.check.skip>true</jacoco.check.skip>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>postgres</id>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                                <configuration>
+                                    <skip>false</skip>
+                                    <includes>
+                                        <include>**/*PostgresIT.java</include>
+                                    </includes>
+                                    <excludes combine.self="override"/>
+                                    <reportsDirectory>${project.build.directory}/failsafe-reports-postgres</reportsDirectory>
+                                    <summaryFile>${project.build.directory}/failsafe-reports-postgres/failsafe-summary.xml</summaryFile>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

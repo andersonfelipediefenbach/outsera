@@ -1,0 +1,153 @@
+# Ambiente completo do modo Docker (spec 003, US5 e FR-028 a FR-035; research R17 a R19;
+# specs/003-modo-docker/contracts/compose.md). Só para desenvolvimento local: o modo padrão continua sendo
+# ./mvnw, sem Docker (Princípio II).
+#
+#   docker compose up -d --build --wait      sobe tudo; a aplicação só fica healthy depois da carga por Kafka
+#   docker compose down                      para, mantendo os dados (volumes pgdata e kafkadata)
+#   docker compose down -v                   apaga tudo
+#   docker compose --profile tools run --rm kafka-cli <ferramenta do Kafka>   publicar ou ler eventos
+#
+# Toda imagem é fixada por tag e digest (FR-034), e o Dependabot as atualiza (ecossistema docker-compose).
+# As credenciais abaixo são de demonstração, identificadas linha a linha, e podem ser sobrescritas por
+# variável de ambiente (constituição 1.6.0, Princípio VII). Nunca use essas credenciais num ambiente
+# publicado.
+name: awards
+
+services:
+  postgres:
+    image: postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71
+    environment:
+      POSTGRES_DB: awards
+      POSTGRES_USER: awards
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-awards-demo} # credencial de demonstração: só para desenvolvimento local (constituição 1.6.0, Princípio VII)
+      # Collation C: a ordem da listagem é a mesma do H2 (research R4).
+      POSTGRES_INITDB_ARGS: --locale=C --encoding=UTF8
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "awards", "-d", "awards"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    # Sem porta publicada: o banco só é acessível na rede do compose.
+
+  kafka:
+    # Imagem nativa (GraalVM) do Kafka, em modo KRaft, com um nó que é broker e controlador.
+    image: apache/kafka-native:4.4.0@sha256:11fde816adf384402de9f3e57aeaf2c3722ba0671610247817688d07441714b4
+    environment:
+      CLUSTER_ID: 5L6g3nShT-eMCtK--X86sw
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # A aplicação cria os seus tópicos (research R6).
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      # Dentro do volume: a imagem roda com o usuário appuser, dono de /home/appuser.
+      KAFKA_LOG_DIRS: /home/appuser/kraft-logs
+    volumes:
+      - kafkadata:/home/appuser
+    ports:
+      - "9094:9094"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9092"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  app:
+    build: .
+    image: awards:local
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:postgresql://postgres:5432/awards
+      DB_USER: awards
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-awards-demo} # credencial de demonstração: só para desenvolvimento local (constituição 1.6.0, Princípio VII)
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # Autenticação desligada por padrão. Para ligar: API_TOKEN=<token> docker compose up -d
+      API_TOKEN: ${API_TOKEN:-}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    # O healthcheck é o da imagem: a readiness, que só fica positiva depois da carga por Kafka.
+
+  prometheus:
+    image: prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
+    environment:
+      API_TOKEN: ${API_TOKEN:-}
+    # O token vai para um arquivo fora do repositório na subida, e a coleta o envia como Bearer (research
+    # R18). Vazio, o arquivo fica vazio, e a aplicação, com a autenticação desligada, ignora o cabeçalho.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        printf %s "$${API_TOKEN}" > /tmp/api-token &&
+        exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      app:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:9090/-/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  grafana:
+    image: grafana/grafana:13.3.2@sha256:81556409ba48b2b922e0adb69a2511337d8ba7578f11962eefa6149a2d815101
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-awards-demo} # credencial de demonstração: só para desenvolvimento local (constituição 1.6.0, Princípio VII)
+      # Leitura do dashboard sem login.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/awards.json
+      # Sem chamadas externas.
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      prometheus:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  kafka-cli:
+    # Ferramentas de linha de comando do Kafka, que a imagem nativa não tem. Só sobe sob demanda:
+    #   docker compose --profile tools run --rm kafka-cli /opt/kafka/bin/kafka-console-producer.sh ...
+    image: apache/kafka:4.4.0@sha256:833b867a9585a141da455dc2b57431c65cbccb27f11c91f694444cca9f777e0f
+    profiles: [tools]
+    entrypoint: []
+    command: ["/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "kafka:9092", "--list"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  kafkadata:

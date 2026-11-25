@@ -692,3 +692,179 @@ Comprove a T037: mostre que o comando do healthcheck da imagem termina com códi
 ```text
 O Codex apontou no PR que o EtagAcrossRunsIT e o ReadinessAfterLoadIT usam SpringApplication em execuções bem-sucedidas, o que a constituição só permite para falha de inicialização. Os dois precisam controlar o ciclo de vida (comparar duas execuções e observar a ordem da subida), então emende o Princípio I: SpringApplication é permitido quando o teste precisa controlar o ciclo de vida da aplicação real, como falha de inicialização, múltiplas execuções ou a ordem da subida; continua sem mocks e com chamadas HTTP reais. Atualize o AGENTS.md (linhas 20 a 23), o Sync Impact Report, o javadoc dos dois testes citando a cláusula e registre em docs/ai/decisoes.md citando a revisão do Codex. Commit separado.
 ```
+
+## 2026-11-24 14:38:31 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+A T050 do marco 2 (prova de que o pipeline reprova, SC-008) não foi executada antes do merge e da tag v0.2.0. Registre em docs/ai/decisoes.md que ela ficou pendente, com o motivo (prazo de entrega), que os demais requisitos de pipeline foram comprovados pelas execuções verdes e que o pipeline também já validou o primeiro pull request do Dependabot. Marque a T050 como não executada no tasks.md, com referência a essa decisão.
+```
+
+## 2026-11-24 14:39:16 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+
+
+<pasted_content id="03d1">
+/speckit-specify Marco 3, modo Docker, conforme docs/ai/planejamento/briefing.md. Escopo:
+1. Perfil docker com PostgreSQL no lugar do H2, usando as mesmas migrações do Flyway.
+2. Kafka como caminho único de ingestão no perfil docker: um publicador lê o CSV e envia uma mensagem por filme; um consumidor grava pelo mesmo serviço do modo padrão; uma mensagem de carga concluída libera a readiness. Gravação idempotente por ano e título, e tópico de erros para mensagens inválidas. Novos vencedores podem chegar pelo mesmo tópico depois da carga.
+3. Autenticação por token parametrizada e desligada por padrão: o token vem de variável de ambiente e é comparado com um cabeçalho; sem a variável, os endpoints ficam públicos; com ela, os endpoints operacionais de métricas exigem token.
+4. compose.yaml com a aplicação, PostgreSQL, Kafka (imagem leve), Prometheus e Grafana, com o dashboard versionado.
+Restrições: o modo padrão continua idêntico, subindo e testando só com ./mvnw, sem Docker. Os testes do Kafka usam o broker embutido do Spring. Os testes com PostgreSQL ficam em um perfil Maven separado, executado no pipeline. Um teste prova que a carga direta e a carga por Kafka produzem a mesma resposta. Fora do escopo: publicação em nuvem e front-end.
+</pasted_content id="03d1">
+
+```
+
+## 2026-11-24 15:18:51 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+Faça a emenda do Princípio VII antes do plano: credenciais de demonstração são permitidas apenas no compose de desenvolvimento local, identificadas como tal no README e nos arquivos, sobrescrevíveis por variável de ambiente e nunca usadas em ambiente publicado. O token de demonstração continua como já estava. Atualize o Sync Impact Report, o AGENTS.md se ele citar a regra, e registre em docs/ai/decisoes.md.
+```
+
+## 2026-11-24 15:20:04 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+
+
+<pasted_content id="03d1">
+/speckit-plan Spring for Apache Kafka, com o broker embutido do spring-kafka-test nos testes. Driver do PostgreSQL e as mesmas migrações do Flyway, sem SQL específico de um banco. Os testes com PostgreSQL ficam num perfil Maven separado e rodam no pipeline com o PostgreSQL como service container do GitHub Actions, sem Testcontainers. Autenticação com Spring Security: SecurityFilterChain stateless, sem CSRF, sem formLogin e sem httpBasic; um filtro de autenticação por token no cabeçalho, comparado em tempo constante; com o token desligado, todos os endpoints liberados; com o token ligado, só os endpoints que a spec define exigem autenticação; 401 em Problem Details. Desligar a geração automática de usuário e senha do Spring Boot e o cabeçalho Cache-Control padrão nos endpoints de negócio, para não conflitar com o ETag. Um teste prova que, com o token desligado, todos os testes dos marcos 1 e 2 continuam passando sem alteração. compose.yaml com a imagem nativa do Kafka em modo KRaft, PostgreSQL, Prometheus e Grafana com datasource e dashboard provisionados por arquivo. O estágio novo do pipeline sobe o compose e verifica a aplicação, o dashboard e a ingestão por Kafka.
+</pasted_content id="03d1">
+
+```
+
+## 2026-11-24 15:31:32 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+1. Aceito: o ApiDocsIT passa a comparar com o contrato da spec 003, sem mudar asserções; registre a exceção como proposto. 2. Mantenha X-Content-Type-Options e X-Frame-Options em todas as respostas, e cite esses cabeçalhos no ADR de autenticação como decisão intencional. 3. Faça a emenda do Princípio VI, MINOR: comportamento da aplicação que depende de infraestrutura indisponível no modo padrão, como o PostgreSQL, é comprovado por testes de integração num perfil Maven dedicado, executado obrigatoriamente no pipeline; todo o resto continua exigindo teste no ./mvnw verify. Registre as três decisões em docs/ai/decisoes.md.
+```
+
+## 2026-11-24 15:34:46 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+/speckit-tasks Agrupe todas as tarefas do marco 3 em um único bolt, organizado em etapas por assunto, nesta ordem: PostgreSQL e perfil docker, Kafka, autenticação com Spring Security, compose com observabilidade, e ADRs e README. Cada etapa fecha com ./mvnw verify verde e um commit. O teste vem antes da implementação em cada etapa.
+```
+
+## 2026-11-24 15:44:33 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+/speckit-analyze
+```
+
+## 2026-11-24 15:51:49 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+
+
+<pasted_content id="03d1">
+Aprovado, com estes ajustes:
+
+C1: crie o RetryPostgresIT como sugerido, mas descreva na spec e no R9 o que ele comprova de fato: nova tentativa quando a gravação falha. A queda real do banco continua comprovada pelo passo 7b do compose. O teste deve devolver o nome da tabela num finally e não pode rodar em paralelo com outros ITs do postgres-it.
+
+C2: aprovado. Tire a FR-024 da spec e registre a decisão na R11 e no ADR 0017, citando o mecanismo de comparação usado, para a revisão de segurança conferir.
+
+C3: aprovado. A tarefa de pedido ao Anderson deve vir depois da primeira execução do pipeline no PR (antes disso os jobs não aparecem na lista de checks obrigatórios) e antes do merge. Inclua os jobs postgres e compose e confira se os jobs já existentes estão na lista. O pedido também deve dizer que o bypass para administradores fica desligado.
+
+I1: em vez de documentar a diferença do FIELD_TOO_LONG, faça os dois caminhos usarem a mesma validação, para o SC-001 e a FR-018 continuarem valendo sem exceção. Se isso for caro, me diga por quê antes de documentar a exceção. As outras diferenças do evento (winner booleano, year inteiro) vão para a FR-010 e a FR-012, como sugerido.
+
+I2: copie o título exato, com as crases.
+
+G1, G2 (verificando antes se o nome inválido derruba a subida), G3, A1, A2 e I3: aprovados como sugeridos.
+
+I4 e I5: aplique também. Na I5, alinhe o T035 ao SC-004 (4 subidas).
+
+Aplique tudo, rode o /speckit-analyze de novo e me mostre o resultado. Não faça commit.
+</pasted_content id="03d1">
+
+```
+
+## 2026-11-24 15:59:32 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+Aplique o N1 e o N2. Confirme também se a T093 inclui o job compose entre os checks obrigatórios, além do postgres. Se não incluir, acrescente. Os outros (A3, N3 e C4) ficam para as etapas. Não faça commit.
+```
+
+## 2026-11-24 16:04:38 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+/speckit-implement Execute o bolt único do marco 3, etapa por etapa, fazendo um commit ao fim de cada etapa. Não faça push.
+```
+
+## 2026-11-25 08:29:54 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+Não aceito os 4 min, mas também não corte casos. Reduza o tempo sem perder cobertura: timeouts menores do cliente Kafka só no perfil de teste (como max.block.ms e o request timeout no teste do broker fora do ar), os 16 eventos inválidos publicados numa única execução e conferidos juntos no tópico de erros, e reaproveitamento do contexto do Spring entre os ITs do Kafka, igualando as propriedades. A meta é ficar dentro do limite de 2× da research. Se não chegar lá sem tirar cobertura, me diga quanto conseguiu e o que custaria ir além. Registre o resultado em docs/ai/decisoes.md e faça um commit de correção da etapa 2. Não faça push.
+```
+
+## 2026-11-25 08:56:48 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+
+
+<pasted_content id="03d1">
+O Codex fez 3 apontamentos no PR. Os três procedem. Corrija nesta ordem, com a spec antes do código (Princípio IV):
+
+1. Grupo do consumidor: o @KafkaListener usa o id como grupo (idIsGroup=true) e ignora KAFKA_CONSUMER_GROUP. Faça o listener usar o grupo configurado. Acrescente um IT que suba com um grupo diferente e confira no broker, pelo AdminClient, que o grupo registrado é o configurado.
+
+2. Tópicos depois de falha do broker na subida: com fail-fast false, se o broker estiver fora na subida, nada recria os tópicos depois, e o compose desliga a criação automática. Faça a recuperação tentar criar os tópicos de novo, não só reenviar. Atualize o caso de borda "Broker indisponível" na spec para descrever a recuperação. Comprove por IT, subindo o broker embutido depois da aplicação; se isso não for viável, explique por quê e comprove num passo do compose-test.sh.
+
+3. Evento com \u0000: o PostgreSQL rejeita NUL, a exceção entra na nova tentativa sem limite e trava a partição. Corrija em duas camadas:
+   a) Validação: rejeite NUL nas regras compartilhadas da MovieFieldRules, com um motivo próprio, valendo para o Kafka e para o CSV. Atualize a spec 001 e a 003, registrando a origem como no FIELD_TOO_LONG.
+   b) Classificação: erros de dado do banco (SQLState das classes 22 e 23) são permanentes e vão para o tópico de erros, sem nova tentativa. Os demais, como a tabela inexistente do RetryPostgresIT (42P01) e a perda de conexão, continuam com nova tentativa. Registre a decisão na R9. Cubra com IT: no postgres-it, um caso que só o banco rejeite (sem passar pela validação da camada a) indo ao tópico de erros, seguido de um evento válido gravado; e o RetryPostgresIT continua verde.
+
+Rode o ./mvnw verify e o perfil postgres-it. Informe os tempos. Faça um commit por apontamento, com a referência ao comentário do PR na mensagem. Não faça push.
+</pasted_content id="03d1">
+
+```
+
+## 2026-11-25 09:33:00 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+O CodeQL abriu dois alertas altos no PR: "Disabled Spring CSRF protection" no SecurityConfiguration e "User-controlled bypass of sensitive method" no TokenAuthenticationFilter. Vou dispensar os dois como falso positivo. Confira se o ADR 0017 justifica explicitamente o CSRF desligado (API stateless, token em cabeçalho, sem sessão nem cookie). Se não justificar, acrescente. Registre os dois alertas e a dispensa em docs/ai/decisoes.md. Junte isso ao commit do apontamento 1 ou faça um commit à parte, mas sem push.
+```
+
+## 2026-11-25 10:10:17 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+
+
+<pasted_content id="03d1">
+O pipeline do PR falhou no 54cae85. Já diagnostiquei duas causas:
+
+1. Política: docs/ai/decisoes.md tem um byte NUL literal na linha 9 (na entrada do caractere nulo). O grep passa a tratar o arquivo como binário e o check-unchanged-tests.sh não encontra o título da exceção do ApiDocsIT. Troque o byte pelo texto \u0000 entre crases. Para evitar que isso se repita, acrescente ao job de política uma verificação que reprove qualquer byte NUL em arquivo de texto versionado.
+
+2. CodeQL: a porta de severidade lê o SARIF, então dispensar os alertas no GitHub não resolve. Crie .github/codeql-exceptions.txt no mesmo padrão do unchanged-tests-exceptions.txt: id da regra, caminho do arquivo e título da entrada do decisoes.md que justifica. A porta ignora só os achados listados e reprova se uma exceção citar uma entrada que não existe. Registre as duas exceções (java/spring-disabled-csrf-protection no SecurityConfiguration e java/user-controlled-bypass no TokenAuthenticationFilter; confirme os ids no SARIF) com a entrada que você já escreveu. Mostre no resumo do job os achados ignorados, para não ficarem escondidos.
+
+Para o build e a imagem, leia os logs com gh run view 45614392460 --log-failed (ou gh run view --job 139205920430 --log e --job 139206050037 --log). Se o gh não estiver disponível, me avise. Diagnostique antes de corrigir e me diga a causa de cada um.
+
+Um commit por causa. Rode o ./mvnw verify e o check-unchanged-tests.sh v0.2.0 antes de cada commit. Não faça push.
+</pasted_content id="03d1">
+
+```

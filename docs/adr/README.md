@@ -23,7 +23,15 @@ aceito, rejeitado e por quê.
 | [0010](0010-formato-do-log.md) | Log em texto no `./mvnw` e JSON por variável, ligado na imagem | Aceito | 2026-11-23 |
 | [0011](0011-imagem-de-container.md) | Imagem multi-stage, JRE Alpine por digest e usuário não root | Aceito | 2026-11-23 |
 | [0012](0012-pipeline-e-cadeia-de-entrega.md) | Pipeline com actions por hash, portas de segurança e cobertura e Dependabot | Aceito | 2026-11-23 |
+| [0013](0013-postgresql-com-esquema-comum.md) | PostgreSQL no modo Docker, com o mesmo esquema e collation C | Aceito | 2026-11-24 |
+| [0014](0014-ingestao-unica-por-kafka.md) | Kafka como caminho único de ingestão no modo Docker | Aceito | 2026-11-24 |
+| [0015](0015-gravacao-idempotente-com-atualizacao.md) | Gravação idempotente por ano e título, com atualização | Aceito | 2026-11-24 |
+| [0016](0016-topico-de-erros-e-novas-tentativas.md) | Tópico de erros para eventos inválidos e novas tentativas para falhas de gravação | Aceito | 2026-11-24 |
+| [0017](0017-autenticacao-por-token.md) | Autenticação por token com Spring Security, desligada por padrão | Aceito | 2026-11-24 |
+| [0018](0018-compose-com-observabilidade.md) | Compose com PostgreSQL, Kafka nativo, Prometheus e Grafana | Aceito | 2026-11-24 |
+| [0019](0019-testes-com-postgresql-em-perfil-dedicado.md) | Testes que dependem do PostgreSQL num perfil Maven dedicado | Aceito | 2026-11-24 |
 
-A comprovação destes registros é a revisão do pull request, pela seção "Revisão dos ADRs" de
-[`specs/002-operacao/checklists/requirements.md`](../../specs/002-operacao/checklists/requirements.md)
-(Princípio VI, constituição 1.4.0).
+A comprovação destes registros é a revisão do pull request, pela seção "Revisão dos ADRs" do checklist de
+cada spec: [`specs/002-operacao/checklists/requirements.md`](../../specs/002-operacao/checklists/requirements.md)
+para os ADRs 0001 a 0012 e [`specs/003-modo-docker/checklists/requirements.md`](../../specs/003-modo-docker/checklists/requirements.md)
+para os ADRs 0013 a 0019 e a atualização do 0004 (Princípio VI).

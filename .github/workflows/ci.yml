@@ -16,13 +16,20 @@ concurrency:
 
 jobs:
   workflow-policy:
-    name: Política do workflow e do Dependabot
+    name: Política do workflow, do Dependabot e do compose
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Hash de commit, permissões, segredos, publicação e Dependabot
+        with:
+          # Histórico e tags: o check-unchanged-tests.sh compara com a tag v0.2.0 (spec 003, research R14).
+          fetch-depth: 0
+      - name: Hash de commit, permissões, segredos, publicação, Dependabot e imagens do compose por digest
         run: .github/scripts/check-workflows.sh
+      - name: Nenhum byte NUL em arquivo de texto versionado
+        run: .github/scripts/check-text-files.sh
+      - name: Testes de integração dos Marcos 1 e 2 sem alteração desde a v0.2.0
+        run: .github/scripts/check-unchanged-tests.sh v0.2.0
 
   build:
     name: Build, testes e cobertura
@@ -57,6 +64,49 @@ jobs:
             target/failsafe-reports-json-logs/
           if-no-files-found: warn
 
+  postgres:
+    # Testes que dependem do PostgreSQL, no perfil Maven postgres-it (spec 003, FR-007; Princípio VI,
+    # constituição 1.7.0; research R16). O banco é um service container com collation C (research R4).
+    # Nenhuma credencial no workflow: o banco aceita a conexão por trust, e só existe neste runner.
+    name: Testes com PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71
+        env:
+          POSTGRES_DB: awards
+          POSTGRES_USER: awards
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_INITDB_ARGS: --locale=C --encoding=UTF8
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U awards -d awards"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: ./mvnw -Ppostgres-it verify
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/awards
+          DB_USER: awards
+          DB_PASSWORD: ''
+        run: ./mvnw -B -Ppostgres-it verify
+      - name: Relatórios dos testes com PostgreSQL
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: relatorios-postgres
+          path: target/failsafe-reports-postgres/
+          if-no-files-found: warn
+
   codeql:
     name: Análise de segurança do código (CodeQL)
     runs-on: ubuntu-latest
@@ -77,35 +127,10 @@ jobs:
           # Num PR vindo de fork, o token não pode enviar ao code scanning; a porta abaixo roda mesmo
           # assim, sobre o SARIF local (research R9).
           upload: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) && 'never' || 'always' }}
-      - name: Porta de severidade (alta e crítica reprovam)
+      - name: Porta de severidade (alta e crítica reprovam, salvo exceção registrada)
         run: |
           shopt -s nullglob
-          files=(sarif-results/*.sarif)
-          (( ${#files[@]} > 0 )) || { echo "nenhum SARIF gerado"; exit 1; }
-          jq -r '
-            .runs[] as $run
-            | ([$run.tool.driver.rules[]?, $run.tool.extensions[]?.rules[]?]
-               | map({key: .id, value: ((.properties["security-severity"] // "0") | tonumber)})
-               | from_entries) as $severity
-            | $run.results[]?
-            | [($severity[.ruleId] // 0), .ruleId,
-               ((.locations[0].physicalLocation.artifactLocation.uri // "?") + ":"
-                + ((.locations[0].physicalLocation.region.startLine // 0) | tostring))]
-            | @tsv' "${files[@]}" > findings.tsv
-          total=$(wc -l < findings.tsv)
-          high=$(awk -F'\t' '$1 >= 7.0' findings.tsv | wc -l)
-          {
-            echo "### CodeQL"
-            echo
-            echo "Achados: $total; de severidade alta ou crítica (≥ 7,0): $high."
-            if (( total > 0 )); then
-              echo
-              echo "| Severidade | Regra | Local |"
-              echo "| --- | --- | --- |"
-              awk -F'\t' '{ printf "| %s | %s | %s |\n", $1, $2, $3 }' findings.tsv
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
-          (( high == 0 ))
+          .github/scripts/codeql-gate.sh sarif-results/*.sarif
 
   dependencies:
     name: Vulnerabilidades das dependências (Trivy)
@@ -193,3 +218,16 @@ jobs:
           ignore-unfixed: true
           format: table
           exit-code: '1'
+
+  compose:
+    # Ambiente completo do modo Docker (spec 003, FR-015a, FR-028 a FR-035, SC-005 e SC-008; research
+    # R20). O token do passo 8 é gerado no próprio job e nunca é impresso nem gravado. A credencial do
+    # Grafana é a de demonstração do compose.yaml (constituição 1.6.0).
+    name: Compose com PostgreSQL, Kafka, Prometheus e Grafana
+    needs: dockerfile-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Teste do compose (passos 0 a 8 e 7b)
+        run: .github/scripts/compose-test.sh

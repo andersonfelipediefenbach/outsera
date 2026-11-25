@@ -1,0 +1,5 @@
+# Achados do CodeQL que a porta de severidade ignora, cada um com a entrada de docs/ai/decisoes.md que
+# justifica (spec 003, contracts/ci-pipeline.md). O achado continua listado no resumo do job.
+# Formato: <id da regra> <caminho do arquivo> <título da entrada, exatamente como no decisoes.md>
+java/spring-disabled-csrf-protection src/main/java/com/outsera/awards/security/SecurityConfiguration.java Alertas do CodeQL no PR do Marco 3, dispensados como falso positivo
+java/user-controlled-bypass src/main/java/com/outsera/awards/security/TokenAuthenticationFilter.java Alertas do CodeQL no PR do Marco 3, dispensados como falso positivo

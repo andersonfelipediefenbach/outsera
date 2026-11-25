@@ -3,7 +3,10 @@
 - **Status:** Aceito
 - **Data:** 2026-11-19
 - **Origem:** [`docs/ai/decisoes.md`](../ai/decisoes.md), entradas "Emenda 1.2.0 da constituição:
-  Princípio I reescrito" e "Mockito excluído do `spring-boot-starter-test`"; Princípio I da constituição.
+  Princípio I reescrito", "Mockito excluído do `spring-boot-starter-test`", "Emenda 1.5.0 da constituição:
+  `SpringApplication` para controlar o ciclo de vida" e "Emenda 1.7.0 da constituição: comprovação de
+  comportamento que depende de infraestrutura"; Princípios I e VI da constituição.
+- **Atualizado:** 2026-11-24, com as emendas 1.5.0 e 1.7.0.
 
 ## Contexto
 
@@ -17,8 +20,17 @@ não têm endpoint (a carga do CSV) e falhas de inicialização, em que o contex
   completo da aplicação, sem dublês.
 - O resultado é verificado preferencialmente por HTTP. Log ou banco só valem enquanto o comportamento não
   tem endpoint.
-- As falhas de inicialização rodam a aplicação real com `SpringApplication` e verificam a exceção e o
-  log.
+- Os testes que precisam controlar o ciclo de vida da aplicação real a rodam com `SpringApplication`
+  (emenda 1.5.0). São quatro casos, sempre sem mocks e com verificação por HTTP real sempre que o HTTP
+  observa o comportamento:
+  - falha de inicialização: verificam a exceção e o log;
+  - múltiplas execuções: comparam duas ou mais subidas, como o ETag entre execuções e as equivalências do
+    Marco 3;
+  - ordem da subida: observam os eventos reais do ciclo de vida;
+  - saída completa da subida: capturam o log desde a primeira linha.
+- O comportamento que depende de infraestrutura indisponível no modo padrão, como o PostgreSQL, é testado
+  num perfil Maven dedicado, executado obrigatoriamente no pipeline (emenda 1.7.0; ADR 0019). O Kafka tem
+  broker embutido e fica no `./mvnw verify`.
 - O Mockito é excluído do `spring-boot-starter-test` no `pom.xml`: usar mock vira erro de compilação.
 
 ## Alternativas consideradas
@@ -36,3 +48,6 @@ não têm endpoint (a carga do CSV) e falhas de inicialização, em que o contex
   das classes (`@DirtiesContext`).
 - A partir do Marco 2, documentação, pipeline e imagem têm outras formas de comprovação, pelo Princípio VI
   (constituição 1.4.0).
+- A partir do Marco 3, os `*PostgresIT` rodam fora do `./mvnw verify`, no perfil `postgres-it` (ADR 0019).
+  Uma decisão de design sem comportamento verificável por teste confiável, como a comparação do token em
+  tempo constante (ADR 0017), fica fora da spec e é comprovada por revisão.

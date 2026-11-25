@@ -170,6 +170,90 @@ docker run --rm -p 9090:9090 -e PORT=9090 \
 O contrato da imagem está em
 [`specs/002-operacao/contracts/container.md`](specs/002-operacao/contracts/container.md).
 
+### Modo Docker completo: PostgreSQL, Kafka, Prometheus e Grafana (opcional)
+
+O [`compose.yaml`](compose.yaml) sobe o ambiente completo do Marco 3. É só para desenvolvimento local, e
+nada dele é exigido pelo modo padrão.
+
+```bash
+docker compose up -d --build --wait   # a aplicação só fica healthy depois da carga por Kafka
+curl -s http://localhost:8080/api/producers/intervals
+docker compose down                   # para e mantém os dados (volumes pgdata e kafkadata)
+docker compose down -v                # apaga tudo
+```
+
+| Serviço | Porta no host | O que faz |
+| --- | --- | --- |
+| `app` | `8080` (`APP_PORT`) | A aplicação no perfil `docker`: PostgreSQL no lugar do H2 e o Kafka como único caminho de entrada dos dados |
+| `postgres` | nenhuma | PostgreSQL 18, com o mesmo esquema Flyway e collation `C` (a ordem da listagem é a do H2) |
+| `kafka` | `9094` | Kafka 4.4 na imagem nativa, em KRaft, com os tópicos `awards.movies` e `awards.movies.errors` |
+| `prometheus` | `9090` | Coleta `/actuator/prometheus` a cada 5 s |
+| `grafana` | `3000` | O dashboard [`awards`](observability/grafana/dashboards/awards.json), aberto sem login em <http://localhost:3000/d/awards> |
+| `kafka-cli` | — | Ferramentas de linha de comando do Kafka, só sob demanda (perfil `tools`) |
+
+**Como funciona a carga no modo Docker:**
+1. Na subida, a aplicação lê o CSV com as mesmas regras e os mesmos avisos do modo padrão.
+2. Ela publica um evento por filme no tópico `awards.movies` e, no fim, um evento de carga concluída.
+3. O consumidor grava cada filme pelo mesmo serviço do modo padrão.
+4. A readiness só fica positiva quando o evento de carga concluída desta execução é consumido.
+5. Num reinício, o arquivo é publicado de novo. A gravação por ano e título não duplica nada, e os filmes
+   novos recebidos por evento continuam lá.
+
+O formato dos eventos está em
+[`specs/003-modo-docker/contracts/kafka-events.md`](specs/003-modo-docker/contracts/kafka-events.md).
+Para publicar um vencedor novo e ver o resultado:
+
+```bash
+printf '%s\n' '2030|Filme Novo:{"year":2030,"title":"Filme Novo","studios":null,"producers":"Joel Silver","winner":true}' \
+  | docker compose --profile tools run --rm -T kafka-cli /opt/kafka/bin/kafka-console-producer.sh \
+      --bootstrap-server kafka:9092 --topic awards.movies --property parse.key=true --property key.separator=:
+curl -s "http://localhost:8080/api/movies?year=2030"
+```
+
+Um evento inválido vai para o tópico de erros, com o conteúdo original e o motivo nos cabeçalhos, e o
+consumo segue:
+
+```bash
+docker compose --profile tools run --rm kafka-cli /opt/kafka/bin/kafka-console-consumer.sh \
+  --bootstrap-server kafka:9092 --topic awards.movies.errors --from-beginning \
+  --property print.headers=true --timeout-ms 5000
+```
+
+**Credenciais de demonstração do compose:** o PostgreSQL e o Grafana usam a senha `awards-demo`
+(usuários `awards` e `admin`). Elas só valem no compose local, estão identificadas em cada linha do
+`compose.yaml`, podem ser trocadas pelas variáveis `POSTGRES_PASSWORD` e `GRAFANA_ADMIN_PASSWORD` e nunca
+devem ser usadas num ambiente publicado (constituição 1.6.0, Princípio VII).
+
+### Autenticação (opcional)
+
+A autenticação existe e é testada, mas fica **desligada por padrão**: sem a variável `API_TOKEN`, todos
+os endpoints são públicos, como no Marco 2. Com ela, os intervalos, a listagem e as métricas exigem o
+cabeçalho `Authorization: Bearer <token>`.
+
+**Token de demonstração** (o único token do repositório, só para experimentar):
+`awards-token-de-demonstracao`.
+
+```bash
+API_TOKEN=awards-token-de-demonstracao ./mvnw spring-boot:run
+
+curl -si http://localhost:8080/api/producers/intervals                     # 401
+curl -s -H "Authorization: Bearer awards-token-de-demonstracao" \
+  http://localhost:8080/api/producers/intervals                            # 200
+```
+
+| Caminho | Sem `API_TOKEN` | Com `API_TOKEN` |
+| --- | --- | --- |
+| `/api/producers/intervals`, `/api/movies` | público | exige o token, em qualquer método (inclusive `OPTIONS`) |
+| `/actuator/prometheus` | público | exige o token |
+| `/actuator/health`, `/actuator/health/liveness`, `/actuator/health/readiness` | público | público |
+| `/swagger-ui.html`, `/openapi.yaml`, `/webjars/**` | público | público |
+
+- O token ausente e o errado recebem o mesmo **401** em Problem Details, com `WWW-Authenticate: Bearer
+  realm="awards"`, sem revelar nenhum dos dois valores.
+- A comparação do token é feita em tempo constante, e o token nunca aparece no log nem nas métricas.
+- No compose, a autenticação também fica desligada por padrão. Para ligá-la:
+  `API_TOKEN=<token> docker compose up -d`. O Prometheus passa a coletar com o mesmo token.
+
 Com linhas inválidas (`src/test/resources/scenarios/invalid-lines.csv`), a aplicação sobe e o log
 registra cada rejeição e o resumo:
 
@@ -186,11 +270,12 @@ Carga do arquivo src/test/resources/scenarios/invalid-lines.csv concluída: 13 l
 
 ## 4. Endpoints
 
-O contrato completo (versão 1.1.0, com ETag) está em [`specs/002-operacao/contracts/openapi.yaml`](specs/002-operacao/contracts/openapi.yaml),
-publicado em <http://localhost:8080/openapi.yaml> e navegável no Swagger UI, em
-<http://localhost:8080/swagger-ui.html>. O do Marco 1 fica em
-[`specs/001-producer-intervals-api/contracts/openapi.yaml`](specs/001-producer-intervals-api/contracts/openapi.yaml),
-como registro.
+O contrato completo (versão 1.2.0, com ETag e a autenticação opcional) está em
+[`specs/003-modo-docker/contracts/openapi.yaml`](specs/003-modo-docker/contracts/openapi.yaml), publicado
+em <http://localhost:8080/openapi.yaml> e navegável no Swagger UI, em
+<http://localhost:8080/swagger-ui.html>. Os dos Marcos 1 e 2 ficam em
+[`specs/001-producer-intervals-api/contracts/openapi.yaml`](specs/001-producer-intervals-api/contracts/openapi.yaml)
+e [`specs/002-operacao/contracts/openapi.yaml`](specs/002-operacao/contracts/openapi.yaml), como registro.
 
 | Método e caminho | O que faz |
 | --- | --- |
@@ -265,15 +350,18 @@ curl -si -H 'If-None-Match: "010f231232ae1af42532e0827a126190d"' http://localhos
 
 ### Endpoints operacionais
 
-Na mesma porta da API, públicos neste marco e sem detalhes internos. O contrato está em
-[`specs/002-operacao/contracts/operational-endpoints.md`](specs/002-operacao/contracts/operational-endpoints.md).
+Na mesma porta da API e sem detalhes internos. As probes e a saúde geral são sempre públicas. O endpoint
+de métricas exige o token quando a [autenticação](#autenticação-opcional) está ligada. Os contratos estão
+em [`specs/002-operacao/contracts/operational-endpoints.md`](specs/002-operacao/contracts/operational-endpoints.md)
+e, com o que o Marco 3 acrescenta, em
+[`specs/003-modo-docker/contracts/operational-endpoints.md`](specs/003-modo-docker/contracts/operational-endpoints.md).
 
 | Caminho | Resposta |
 | --- | --- |
 | `/actuator/health/liveness` | 200 `{"status":"UP"}`; 503 `{"status":"DOWN"}` se a aplicação estiver quebrada |
 | `/actuator/health/readiness` | 200 `{"status":"UP"}` só depois da carga do CSV; 503 `{"status":"OUT_OF_SERVICE"}` antes |
 | `/actuator/health` | 200 `{"status":"UP","groups":["liveness","readiness"]}`, sem componentes nem detalhes |
-| `/actuator/prometheus` | Texto do Prometheus: `http_server_requests_seconds` (contagem e histograma de latência por rota, método, status e `outcome`), métricas da JVM e do processo, todas com `application="awards"` |
+| `/actuator/prometheus` | Texto do Prometheus: `http_server_requests_seconds` (contagem e histograma de latência por rota, método, status e `outcome`), métricas da JVM e do processo, todas com `application="awards"`. No modo Docker, também `awards_ingestion_events_total` (eventos gravados e rejeitados) e `kafka_consumer_fetch_manager_records_lag_max` (atraso do consumidor) |
 
 Os demais endpoints do Actuator (`/actuator`, `/actuator/env`, `/actuator/beans` e outros) respondem
 404. Com as métricas, a taxa de erro e o percentil 95 de cada endpoint saem direto no Prometheus:
@@ -292,9 +380,10 @@ histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{u
 | 200 | Consulta atendida, inclusive com listas vazias |
 | 304 | `If-None-Match` igual ao ETag atual, sem corpo |
 | 400 | Parâmetro inválido em `/api/movies`, em Problem Details |
+| 401 | Autenticação ligada e token ausente ou errado, em Problem Details |
 | 404 | Caminho inexistente, em Problem Details |
 | 405 | Verbo diferente de GET nos dois endpoints, em Problem Details e com o cabeçalho `Allow: GET` |
-| 503 | Liveness ou readiness negativa |
+| 503 | Liveness ou readiness negativa (no modo Docker, a readiness fica 503 até a carga por Kafka terminar) |
 
 ---
 
@@ -310,19 +399,35 @@ histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{u
 .\mvnw.cmd verify "-Dit.test=ReferenceFileIT"   # no PowerShell, o -D vai entre aspas
 ```
 
-São **189 testes de integração**, executados pelo Maven Failsafe na fase `verify`, sem Docker, em duas
+São **261 testes de integração**, executados pelo Maven Failsafe na fase `verify`, **sem Docker**, em duas
 execuções:
 
 - **padrão:** todos os testes, com o log em texto. Os 5 do `JsonLogFormatIT` ficam pulados, porque só
   valem com o JSON ligado;
-- **`json-logs`:** os 55 testes das classes marcadas com `@Tag("log")` rodam de novo, numa JVM própria,
+- **`json-logs`:** os 85 testes das classes marcadas com `@Tag("log")` rodam de novo, numa JVM própria,
   com `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`. Assim, as mesmas verificações de log valem nos dois
   formatos.
 
+Os testes do Kafka rodam no `./mvnw verify` com o **broker embutido** do Spring Kafka (KRaft, dentro do
+próprio teste), sem Docker.
+
 A **cobertura** de linhas é medida pelo JaCoCo sobre as duas execuções, e o `verify` falha abaixo de
-**90%**. Hoje ela está em 97,28%, e o relatório fica em `target/site/jacoco-it/index.html`. A execução
-completa leva cerca de 75 s numa cópia de trabalho já compilada. Num clone novo, a primeira execução
-levou cerca de 4 min e meio na máquina de desenvolvimento.
+**90%**. Hoje ela está em 97,35%, e o relatório fica em `target/site/jacoco-it/index.html`. A execução
+completa leva cerca de 3 min numa cópia de trabalho já compilada. Os testes do Kafka usam um perfil
+só de teste (`kafkatest`, em `src/test/resources`), com prazos curtos dos clientes, e reaproveitam o
+contexto do Spring entre as classes que só leem.
+
+**Testes com PostgreSQL** (perfil Maven `postgres-it`): o que só existe no PostgreSQL fica fora do
+`./mvnw verify` padrão (Princípio II) e roda obrigatoriamente no job `postgres` do pipeline (Princípio VI,
+constituição 1.7.0). São a migração, a ordem com a collation, os reinícios sobre o mesmo banco e a nova
+tentativa quando a gravação falha. Para rodar localmente, é preciso um PostgreSQL com collation `C`:
+
+```bash
+docker run -d --name awards-pg -p 5432:5432 -e POSTGRES_DB=awards -e POSTGRES_USER=awards \
+  -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_INITDB_ARGS='--locale=C --encoding=UTF8' postgres:18-alpine
+DB_URL=jdbc:postgresql://localhost:5432/awards DB_USER=awards DB_PASSWORD= ./mvnw -Ppostgres-it verify
+docker rm -f awards-pg
+```
 
 | Grupo (`src/test/java/com/outsera/awards/`) | O que cobre |
 | --- | --- |
@@ -337,23 +442,40 @@ levou cerca de 4 min e meio na máquina de desenvolvimento.
 | `health/` | Liveness e readiness, corpo sem detalhes, 503 nos estados negativos e a readiness só depois da carga |
 | `metrics/` | Métricas no formato do Prometheus: contagem, status, rota sem parâmetros, rotas inexistentes, 304, histograma e rótulo `application` |
 | `logging/` | Log em texto sem a variável, JSON ECS com ela, banner desligado e nenhum cabeçalho `Authorization` no log |
-| `support/` | Base comum (`ScenarioIT`) e apoios (leitura do log nos dois formatos, do texto do Prometheus e do contrato), sem testes próprios |
+| `isolation/` | Sem perfil, o Kafka não é configurado: nenhuma métrica nem cliente Kafka (Marco 3) |
+| `kafka/` | Ingestão por Kafka com o broker embutido: resultado de referência, equivalência byte a byte com a carga direta, readiness só com o evento de carga concluída, linhas inválidas, falhas estruturais, vencedor novo em até 5 s, atualização, idempotência, cada tipo de evento inválido no tópico de erros (inclusive o caractere nulo, que o PostgreSQL não aceita), tópico de erros fora do ar, broker fora do ar e métricas (Marco 3) |
+| `security/` | Autenticação desligada (guarda do `API_TOKEN`) e ligada: 401 em Problem Details, endpoints públicos, token fora do log, sem senha gerada, cabeçalhos de cache e de proteção e o contrato 1.2.0 (Marco 3) |
+| `postgres/` | Só no perfil `postgres-it`: esquema, equivalência e ordem entre o H2 e o PostgreSQL, reinícios, nova tentativa quando a gravação falha e recusa permanente do banco por dado inválido, que vai ao tópico de erros (Marco 3) |
+| `support/` | Base comum (`ScenarioIT`, `KafkaScenarioIT`, `TokenScenarioIT`) e apoios (aplicação real por `SpringApplication`, HTTP, Kafka e PostgreSQL reais, leitura do log, do Prometheus e do contrato), sem testes próprios |
 
 **Como os testes funcionam:**
 - Cada classe sobe a aplicação inteira com `@SpringBootTest` em porta aleatória e faz chamadas HTTP
   reais.
 - Cada cenário tem o seu CSV em `src/test/resources/scenarios/`, escolhido pela propriedade
   `movies.csv.path`.
-- Nos testes de falha de inicialização (`StartupFailureIT`), o contexto não chega a subir. Por isso,
-  eles executam a aplicação real com `SpringApplication` e verificam a exceção e o log.
+- Quando o teste precisa controlar o ciclo de vida da aplicação real, ele a executa com
+  `SpringApplication`, ainda sem mocks (Princípio I, constituição 1.5.0). São quatro casos:
+  - **falha de inicialização**, como o `StartupFailureIT`: o contexto não chega a subir, e o teste
+    verifica a exceção e o log;
+  - **múltiplas execuções**, como o `EtagAcrossRunsIT`, o `KafkaEquivalenceIT` e o `RestartPostgresIT`:
+    comparam duas ou mais subidas;
+  - **ordem da subida**, como o `ReadinessAfterLoadIT`: observa os eventos reais do ciclo de vida;
+  - **saída completa da subida**, como o `JsonLogFormatIT` e o `TokenNotLoggedIT`: capturam o log desde a
+    primeira linha.
+
+  O resultado é verificado por HTTP real sempre que o HTTP observa o comportamento.
 
 **Por que só testes de integração:** o item 4.2 do enunciado pede testes de integração, e o Princípio I
 da [constituição](.specify/memory/constitution.md) proíbe testes unitários e mocks na API.
 - Não há classe `*Test`, e o Mockito foi excluído do classpath de teste.
 - Os testes verificam o comportamento pelo HTTP, como o avaliador o vê, e não detalhes internos.
-- Log e banco só podem ser usados enquanto um comportamento não tem endpoint. Nenhum teste consulta o
-  banco. O log só é verificado no que não tem endpoint: os avisos e o resumo da carga, a ordem entre a
-  carga e o início do servidor, as falhas de inicialização e o próprio formato do log.
+- Log e banco só podem ser usados enquanto um comportamento não tem endpoint. O único teste que consulta
+  o banco é o `SchemaPostgresIT`, que confere o histórico do Flyway, porque a migração não tem endpoint. O
+  log só é verificado no que não tem endpoint: os avisos e o resumo da carga, a ordem entre a carga e o
+  início do servidor, as falhas de inicialização, o próprio formato do log e a ausência do token.
+- Os testes do Kafka usam um produtor e um consumidor reais contra o broker embutido. Os testes do
+  PostgreSQL usam um banco real, com um esquema próprio por classe.
+- A autenticação é testada com tokens gerados na hora: nenhum token fica no código dos testes.
 
 ### Pipeline
 
@@ -363,15 +485,18 @@ publicar a imagem. Toda action é fixada por hash de commit. O contrato completo
 
 | Job | O que faz | Reprova quando |
 | --- | --- | --- |
-| `workflow-policy` | Confere a política do workflow e do Dependabot | Action sem hash de commit, permissão além de `contents: read` (exceto `security-events: write` no `codeql`), uso de `secrets.`, publicação de imagem ou Dependabot incompleto |
+| `workflow-policy` | Confere a política do workflow, do Dependabot e do compose, e que os testes dos Marcos 1 e 2 não mudaram desde a `v0.2.0` | Action sem hash de commit, permissão além de `contents: read` (exceto `security-events: write` no `codeql`), uso de `secrets.`, publicação de imagem, Dependabot incompleto, imagem do compose ou de service container sem digest, senha de banco no workflow, ou um IT da `v0.2.0` alterado sem exceção registrada |
 | `build` | `./mvnw verify`, cobertura no resumo e relatórios como artefato | Qualquer teste falha, ou a cobertura de linhas fica abaixo de 90% |
+| `postgres` | `./mvnw -Ppostgres-it verify` contra um PostgreSQL 18 (service container, collation `C`, sem credencial) | Qualquer `*PostgresIT` falha |
+| `compose` | [`compose-test.sh`](.github/scripts/compose-test.sh): sobe o compose e confere a referência, o Prometheus, o dashboard, um vencedor novo pelo Kafka em até 5 s, o tópico de erros, a persistência depois de `down`, a queda real do banco e o token | Qualquer passo falha, ou a subida até o dashboard passa de 3 min |
 | `codeql` | Análise do código Java (`security-extended`) | Achado de severidade alta ou crítica (`security-severity` ≥ 7,0) |
 | `dependencies` | Trivy nas dependências Maven, com relatório completo | Vulnerabilidade `HIGH` ou `CRITICAL` **com versão corrigida** |
 | `dockerfile-lint` | hadolint | Aviso ou erro |
 | `image` | Contexto de build, imagem, teste de fumaça (13 passos) e Trivy na imagem | Contexto fora do `.dockerignore`, imagem que não sobe ou não responde o resultado de referência, ou vulnerabilidade `HIGH` ou `CRITICAL` com correção na imagem |
 
 Achados médios e baixos, e vulnerabilidades sem correção, aparecem no relatório sem reprovar. O
-[Dependabot](.github/dependabot.yml) abre PRs semanais para Maven, GitHub Actions e a imagem base.
+[Dependabot](.github/dependabot.yml) abre PRs semanais para Maven, GitHub Actions, a imagem base e as
+imagens do compose.
 
 ---
 
@@ -393,7 +518,7 @@ requisito da spec, está em
 | Resultado de referência com o arquivo fornecido (Joel Silver em `min`, Matthew Vaughn em `max`) | SC-001 | `ReferenceFileIT` |
 | Correto com outros arquivos, sem dados fixos no código | FR-016a, FR-016b, SC-004a | `DisjointProducersIT`, `RandomizedOracleIT` |
 | Leitura da lista de indicados e vencedores (seção 1) | FR-019 a FR-023 | `MoviesListingIT`, `MoviesInvalidParamsIT`, `MoviesContractIT` |
-| Somente testes de integração (item 4.2) | FR-027, Princípio I | Todos os testes são `*IT` com `@SpringBootTest` e sem mocks, executados pelo Failsafe. A exceção é o `StartupFailureIT`, que sobe a aplicação real com `SpringApplication` |
+| Somente testes de integração (item 4.2) | FR-027, Princípio I | Todos os testes são `*IT`, sem mocks, executados pelo Failsafe, com `@SpringBootTest` ou com a aplicação real por `SpringApplication` nos quatro casos de controle do ciclo de vida da [seção 5](#5-testes) |
 | Execução só com o wrapper, sem Docker e sem instalar banco: SGBD **H2 em memória**, embarcado na aplicação (item 4.3) | FR-026 | O H2 é dependência do `pom.xml`, e nenhuma URL de banco é configurada, então o Spring Boot cria um H2 em memória a cada execução. Todos os testes sobem a aplicação assim, e o `SmokeIT` confirma que ela sobe com o arquivo padrão. Além disso, `./mvnw verify` e `./mvnw spring-boot:run` foram executados em clone limpo, no Linux e no Windows |
 | Documentação de como executar e testar (item 4.4) | — | Este README: [seção 2](#2-avalie-em-2-minutos) (avaliação rápida), [seção 3](#3-como-executar) (execução) e [seção 5](#5-testes) (testes) |
 | Código em repositório git (item 4.5) | — | Este repositório, com um ou mais commits por bolt e a estrutura descrita na [seção 11](#11-estrutura-do-repositório) |
@@ -419,6 +544,27 @@ completa está em [`specs/002-operacao/plan.md`](specs/002-operacao/plan.md#rast
 | Imagem multi-stage, não root, com healthcheck e `.dockerignore` | FR-021 a FR-027 | Jobs `dockerfile-lint` e `image` (contexto de build e teste de fumaça) |
 | Pipeline, portas de segurança e cobertura, actions por hash e Dependabot | FR-028 a FR-029 | Jobs `workflow-policy`, `build`, `codeql`, `dependencies` e `image` |
 | ADRs e este README | FR-030, FR-031, FR-034 | Revisão do PR, pelas seções "Revisão dos ADRs" e "Revisão do README" de [`checklists/requirements.md`](specs/002-operacao/checklists/requirements.md) |
+
+### Requisitos do Marco 3 (modo Docker e autenticação)
+
+Também fora do enunciado. O comportamento comum aos dois bancos é comprovado no `./mvnw verify`, e o que
+só existe no PostgreSQL, no perfil `postgres-it` (Princípio VI, constituição 1.7.0). A matriz completa está
+em [`specs/003-modo-docker/plan.md`](specs/003-modo-docker/plan.md#rastreabilidade-princípio-vi). Os
+`@DisplayName` dos testes novos começam por `S003`, porque os IDs das três specs se repetem.
+
+| Extra | Requisitos | Como é comprovado |
+| --- | --- | --- |
+| Modo padrão idêntico, sem Kafka configurado | FR-001 | `DefaultModeIsolationIT`, a suíte dos Marcos 1 e 2 e o `check-unchanged-tests.sh` |
+| PostgreSQL com o mesmo esquema e a mesma ordem da listagem | FR-004 a FR-008 | `SchemaPostgresIT`, `EquivalencePostgresIT`, `ListingOrderPostgresIT` (job `postgres`) |
+| Kafka como caminho único, com a readiness depois do evento de carga concluída | FR-009 a FR-013 | `KafkaReferenceFileIT`, `KafkaReadinessIT`, `KafkaInvalidLinesIT`, `KafkaStructuralFailureIT`, `PublisherSummaryIT`, `KafkaBrokerUnavailableIT` |
+| Gravação idempotente com atualização e reinícios | FR-014 | `KafkaIdempotencyIT`, `KafkaUpdateIT`, `RestartDirectPostgresIT`, `RestartPostgresIT` |
+| Tópico de erros e nova tentativa quando a gravação falha | FR-015, FR-015a | `KafkaInvalidEventsIT`, `KafkaErrorTopicUnavailableIT`, `RetryPostgresIT` e o passo 7b do job `compose` |
+| Vencedor novo depois da carga e métricas da ingestão | FR-016, FR-017 | `KafkaNewWinnerIT`, `KafkaMetricsIT` |
+| Carga direta e Kafka equivalentes, sem exceção | FR-018 | `KafkaEquivalenceIT`, `FieldTooLongIT` |
+| Autenticação por token, desligada por padrão | FR-019 a FR-023, FR-025 a FR-027 | `AuthDisabledByDefaultIT`, `AuthEnabledIT`, `AuthProblemDetailsIT`, `TokenNotLoggedIT`, `NoGeneratedPasswordIT`, `AuthContractIT`, `ApiDocsSecurityIT` |
+| Cabeçalhos de cache e de proteção | FR-022a | `CacheHeadersIT`, `CacheHeadersWithTokenIT` |
+| Compose com observabilidade, imagens por digest e credenciais de demonstração | FR-028 a FR-035 | Jobs `compose` e `workflow-policy` |
+| README e ADRs | FR-036, FR-037 | Revisão do PR, pelas seções de [`specs/003-modo-docker/checklists/requirements.md`](specs/003-modo-docker/checklists/requirements.md) |
 
 ---
 
@@ -495,7 +641,9 @@ A coluna de estúdios é opcional. Ao final, o log traz o resumo de linhas lidas
 
 | Pacote | Responsabilidade |
 | --- | --- |
-| `ingestion` | Leitura e validação do CSV (`MovieCsvReader`), separação dos produtores (`ProducerNameParser`), gravação (`MovieImportService`, o único caminho de gravação), carga na inicialização (`MovieFileLoader`) e mensagem de falha (`MovieFileFailureAnalyzer`) |
+| `ingestion` | Leitura e validação do CSV (`MovieCsvReader`, `MovieFileReading`), regras de campo comuns ao CSV e aos eventos (`MovieFieldRules`), separação dos produtores (`ProducerNameParser`), gravação com atualização por ano e título (`MovieImportService`, o único caminho de gravação), carga direta na inicialização (`MovieFileLoader`, fora do perfil `kafka`) e mensagem de falha (`MovieFileFailureAnalyzer`) |
+| `ingestion.kafka` | Só no perfil `kafka`: publicador do arquivo (`MovieEventPublisher`), consumidor com o tópico de erros (`MovieEventListener`), leitura dos eventos (`MovieEventParser`), readiness pelo evento de carga concluída (`IngestionReadiness`) e tópicos e novas tentativas (`KafkaIngestionConfiguration`) |
+| `security` | Cadeia sem estado do Spring Security (`SecurityConfiguration`), filtro do token (`TokenAuthenticationFilter`) e 401 em Problem Details (`ProblemAuthenticationEntryPoint`) |
 | `movie` | Entidade `Movie`, consulta paginada com filtros (`MovieRepository`, `MovieQueryService`) e `GET /api/movies` |
 | `producer` | Entidade `Producer`, cálculo dos intervalos (`ProducerIntervalService`) e `GET /api/producers/intervals` |
 | `web` | Erros em Problem Details (`ApiExceptionHandler`) e ETag nos dois endpoints de negócio (`ContentEtagFilter`, registrado pelo `EtagConfiguration`) |
@@ -525,6 +673,21 @@ flowchart LR
 4. A listagem é uma consulta JPQL paginada com filtros opcionais. As consultas não usam SQL específico
    de banco.
 
+No **modo Docker** (perfil `docker`, que liga `postgres` e `kafka`), o banco é o PostgreSQL, e a carga
+passa pelo Kafka:
+
+```mermaid
+flowchart LR
+    CSV["movielist.csv"] --> Pub["MovieEventPublisher<br/>mesma leitura e avisos"]
+    Pub -->|"um evento por filme<br/>+ carga concluída"| Topic[["awards.movies"]]
+    Ext["outro cliente<br/>(vencedor novo)"] --> Topic
+    Topic --> Listener["MovieEventListener"]
+    Listener -->|inválido| Errors[["awards.movies.errors"]]
+    Listener -->|válido| Import["MovieImportService"]
+    Listener -->|carga concluída| Ready["readiness"]
+    Import --> PG[("PostgreSQL<br/>mesmo esquema Flyway")]
+```
+
 ### Stack
 
 | Item | Versão |
@@ -539,6 +702,8 @@ flowchart LR
 | Testes | JUnit 6.0.3, `RestTestClient` do Spring, Maven Failsafe (duas execuções), JaCoCo 0.8.14 e o validador OpenAPI da Atlassian 3.0.0 |
 | Imagem | `eclipse-temurin:25-jdk-alpine` no build e `eclipse-temurin:25-jre-alpine` na execução, por digest |
 | Pipeline | GitHub Actions, CodeQL, Trivy, hadolint e Dependabot |
+| Modo Docker | PostgreSQL 18 (driver 42.7.14), Spring for Apache Kafka 4.1.2 (kafka-clients 4.2.2), Kafka 4.4 na imagem nativa, Prometheus 3.16 e Grafana 13.3 |
+| Autenticação | Spring Security (do Boot 4.1.2), com token por `Authorization: Bearer` |
 
 ---
 
@@ -587,6 +752,21 @@ Do Marco 2:
   dentro só referências por hash ou digest.
 - **Comprovação por tipo de requisito** (constituição 1.4.0): teste de integração, pipeline ou revisão.
 
+Do Marco 3:
+
+- **Kafka como caminho único no modo Docker**, com a readiness liberada só pelo evento de carga concluída
+  desta execução (ADR 0014).
+- **Gravação por ano e título com atualização:** a última gravação prevalece, e um reinício reaplica os
+  valores do arquivo aos filmes que estão nele (ADR 0015).
+- **Evento inválido vai ao tópico de erros, e a falha de gravação é tentada de novo** sem avançar no
+  tópico. O `FIELD_TOO_LONG` vale nos dois caminhos de carga (ADR 0016).
+- **PostgreSQL com collation C**, para a mesma ordem do H2, sem SQL específico (ADR 0013).
+- **Autenticação desligada por padrão**, com comparação do token em tempo constante e sem
+  `Cache-Control` nos endpoints de negócio, para preservar o ETag (ADR 0017).
+- **Credenciais de demonstração só no compose local** (constituição 1.6.0; ADR 0018).
+- **Testes com PostgreSQL num perfil Maven dedicado**, obrigatório no pipeline (constituição 1.7.0;
+  ADR 0019).
+
 ---
 
 ## 10. Uso de IA
@@ -621,6 +801,7 @@ PR, merge e tags são feitos só pelo responsável, nunca por um agente.
 | 4 | Endpoint de intervalos no formato do enunciado |
 | 5 e 6 | Listagem, Swagger UI e fechamento, num único PR |
 | Marco 2 | Um único bolt, com seis etapas e um commit por etapa: ETag, observabilidade, Dockerfile, pipeline e Dependabot, ADRs e README ([spec 002](specs/002-operacao/spec.md)) |
+| Marco 3 | Um único bolt, com cinco etapas e um commit por etapa: PostgreSQL e perfil `docker`, Kafka, autenticação, compose com observabilidade, e ADRs com o README ([spec 003](specs/003-modo-docker/spec.md)) |
 
 **Papéis:**
 
@@ -659,10 +840,13 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 ├── mvnw, mvnw.cmd, .mvn/        # Maven Wrapper: dispensa instalar o Maven
 ├── Dockerfile                   # imagem multi-stage, não root (opcional)
 ├── .dockerignore                # lista de permissão do contexto da imagem
+├── compose.yaml                 # modo Docker: aplicação, PostgreSQL, Kafka, Prometheus e Grafana (opcional)
+├── observability/               # configuração do Prometheus e provisionamento e dashboard do Grafana
 ├── .github/
 │   ├── workflows/ci.yml         # pipeline de CI
-│   ├── scripts/                 # política do workflow, contexto da imagem e teste de fumaça
-│   └── dependabot.yml           # atualizações de Maven, Actions e imagem base
+│   ├── scripts/                 # política do workflow, contexto da imagem, fumaça, compose e ITs inalterados
+│   ├── unchanged-tests-exceptions.txt # ITs da v0.2.0 que podem mudar, cada um com a decisão que autoriza
+│   └── dependabot.yml           # atualizações de Maven, Actions, imagem base e imagens do compose
 ├── .gitattributes               # fim de linha LF no repositório
 ├── .gitignore
 ├── .claude/                     # configuração do Claude Code: hook de prompts e skills do Spec Kit
@@ -678,15 +862,20 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 │   ├── contracts/openapi.yaml   # contrato OpenAPI do Marco 1 (registro)
 │   └── checklists/              # checklist de qualidade da spec
 ├── specs/002-operacao/          # Marco 2: spec, plano, research, contratos e tarefas
-│   └── contracts/               # OpenAPI 1.1.0 (fonte única), endpoints operacionais, imagem e pipeline
+│   └── contracts/               # OpenAPI 1.1.0 (registro), endpoints operacionais, imagem e pipeline
+├── specs/003-modo-docker/       # Marco 3: spec, plano, research, contratos e tarefas
+│   └── contracts/               # OpenAPI 1.2.0 (fonte única), eventos do Kafka, compose e pipeline
 ├── src/main/java/com/outsera/awards/
 │   ├── AwardsApplication.java   # classe principal
-│   ├── ingestion/               # leitura, validação e carga do CSV
+│   ├── ingestion/               # leitura, validação e carga do CSV; kafka/: ingestão por Kafka (perfil kafka)
 │   ├── movie/                   # filmes e GET /api/movies
 │   ├── producer/                # produtores e GET /api/producers/intervals
+│   ├── security/                # autenticação por token (Spring Security)
 │   └── web/                     # Problem Details e ETag
 ├── src/main/resources/
-│   ├── application.yml          # PORT, MOVIES_CSV_PATH, Actuator e métricas, com padrões
+│   ├── application.yml          # PORT, MOVIES_CSV_PATH, API_TOKEN, Actuator e métricas, com padrões
+│   ├── application-postgres.yml # perfil postgres: DB_URL, DB_USER e DB_PASSWORD
+│   ├── application-kafka.yml    # perfil kafka: broker, tópicos, grupo e readiness
 │   ├── movielist.csv            # arquivo do enunciado (padrão)
 │   ├── db/migration/            # esquema Flyway
 │   ├── static/openapi.yaml      # cópia publicada do contrato
@@ -695,6 +884,8 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 ├── src/test/java/com/outsera/awards/  # somente testes de integração (*IT)
 │   ├── adversario/  ingestion/  intervals/  movies/  docs/  web/  support/
 │   ├── etag/  health/  metrics/  logging/   # Marco 2
+│   ├── isolation/  kafka/  security/        # Marco 3, no ./mvnw verify
+│   ├── postgres/                            # Marco 3, só no perfil postgres-it
 │   └── SmokeIT.java
 ├── src/test/resources/scenarios/  # um CSV por cenário de teste
 ├── docs/adr/                    # decisões de arquitetura (ADRs), com índice

@@ -1,0 +1,4 @@
+# Testes de integração da tag de referência que podem mudar, cada um com a entrada de
+# docs/ai/decisoes.md que autoriza a mudança (spec 003, research R14).
+# Formato: <caminho> <título da entrada, exatamente como no decisoes.md>
+src/test/java/com/outsera/awards/docs/ApiDocsIT.java Exceção do `ApiDocsIT` à regra dos testes sem alteração

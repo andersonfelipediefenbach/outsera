@@ -1,4 +1,53 @@
 <!--
+Sync Impact Report (1.7.0)
+- Version change: 1.6.0 → 1.7.0
+  Justificativa: MINOR. O Princípio VI ganha uma regra de comprovação para o comportamento da
+  aplicação que depende de infraestrutura indisponível no modo padrão, como o PostgreSQL. Esse
+  comportamento é comprovado por testes de integração num perfil Maven dedicado, executado
+  obrigatoriamente no pipeline. Todo o resto continua exigindo teste no `./mvnw verify`.
+  Antes, o VI pedia o teste "no `./mvnw verify`" e o II punha os testes de PostgreSQL num perfil
+  separado, sem dizer como os dois se combinavam. Nenhum requisito que cumpria a versão anterior deixa
+  de cumprir.
+  Origem: Constitution Check do plano 003 (Marco 3).
+- Modified principles: VI. Rastreabilidade requisito → teste (regra nova)
+- Added sections: nenhuma
+- Removed sections: nenhuma
+- Impacto:
+  - AGENTS.md ✅ fluxo de trabalho (rastreabilidade) e seção Testes;
+  - specs/003-modo-docker ✅ FR-038 e Constitution Check do plano (a nota de leitura conjunta virou
+    referência à 1.7.0);
+  - docs/ai/decisoes.md ✅ emenda registrada;
+  - specs/001 e specs/002: nenhuma mudança (não têm comportamento dependente de PostgreSQL).
+- Templates requiring updates: nenhum
+- Follow-up TODOs: nenhum
+
+Sync Impact Report (1.6.0)
+- Version change: 1.5.0 → 1.6.0
+  Justificativa: MINOR. O Princípio VII ganha uma segunda exceção, ampliando o que é permitido sem
+  proibir nada que valia antes. Além do token de demonstração (sem mudança), passam a ser permitidas as
+  credenciais de demonstração dos serviços do compose de desenvolvimento local, com quatro condições:
+  - aparecem só nos arquivos do compose local e na configuração que ele monta;
+  - são identificadas como de demonstração no README e no próprio arquivo;
+  - podem ser sobrescritas por variável de ambiente;
+  - nunca são usadas em ambiente publicado. O estágio do pipeline que testa o compose num runner
+    temporário não é ambiente publicado.
+
+  Origem: clarificação da spec 003 (Marco 3), que escolheu senhas de demonstração para o PostgreSQL e o
+  Grafana do compose (FR-033).
+- Modified principles: VII. Sem segredos; configuração por variável de ambiente (exceção nova e motivo)
+- Added sections: nenhuma
+- Removed sections: nenhuma
+- Impacto:
+  - AGENTS.md ✅ seção Segurança;
+  - specs/003-modo-docker ✅ Clarifications e FR-033 deixam de depender de emenda pendente; o checklist
+    foi atualizado;
+  - docs/ai/decisoes.md ✅ emenda registrada;
+  - specs/001 e specs/002: nenhuma mudança (não usam credenciais);
+  - README.md: nenhuma mudança agora. A identificação das credenciais no README entra com o compose
+    (spec 003, FR-036), pelo papel de documentação.
+- Templates requiring updates: nenhum
+- Follow-up TODOs: nenhum
+
 Sync Impact Report (1.5.0)
 - Version change: 1.4.1 → 1.5.0
   Justificativa: MINOR. A cláusula do Princípio I sobre `SpringApplication` foi ampliada de forma
@@ -243,6 +292,13 @@ documentação coerentes e evita o modelo cascata.
 - Requisito sem comprovação não é considerado entregue. Um requisito de comportamento da aplicação
   MUST NOT ser comprovado só por revisão ou só pelo pipeline: ele precisa do seu teste de integração no
   `./mvnw verify`.
+- **Comportamento que depende de infraestrutura indisponível no modo padrão** (por exemplo, o
+  PostgreSQL): é comprovado por testes de integração num **perfil Maven dedicado**, que o pipeline MUST
+  executar obrigatoriamente, com o job vermelho reprovando o merge. Esses testes seguem o Princípio I
+  (contexto completo, sem mocks, verificação por HTTP). A exceção vale só para o que não pode rodar sem
+  essa infraestrutura. Todo o resto continua exigindo o teste no `./mvnw verify`, inclusive o
+  comportamento comum aos dois modos, que é testado com H2. Uma dependência que tem substituto
+  embutido sem Docker, como o broker Kafka do Spring, não entra na exceção (Princípio II).
 - O README MUST trazer a tabela de requisitos do enunciado, com o teste que comprova cada um.
 
 **Motivo:**
@@ -255,13 +311,27 @@ documentação coerentes e evita o modelo cascata.
 ### VII. Sem segredos; configuração por variável de ambiente
 
 - Tokens, senhas e credenciais reais MUST NOT aparecer no código, nos commits, na evidência de IA
-  nem nas mensagens aos agentes. Só o token de demonstração documentado no README é permitido.
+  nem nas mensagens aos agentes. Há só duas exceções:
+  - o token de demonstração documentado no README;
+  - as **credenciais de demonstração dos serviços do compose de desenvolvimento local** (por exemplo,
+    o usuário e a senha do PostgreSQL e do Grafana), desde que cumpram todas as condições abaixo:
+    - aparecem só nos arquivos do compose de desenvolvimento local e na configuração que ele monta;
+    - são identificadas como de demonstração no README e no próprio arquivo onde aparecem;
+    - podem ser sobrescritas por variável de ambiente;
+    - MUST NOT ser usadas em ambiente publicado, como o deploy em nuvem. O estágio do pipeline que sobe
+      esse mesmo compose num runner temporário, para testá-lo, não é ambiente publicado.
+- Nenhuma outra credencial de demonstração é permitida. Um ambiente publicado MUST receber as suas
+  credenciais por variável de ambiente ou pelo gerenciador de segredos da plataforma.
 - Toda configuração MUST vir de variáveis de ambiente, inclusive a porta (`PORT`), o caminho do
   CSV, o token e o CORS, com padrões que fazem o modo padrão funcionar sem nada definido.
 - A autenticação MUST ficar desligada por padrão: sem a variável do token, os endpoints de negócio
   ficam públicos.
 
-**Motivo:** o repositório e toda a evidência de IA serão públicos.
+**Motivo:**
+- O repositório e toda a evidência de IA serão públicos.
+- O compose de desenvolvimento local precisa subir com um único comando, num clone limpo. Uma senha de
+  demonstração, identificada como tal e restrita à máquina de quem executa, não protege nada de valor, e
+  exigir um arquivo de segredos antes do `docker compose up` só criaria um passo a mais.
 
 ## Restrições técnicas e de segurança
 
@@ -333,4 +403,4 @@ documentação coerentes e evita o modelo cascata.
   conformidade com os princípios I a VII. Os sete princípios são inegociáveis e não admitem
   exceção em "Complexity Tracking". Qualquer outra divergência MUST ser justificada no plano.
 
-**Version**: 1.5.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-24
+**Version**: 1.7.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-24

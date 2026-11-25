@@ -26,3 +26,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+
+  # Imagens do compose.yaml (spec 003, FR-034). Cada imagem é fixada por tag e digest.
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly

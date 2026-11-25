@@ -62,6 +62,19 @@ public class Movie {
         this.producers.addAll(producers);
     }
 
+    /**
+     * Substitui os dados do filme pelos de uma gravação nova com o mesmo ano e título: a última gravação
+     * prevalece (spec 003, FR-014; data-model.md, "Gravação de um filme"). Os vínculos são trocados por
+     * inteiro, então um produtor que saiu da lista deixa de estar ligado ao filme.
+     */
+    public void update(String studios, String producersRaw, boolean winner, Collection<Producer> producers) {
+        this.studios = studios;
+        this.producersRaw = producersRaw;
+        this.winner = winner;
+        this.producers.clear();
+        this.producers.addAll(producers);
+    }
+
     public Long getId() {
         return id;
     }
