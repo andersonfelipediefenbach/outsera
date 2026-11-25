@@ -18,42 +18,66 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * <p>Não é um dublê: só copia bytes entre a aplicação e o serviço real, sem ler nem alterar o protocolo.
  * Existe porque o {@code EmbeddedKafkaKraftBroker} do Spring Kafka 4.1.2 ignora o {@code kafkaPorts} e sempre
  * sobe numa porta aleatória.
+ *
+ * <p>A porta fica reservada desde {@link #reserve()}: enquanto não há destino, cada conexão é fechada logo
+ * depois de aceita, como um serviço fora do ar. Sem a reserva, a porta ficaria livre entre a escolha e o
+ * uso, e outro broker embutido da mesma JVM poderia ocupá-la (falha vista no pipeline do PR do Marco 3).
  */
 public final class TcpForwarder implements AutoCloseable {
 
     private final ServerSocket server;
     private final List<Socket> sockets = new CopyOnWriteArrayList<>();
+    private volatile int targetPort;
 
-    private TcpForwarder(ServerSocket server, int targetPort) {
+    private TcpForwarder(ServerSocket server) {
         this.server = server;
-        Thread acceptor = new Thread(() -> accept(targetPort), "tcp-forwarder-" + server.getLocalPort());
+        Thread acceptor = new Thread(this::accept, "tcp-forwarder-" + server.getLocalPort());
         acceptor.setDaemon(true);
         acceptor.start();
     }
 
-    /** Escuta em {@code localhost:listenPort} e repassa cada conexão para {@code localhost:targetPort}. */
-    public static TcpForwarder start(int listenPort, int targetPort) {
+    /** Reserva uma porta livre em {@code localhost}, ainda sem destino. */
+    public static TcpForwarder reserve() {
         try {
             ServerSocket server = new ServerSocket();
-            server.setReuseAddress(true);
-            server.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), listenPort));
-            return new TcpForwarder(server, targetPort);
+            server.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+            return new TcpForwarder(server);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
 
-    private void accept(int targetPort) {
+    /** A porta reservada. */
+    public int port() {
+        return server.getLocalPort();
+    }
+
+    /** Passa a repassar as conexões novas para {@code localhost:targetPort}. */
+    public void forwardTo(int targetPort) {
+        this.targetPort = targetPort;
+    }
+
+    private void accept() {
         while (!server.isClosed()) {
+            Socket client;
             try {
-                Socket client = server.accept();
-                Socket target = new Socket(InetAddress.getLoopbackAddress(), targetPort);
-                sockets.add(client);
-                sockets.add(target);
-                pump(client, target);
-                pump(target, client);
+                client = server.accept();
             } catch (IOException e) {
-                // Servidor fechado, ou o destino recusou: a próxima conexão tenta de novo.
+                continue; // Servidor fechado: o laço termina.
+            }
+            int target = targetPort;
+            if (target == 0) {
+                closeQuietly(client); // Ainda sem destino: o serviço está fora do ar.
+                continue;
+            }
+            try {
+                Socket upstream = new Socket(InetAddress.getLoopbackAddress(), target);
+                sockets.add(client);
+                sockets.add(upstream);
+                pump(client, upstream);
+                pump(upstream, client);
+            } catch (IOException e) {
+                closeQuietly(client); // O destino recusou: a próxima conexão tenta de novo.
             }
         }
     }

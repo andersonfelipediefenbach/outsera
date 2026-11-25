@@ -3,6 +3,23 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-25 — Pipeline do PR do Marco 3: porta reservada no KafkaBrokerLateStartIT
+
+- **Falha:** o job `build` reprovou o `54cae85` no `KafkaBrokerLateStartIT`, em 2,2 s: o broker que sobe
+  depois não tinha os tópicos da aplicação.
+- **Causa:** uma corrida na porta, no teste, e não na aplicação. O teste escolhia uma porta livre abrindo e
+  fechando um `ServerSocket`, e só ligava o repassador nela depois de subir a aplicação e o broker tardio.
+  Nesse intervalo, a porta ficava livre, e o Failsafe roda outros ITs de Kafka em paralelo na mesma JVM. No
+  pipeline, outro broker embutido ocupou a porta. O log mostra a aplicação criando os tópicos e publicando
+  os 206 filmes nesse outro broker, 1,3 s depois de subir. Por isso a readiness ficou pronta sem o broker
+  tardio, e a verificação dos tópicos falhou.
+- **Correção:** o `TcpForwarder` reserva a porta desde o início (`reserve()`). Enquanto não há destino, ele
+  fecha cada conexão logo depois de aceitá-la, como um serviço fora do ar. Depois, `forwardTo()` o liga ao
+  broker. A porta não fica livre em nenhum momento.
+- **Comprovação:** o IT passa sozinho e na suíte completa. Sem a recriação dos tópicos do apontamento 2, ele
+  continua reprovando, porque a readiness não chega a 200 em 90 s. Assim o teste ainda prova o caso de
+  borda "Broker indisponível".
+
 ## 2026-11-25 — Pipeline do PR do Marco 3: porta do CodeQL com exceções registradas
 
 - **Falha:** o job `codeql` reprovou o `54cae85` com os dois alertas de severidade alta já analisados na

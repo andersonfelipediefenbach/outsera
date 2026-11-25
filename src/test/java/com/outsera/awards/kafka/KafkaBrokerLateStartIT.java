@@ -8,9 +8,6 @@ import com.outsera.awards.support.Http;
 import com.outsera.awards.support.KafkaTestSupport;
 import com.outsera.awards.support.KafkaTestSupport.Topics;
 import com.outsera.awards.support.TcpForwarder;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.net.ServerSocket;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
@@ -26,9 +23,11 @@ import org.springframework.kafka.test.EmbeddedKafkaKraftBroker;
  * Broker que só sobe depois da aplicação, sem criação automática de tópicos, como no compose (spec 003,
  * caso de borda "Broker indisponível"; apontamento do Codex no PR do Marco 3).
  *
- * <p>A aplicação sobe apontando para uma porta livre, onde nada escuta: o broker está fora de verdade, e o
- * {@code KafkaAdmin} falha ao criar os tópicos. Depois, o teste sobe o broker embutido, com
- * {@code auto.create.topics.enable=false}, e um {@link TcpForwarder} na porta que a aplicação usa. O
+ * <p>A aplicação sobe apontando para uma porta que um {@link TcpForwarder} reserva, ainda sem destino: cada
+ * conexão é fechada logo depois de aceita, o broker está fora de verdade, e o {@code KafkaAdmin} falha ao
+ * criar os tópicos. Depois, o teste sobe o broker embutido, com {@code auto.create.topics.enable=false}, e
+ * liga o repassador a ele. A porta fica reservada o tempo todo, para que outro broker embutido da mesma JVM
+ * não a ocupe no meio do caminho (falha vista no pipeline do PR do Marco 3). O
  * {@code EmbeddedKafkaKraftBroker} do Spring Kafka 4.1.2 ignora o {@code kafkaPorts} e sempre sobe numa porta
  * aleatória. O repassador só leva a conexão inicial ao broker; daí em diante, os clientes falam direto com
  * ele, pelo endereço que o próprio broker anuncia.
@@ -39,22 +38,13 @@ import org.springframework.kafka.test.EmbeddedKafkaKraftBroker;
  */
 class KafkaBrokerLateStartIT {
 
-    private static int freePort() {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            return socket.getLocalPort();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
     @Test
     @DisplayName("S003 FR-013 broker que sobe depois: a aplicação cria os tópicos, publica e fica pronta")
     void recoversWhenTheBrokerStartsLater() {
-        int kafkaPort = freePort();
-        String brokers = "localhost:" + kafkaPort;
+        TcpForwarder forwarder = TcpForwarder.reserve();
+        String brokers = "localhost:" + forwarder.port();
         Topics topics = KafkaTestSupport.topics(KafkaBrokerLateStartIT.class);
         EmbeddedKafkaBroker[] broker = new EmbeddedKafkaBroker[1];
-        TcpForwarder[] forwarder = new TcpForwarder[1];
 
         Result result = ApplicationStarter.startAndCall("classpath:movielist.csv",
                 KafkaTestSupport.args(brokers, topics), port -> {
@@ -67,7 +57,7 @@ class KafkaBrokerLateStartIT {
                         late.afterPropertiesSet();
                         broker[0] = late;
                         int brokerPort = Integer.parseInt(late.getBrokersAsString().replaceAll(".*:", ""));
-                        forwarder[0] = TcpForwarder.start(kafkaPort, brokerPort);
+                        forwarder.forwardTo(brokerPort);
 
                         Http.awaitReady(port, Duration.ofSeconds(90));
                         assertThat(Http.get(port, "/api/producers/intervals").text())
@@ -82,9 +72,7 @@ class KafkaBrokerLateStartIT {
                             throw new IllegalStateException(e);
                         }
                     } finally {
-                        if (forwarder[0] != null) {
-                            forwarder[0].close();
-                        }
+                        forwarder.close();
                         if (broker[0] != null) {
                             broker[0].destroy();
                         }
