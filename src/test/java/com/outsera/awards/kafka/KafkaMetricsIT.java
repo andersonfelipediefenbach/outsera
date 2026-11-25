@@ -21,7 +21,7 @@ import org.springframework.test.context.TestPropertySource;
 class KafkaMetricsIT extends KafkaScenarioIT {
 
     static final String LAG = "kafka_consumer_fetch_manager_records_lag_max";
-    static final String CONSUMER_CLIENT = "consumer-awards-movies";
+    static final String CONSUMER_CLIENT = "awards-movies-";
 
     private List<Sample> samples() {
         String text = http.get().uri("/actuator/prometheus").exchange().expectStatus().isOk()

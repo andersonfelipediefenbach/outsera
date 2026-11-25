@@ -66,7 +66,13 @@ public class MovieEventListener {
                 .register(registry);
     }
 
-    @KafkaListener(id = "awards-movies", topics = "${awards.ingestion.topic-movies}")
+    /**
+     * O grupo é o de {@code spring.kafka.consumer.group-id} ({@code KAFKA_CONSUMER_GROUP}), e não o id do
+     * ouvinte ({@code idIsGroup = false}; spec 003, FR-003). O prefixo do {@code client.id} é fixo, para que
+     * a série de atraso das métricas e o dashboard não dependam do grupo configurado.
+     */
+    @KafkaListener(id = "awards-movies", idIsGroup = false, clientIdPrefix = "awards-movies",
+            topics = "${awards.ingestion.topic-movies}")
     public void onEvent(ConsumerRecord<String, byte[]> record) {
         Parsed parsed = MovieEventParser.parse(record.value());
         switch (parsed) {

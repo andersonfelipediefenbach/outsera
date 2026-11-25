@@ -3,6 +3,28 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-25 — Revisão do Codex no PR do Marco 3: grupo do consumidor (apontamento 1)
+
+- **Apontamento (aceito):** o `@KafkaListener(id = "awards-movies")` usa o id como grupo (`idIsGroup`, que é
+  verdadeiro por padrão) e ignora `KAFKA_CONSUMER_GROUP`. A FR-003 pedia toda a configuração por variável
+  de ambiente, e o grupo estava fixo no código.
+- **Por que os testes não pegaram:** cada classe de teste tem o seu broker, então todas usavam o mesmo grupo
+  fixo sem conflito. Nenhum teste conferia o grupo registrado no broker.
+- **Correção:**
+  - a spec veio primeiro: a FR-003 agora cita o grupo do consumidor;
+  - o ouvinte passou a usar `idIsGroup = false`, e o grupo vem de `spring.kafka.consumer.group-id`
+    (`KAFKA_CONSUMER_GROUP`, padrão `awards`);
+  - o `clientIdPrefix = "awards-movies"` ficou explícito. Sem ele, o `client.id` do Kafka seria derivado do
+    grupo, e a série de atraso das métricas e o dashboard mudariam de nome conforme a variável. O
+    `client_id` passa a ser `awards-movies-<n>`, e o `KafkaMetricsIT`, o dashboard, a R19 e o contrato
+    operacional foram atualizados.
+- **Comprovação:** o `KafkaConsumerGroupIT` sobe com `KAFKA_CONSUMER_GROUP=grupo-configurado-it` e confere
+  no broker, pelo `AdminClient` real, que esse é o grupo registrado, com um membro, e que `awards-movies`
+  não aparece. Antes da correção, ele falhou com o grupo `awards-movies`.
+- **Efeito no compose:** com o padrão, o grupo passa a ser `awards`. Um volume do Kafka criado antes da
+  correção tem os offsets no grupo antigo, então o consumidor novo relê o tópico desde o começo. Isso é
+  inofensivo, porque a gravação é idempotente.
+
 ## 2026-11-25 — Tempo do `./mvnw verify` do Marco 3 (correção da etapa 2)
 
 - **Origem:** o `verify` passou de 96 s na linha de base para cerca de 4 min, acima do limite de 2× da

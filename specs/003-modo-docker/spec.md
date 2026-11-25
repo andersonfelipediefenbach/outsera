@@ -257,7 +257,9 @@ dashboard provisionado.
   ingestão por Kafka. A ingestão por Kafka e o banco MUST poder ser ligados separadamente, para que os
   testes da ingestão rodem com H2 e o broker embutido no `./mvnw verify`.
 - **FR-003**: Toda configuração do modo Docker (endereço do banco, usuário, endereço do broker, nomes
-  dos tópicos) MUST vir de variáveis de ambiente, com padrões que funcionem no compose (Princípio VII).
+  dos tópicos e grupo do consumidor) MUST vir de variáveis de ambiente, com padrões que funcionem no
+  compose (Princípio VII). O consumidor MUST se registrar no broker com o grupo configurado
+  (`KAFKA_CONSUMER_GROUP`), e não com um nome fixo no código (apontamento do Codex no PR do Marco 3).
 
 **PostgreSQL**
 

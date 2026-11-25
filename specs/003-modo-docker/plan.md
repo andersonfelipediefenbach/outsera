@@ -136,7 +136,7 @@ VI, que ficou ambígua na primeira versão deste plano, foi resolvida pela emend
 | --- | --- |
 | FR-001 | suíte dos Marcos 1 e 2 sem alteração; `DefaultModeIsolationIT`; `check-unchanged-tests.sh` |
 | FR-002 | ITs `kafka/` com H2 e `@ActiveProfiles("kafka")`; `*PostgresIT` com `postgres` |
-| FR-003 | ITs que sobrescrevem `KAFKA_TOPIC_*` e `DB_*`; job `compose` |
+| FR-003 | ITs que sobrescrevem `KAFKA_TOPIC_*` e `DB_*`; `KafkaConsumerGroupIT` (grupo do consumidor); job `compose` |
 | FR-004, FR-005 | `SchemaPostgresIT` (job `postgres`); `ddl-auto: validate` nos dois bancos |
 | FR-006, FR-008 | `EquivalencePostgresIT`, `ListingOrderPostgresIT` (job `postgres`) |
 | FR-007 | job `postgres`, obrigatório na proteção da `main` (T093) |

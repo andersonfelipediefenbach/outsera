@@ -514,11 +514,11 @@ O contrato está em [contracts/compose.md](contracts/compose.md).
   - **requisições por segundo** por rota: `sum by (uri) (rate(http_server_requests_seconds_count{uri=~"/api/.*"}[1m]))`;
   - **taxa de erro:** razão entre `outcome=~"CLIENT_ERROR|SERVER_ERROR"` e o total, nas rotas de negócio;
   - **p95 e p99 de latência:** `histogram_quantile(0.95|0.99, sum by (le, uri) (rate(http_server_requests_seconds_bucket{uri=~"/api/.*"}[5m])))`;
-  - **atraso do consumidor:** `max(kafka_consumer_fetch_manager_records_lag_max{client_id=~"consumer-awards-movies.*"})`;
+  - **atraso do consumidor:** `max(kafka_consumer_fetch_manager_records_lag_max{client_id=~"awards-movies-.*"})`;
   - **eventos gravados e rejeitados:** `rate(awards_ingestion_events_total[5m])` por `outcome`.
 - **Verificado (etapa 2):** com o Spring Kafka 4.1.2, a série que aparece logo depois da carga é a do
   cliente: `kafka_consumer_fetch_manager_records_lag_max`, com o rótulo `client_id` do consumidor do
-  ouvinte `awards-movies` (`consumer-awards-movies-<n>`). A série por partição (`..._records_lag`, com
+  ouvinte `awards-movies` (`awards-movies-<n>`, pelo `clientIdPrefix` do ouvinte, que não depende do grupo). A série por partição (`..._records_lag`, com
   `topic` e `partition`) só aparece depois da atualização periódica do Micrometer. Com um consumidor e
   uma partição, o máximo do cliente é o atraso do tópico de filmes. O `KafkaMetricsIT` fixa esse nome, e
   o painel usa o mesmo.
