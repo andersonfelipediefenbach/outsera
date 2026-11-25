@@ -12,7 +12,7 @@ de política continuam valendo para os jobs novos:
 
 | Job | Novo ou alterado | O que faz | Comprova |
 | --- | --- | --- | --- |
-| `workflow-policy` | alterado | `fetch-depth: 0`; `check-workflows.sh` com as regras novas; `check-unchanged-tests.sh v0.2.0` | FR-034 e SC-002 ("sem alteração", research R14) |
+| `workflow-policy` | alterado | `fetch-depth: 0`; `check-workflows.sh` com as regras novas; `check-text-files.sh`; `check-unchanged-tests.sh v0.2.0` | FR-034 e SC-002 ("sem alteração", research R14) |
 | `build` | sem mudança | `./mvnw -B verify`, que agora inclui os ITs de Kafka (broker embutido) e de segurança | FR-001, FR-002, FR-009 a FR-027 |
 | `postgres` | novo | PostgreSQL como *service container*; `./mvnw -B -Ppostgres-it verify` | FR-004, FR-006, FR-007, FR-008 e US2 |
 | `compose` | novo (`needs: dockerfile-lint`) | `.github/scripts/compose-test.sh` | FR-028 a FR-035, SC-005 e SC-008 |
@@ -66,6 +66,18 @@ O token do passo 8 é gerado no próprio job, nunca é gravado e nunca é impres
   hexadecimais.
 - Toda linha `image:` de `services:` nos workflows segue a mesma regra.
 - O job `postgres` não declara `POSTGRES_PASSWORD` (research R16).
+
+## `check-text-files.sh`
+
+Acrescentado em 2026-11-25, depois que um byte NUL no `docs/ai/decisoes.md` fez o
+`check-unchanged-tests.sh` tratar o arquivo como binário e reprovar o PR do Marco 3.
+
+- Percorre os arquivos versionados (`git ls-files`) e lê o atributo `text` de cada um
+  (`git check-attr`).
+- Um arquivo com `text` desligado, declarado `binary` no `.gitattributes`, fica fora da verificação e
+  é listado na saída. Hoje só o cenário `nul-character.csv`, que tem o caractere nulo de propósito, está
+  nessa situação.
+- Qualquer outro arquivo com um byte NUL reprova, e o script lista os arquivos.
 
 ## `check-unchanged-tests.sh <tag>`
 

@@ -26,6 +26,8 @@ jobs:
           fetch-depth: 0
       - name: Hash de commit, permissões, segredos, publicação, Dependabot e imagens do compose por digest
         run: .github/scripts/check-workflows.sh
+      - name: Nenhum byte NUL em arquivo de texto versionado
+        run: .github/scripts/check-text-files.sh
       - name: Testes de integração dos Marcos 1 e 2 sem alteração desde a v0.2.0
         run: .github/scripts/check-unchanged-tests.sh v0.2.0
 

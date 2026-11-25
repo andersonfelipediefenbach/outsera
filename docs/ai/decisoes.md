@@ -3,6 +3,19 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-25 — Pipeline do PR do Marco 3: byte NUL no decisoes.md e verificação nova na política
+
+- **Falha:** o job `workflow-policy` reprovou o commit `54cae85`. A entrada do apontamento 3 tinha um byte
+  NUL literal no lugar do texto `\u0000`. Com ele, o `grep` passou a tratar o `docs/ai/decisoes.md` como
+  binário, e o `check-unchanged-tests.sh` não achou o título da exceção do `ApiDocsIT`.
+- **Correção:** o byte virou o texto `\u0000` entre crases (commit `25e4b38`).
+- **Prevenção:** o `check-text-files.sh`, num passo novo do job de política, reprova qualquer byte NUL em
+  arquivo de texto versionado. Um arquivo com NUL de propósito precisa ser declarado `binary` no
+  `.gitattributes` e aparece na saída do passo. Hoje só o cenário `nul-character.csv` está nessa situação.
+  O contrato do pipeline da spec 003 descreve a regra.
+- **Comprovação:** o script passa no HEAD e reprova o `54cae85`, apontando o `decisoes.md`. Ele foi rodado
+  numa cópia de trabalho temporária desse commit.
+
 ## 2026-11-25 — Alertas do CodeQL no PR do Marco 3, dispensados como falso positivo
 
 O job `codeql` abriu dois alertas de severidade alta no PR. O responsável os dispensa como falso positivo,
