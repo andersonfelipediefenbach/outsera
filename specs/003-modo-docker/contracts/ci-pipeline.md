@@ -16,7 +16,8 @@ de política continuam valendo para os jobs novos:
 | `build` | sem mudança | `./mvnw -B verify`, que agora inclui os ITs de Kafka (broker embutido) e de segurança | FR-001, FR-002, FR-009 a FR-027 |
 | `postgres` | novo | PostgreSQL como *service container*; `./mvnw -B -Ppostgres-it verify` | FR-004, FR-006, FR-007, FR-008 e US2 |
 | `compose` | novo (`needs: dockerfile-lint`) | `.github/scripts/compose-test.sh` | FR-028 a FR-035, SC-005 e SC-008 |
-| `codeql`, `dependencies`, `dockerfile-lint`, `image` | sem mudança | — | spec 002 |
+| `codeql` | alterado | a porta de severidade passa a ser o `codeql-gate.sh`, com as exceções de `.github/codeql-exceptions.txt` | spec 002 |
+| `dependencies`, `dockerfile-lint`, `image` | sem mudança | — | spec 002 |
 
 ## `postgres`
 
@@ -78,6 +79,19 @@ Acrescentado em 2026-11-25, depois que um byte NUL no `docs/ai/decisoes.md` fez 
   é listado na saída. Hoje só o cenário `nul-character.csv`, que tem o caractere nulo de propósito, está
   nessa situação.
 - Qualquer outro arquivo com um byte NUL reprova, e o script lista os arquivos.
+
+## `codeql-gate.sh`
+
+Acrescentado em 2026-11-25, depois de dois alertas falsos positivos no PR do Marco 3. A porta lê o SARIF
+da análise, e não o code scanning do GitHub, então dispensar um alerta lá não muda o resultado.
+
+- Um achado com `security-severity` de 7,0 ou mais reprova, como antes.
+- Cada linha de `.github/codeql-exceptions.txt` tem o formato `<id da regra> <caminho> <título da entrada
+  em docs/ai/decisoes.md>`. A porta ignora só o achado com essa regra nesse arquivo.
+- A porta reprova se uma exceção citar uma entrada que não existe no `decisoes.md`, como no
+  `check-unchanged-tests.sh`.
+- O resumo do job lista os achados ignorados numa tabela própria, com a justificativa, para não ficarem
+  escondidos.
 
 ## `check-unchanged-tests.sh <tag>`
 

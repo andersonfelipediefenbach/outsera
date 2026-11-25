@@ -127,35 +127,10 @@ jobs:
           # Num PR vindo de fork, o token não pode enviar ao code scanning; a porta abaixo roda mesmo
           # assim, sobre o SARIF local (research R9).
           upload: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) && 'never' || 'always' }}
-      - name: Porta de severidade (alta e crítica reprovam)
+      - name: Porta de severidade (alta e crítica reprovam, salvo exceção registrada)
         run: |
           shopt -s nullglob
-          files=(sarif-results/*.sarif)
-          (( ${#files[@]} > 0 )) || { echo "nenhum SARIF gerado"; exit 1; }
-          jq -r '
-            .runs[] as $run
-            | ([$run.tool.driver.rules[]?, $run.tool.extensions[]?.rules[]?]
-               | map({key: .id, value: ((.properties["security-severity"] // "0") | tonumber)})
-               | from_entries) as $severity
-            | $run.results[]?
-            | [($severity[.ruleId] // 0), .ruleId,
-               ((.locations[0].physicalLocation.artifactLocation.uri // "?") + ":"
-                + ((.locations[0].physicalLocation.region.startLine // 0) | tostring))]
-            | @tsv' "${files[@]}" > findings.tsv
-          total=$(wc -l < findings.tsv)
-          high=$(awk -F'\t' '$1 >= 7.0' findings.tsv | wc -l)
-          {
-            echo "### CodeQL"
-            echo
-            echo "Achados: $total; de severidade alta ou crítica (≥ 7,0): $high."
-            if (( total > 0 )); then
-              echo
-              echo "| Severidade | Regra | Local |"
-              echo "| --- | --- | --- |"
-              awk -F'\t' '{ printf "| %s | %s | %s |\n", $1, $2, $3 }' findings.tsv
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
-          (( high == 0 ))
+          .github/scripts/codeql-gate.sh sarif-results/*.sarif
 
   dependencies:
     name: Vulnerabilidades das dependências (Trivy)

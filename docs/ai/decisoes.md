@@ -3,6 +3,23 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-25 — Pipeline do PR do Marco 3: porta do CodeQL com exceções registradas
+
+- **Falha:** o job `codeql` reprovou o `54cae85` com os dois alertas de severidade alta já analisados na
+  entrada "Alertas do CodeQL no PR do Marco 3, dispensados como falso positivo". Dispensá-los no GitHub não
+  resolve, porque a porta de severidade lê o SARIF da análise, e não o estado dos alertas.
+- **Correção:** a porta passa a ser o `.github/scripts/codeql-gate.sh`, com as exceções em
+  `.github/codeql-exceptions.txt`, no mesmo padrão do `unchanged-tests-exceptions.txt`:
+  - cada linha tem o id da regra, o caminho do arquivo e o título da entrada do `decisoes.md` que justifica;
+  - a porta ignora só os achados listados e reprova se uma exceção citar uma entrada que não existe;
+  - o resumo do job mostra os achados ignorados numa tabela própria, com a justificativa.
+- **Exceções registradas:** os ids e caminhos foram conferidos no SARIF da análise do PR:
+  - `java/spring-disabled-csrf-protection` no `SecurityConfiguration` (severidade 8,8);
+  - `java/user-controlled-bypass` no `TokenAuthenticationFilter` (severidade 7,8).
+- **Comprovação local**, com o SARIF do PR: com as exceções, a porta passa e lista os dois achados como
+  ignorados. Sem elas, ou com um título inexistente, ela reprova. A comprovação definitiva é a execução do
+  pipeline (Princípio VI).
+
 ## 2026-11-25 — Pipeline do PR do Marco 3: byte NUL no decisoes.md e verificação nova na política
 
 - **Falha:** o job `workflow-policy` reprovou o commit `54cae85`. A entrada do apontamento 3 tinha um byte
@@ -42,8 +59,10 @@ pelos motivos abaixo. Nenhum código mudou.
     outra caixa) e pelo `AuthProblemDetailsIT`;
   - a comparação é feita em tempo constante, sobre o SHA-256 dos dois valores (research R11, ADR 0017), e
     nenhum caminho autentica sem a comparação.
-- **Onde fica a dispensa:** na própria interface do code scanning do GitHub, feita pelo responsável, com o
-  motivo "falso positivo" e a referência a esta entrada.
+- **Onde fica a dispensa:** em `.github/codeql-exceptions.txt`, que a porta de severidade do job `codeql`
+  lê, com uma linha por alerta (regra, arquivo e esta entrada). Dispensar o alerta na interface do code
+  scanning do GitHub não basta, porque a porta lê o SARIF da análise (ver a entrada "Pipeline do PR do Marco
+  3: porta do CodeQL com exceções registradas").
 
 ## 2026-11-25 — Revisão do Codex no PR do Marco 3: evento com caractere nulo (apontamento 3)
 
