@@ -16,6 +16,7 @@ import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Profile;
+import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
@@ -29,6 +30,12 @@ import tools.jackson.databind.node.ObjectNode;
  * {@link ApplicationReadyEvent}, publica num fio próprio um evento por linha aceita e o evento de carga
  * concluída. Com o broker fora do ar, tenta de novo com espera crescente, sem derrubar a aplicação: ela
  * fica viva e não pronta.
+ *
+ * <p>A cada nova tentativa, pede ao {@link KafkaAdmin} que crie os tópicos que ainda não existem. Com o
+ * broker fora na subida, a criação dos tópicos falha (com {@code fail-fast} desligado), e o broker pode não
+ * criá-los sozinho, como no compose, que desliga a criação automática. Sem isso, a publicação falharia para
+ * sempre depois de o broker voltar (spec 003, caso de borda "Broker indisponível"; apontamento do Codex no
+ * PR do Marco 3).
  */
 @Component
 @Profile("kafka")
@@ -47,16 +54,18 @@ public class MovieEventPublisher implements SmartInitializingSingleton, Applicat
     private final KafkaTemplate<String, byte[]> kafka;
     private final KafkaIngestionProperties properties;
     private final IngestionReadiness readiness;
+    private final KafkaAdmin admin;
 
     private volatile MovieCsvReader.Result result;
     private volatile Thread worker;
 
     public MovieEventPublisher(MovieFileReading reading, KafkaTemplate<String, byte[]> kafka,
-            KafkaIngestionProperties properties, IngestionReadiness readiness) {
+            KafkaIngestionProperties properties, IngestionReadiness readiness, KafkaAdmin admin) {
         this.reading = reading;
         this.kafka = kafka;
         this.properties = properties;
         this.readiness = readiness;
+        this.admin = admin;
     }
 
     @Override
@@ -123,7 +132,23 @@ public class MovieEventPublisher implements SmartInitializingSingleton, Applicat
                         properties.topicMovies(), backoff, e.getMessage());
                 Thread.sleep(backoff);
                 backoff = Math.min(backoff * 2, MAX_BACKOFF.toMillis());
+                ensureTopics();
             }
+        }
+    }
+
+    /**
+     * Cria os tópicos que ainda não existem ({@code NewTopic} de {@link KafkaIngestionConfiguration}). Com
+     * o broker ainda fora, o {@code KafkaAdmin} só registra a falha, e a próxima tentativa repete.
+     */
+    private void ensureTopics() {
+        try {
+            if (admin.initialize()) {
+                log.info("Tópicos da ingestão conferidos no broker: {} e {}", properties.topicMovies(),
+                        properties.topicErrors());
+            }
+        } catch (RuntimeException e) {
+            log.warn("Falha ao criar os tópicos da ingestão; nova tentativa na próxima publicação: {}", e.getMessage());
         }
     }
 

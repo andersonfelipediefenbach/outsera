@@ -3,6 +3,33 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-25 — Revisão do Codex no PR do Marco 3: tópicos depois de falha do broker (apontamento 2)
+
+- **Apontamento (aceito):** com `spring.kafka.admin.fail-fast: false`, se o broker estiver fora na subida, o
+  `KafkaAdmin` não cria os tópicos e nada os recria depois. O publicador só reenviava os eventos. Como o
+  compose desliga a criação automática de tópicos, a publicação falharia para sempre depois de o broker
+  voltar.
+- **Correção:**
+  - a spec veio primeiro: o caso de borda "Broker indisponível" descreve a recuperação. A cada nova
+    tentativa, a aplicação tenta criar os tópicos que faltam e, quando o broker volta, publica, consome a
+    carga e fica pronta, sem reinício;
+  - antes de cada nova tentativa de envio, o `MovieEventPublisher` chama `KafkaAdmin.initialize()`, que cria
+    os `NewTopic` que ainda não existem. Com o broker ainda fora, a falha só é registrada, e a tentativa
+    seguinte repete (R8).
+- **Comprovação, por IT:** o `KafkaBrokerLateStartIT` reproduz o caso.
+  1. A aplicação sobe apontando para uma porta livre, onde nada escuta: o broker está fora de verdade.
+  2. O teste confere a readiness 503.
+  3. Sobe o broker embutido com `auto.create.topics.enable=false`, como no compose.
+  4. Confere a readiness 200, o resultado de referência e os dois tópicos criados.
+
+  Sem a correção, o IT falhou: a readiness não chegou a 200 em 90 s. Com ela, passou em 22 s.
+- **Por que há um repassador TCP no teste:** o `EmbeddedKafkaKraftBroker` do Spring Kafka 4.1.2 guarda o
+  `kafkaPorts`, mas não o usa ao subir o cluster KRaft (conferido no bytecode), e o broker sempre sobe numa
+  porta aleatória. O `TcpForwarder` de `src/test/` escuta na porta que a aplicação usa e só leva a conexão
+  inicial ao broker. Daí em diante, os clientes falam direto com o broker, pelo endereço que ele anuncia.
+  Não é um dublê: só copia bytes, sem ler nem alterar o protocolo. Por isso não foi preciso a alternativa
+  de comprovar num passo do `compose-test.sh`.
+
 ## 2026-11-25 — Revisão do Codex no PR do Marco 3: grupo do consumidor (apontamento 1)
 
 - **Apontamento (aceito):** o `@KafkaListener(id = "awards-movies")` usa o id como grupo (`idIsGroup`, que é

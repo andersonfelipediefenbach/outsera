@@ -180,6 +180,10 @@ research e, se mudar comportamento, para a spec (Princípio IV).
   - a falha estrutural continua rápida e antes do servidor;
   - um broker fora do ar não derruba o processo, então a liveness fica positiva e a readiness negativa
     (caso de borda da spec);
+  - **tópicos recriados nas novas tentativas** (apontamento do Codex no PR do Marco 3): com o broker fora na
+    subida, o `KafkaAdmin` não cria os tópicos (`fail-fast: false`), e no compose o broker não os cria
+    sozinho. Por isso, antes de cada nova tentativa de envio, o publicador chama `KafkaAdmin.initialize()`,
+    que cria os tópicos que faltam. Comprovado pelo `KafkaBrokerLateStartIT`;
   - publicar no `ApplicationReadyEvent` garante que o consumidor já está registrado.
 - **Comprovação do resumo:** o teste de log do Marco 1 (`LoadSummaryIT`) não muda. Um IT novo confere a
   mensagem de publicação nos dois formatos de log (`@Tag("log")`).

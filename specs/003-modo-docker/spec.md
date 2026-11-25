@@ -211,8 +211,12 @@ dashboard provisionado.
 ### Edge Cases
 
 - Broker indisponível ao subir no modo Docker: a aplicação não se declara pronta enquanto a carga não
-  for concluída; a liveness continua positiva. O compose só sobe a aplicação depois de o Kafka e o
-  PostgreSQL ficarem saudáveis.
+  for concluída; a liveness continua positiva. A cada nova tentativa de publicação, a aplicação também
+  tenta criar de novo os tópicos de filmes e de erros que ainda não existem, porque o broker pode não
+  criá-los sozinho (no compose, a criação automática fica desligada). Quando o broker volta, a aplicação
+  cria os tópicos, publica o arquivo, consome a carga e fica pronta, sem reinício. O compose só sobe a
+  aplicação depois de o Kafka e o PostgreSQL ficarem saudáveis, mas a recuperação não depende disso
+  (apontamento do Codex no PR do Marco 3).
 - Evento de carga concluída de uma execução anterior ainda no tópico, ou consumido de novo: não libera a
   readiness da execução atual. Só o evento desta execução conta.
 - Dois reinícios seguidos, com a primeira publicação interrompida no meio: a segunda publica o arquivo

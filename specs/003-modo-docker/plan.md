@@ -143,7 +143,7 @@ VI, que ficou ambígua na primeira versão deste plano, foi resolvida pela emend
 | FR-009 | `KafkaInvalidLinesIT`, `KafkaStructuralFailureIT`, `PublisherSummaryIT` |
 | FR-010, FR-011 | `KafkaReadinessIT` (lê o tópico) e `KafkaReferenceFileIT` |
 | FR-012 | `KafkaEquivalenceIT`, `KafkaNewWinnerIT` (separação de nomes) |
-| FR-013 | `KafkaReadinessIT`, `KafkaBrokerUnavailableIT` |
+| FR-013 | `KafkaReadinessIT`, `KafkaBrokerUnavailableIT`, `KafkaBrokerLateStartIT` (tópicos recriados quando o broker volta) |
 | FR-014 | `KafkaIdempotencyIT`, `KafkaUpdateIT`, `RestartDirectPostgresIT`, `RestartPostgresIT` |
 | FR-015 | `KafkaInvalidEventsIT`, `KafkaErrorTopicUnavailableIT` |
 | FR-015a | `RetryPostgresIT` (job `postgres`: nova tentativa quando a gravação falha); passo 7b do job `compose` (queda real do banco) |
