@@ -37,6 +37,21 @@ import org.springframework.kafka.test.EmbeddedKafkaKraftBroker;
  */
 public final class KafkaTestSupport {
 
+    /**
+     * Propriedade de sistema em que os brokers embutidos dos testes publicam o endereço, no lugar da
+     * {@code spring.kafka.bootstrap-servers} que o spring-kafka-test usa por padrão.
+     *
+     * <p>Todo {@code EmbeddedKafkaKraftBroker} grava o próprio endereço numa propriedade de sistema da JVM ao
+     * subir, e não há como desligar isso, só trocar o nome. Com o nome padrão, a propriedade de sistema vence
+     * o {@code KAFKA_BOOTSTRAP_SERVERS} do {@code application-kafka.yml}. Assim, toda aplicação que um teste
+     * sobe depois na mesma JVM se ligaria ao último broker criado, e não ao que o teste escolheu. Isso
+     * reprovou o pipeline do PR do Marco 3, numa ordem de execução que só acontece no runner (registro em
+     * docs/ai/decisoes.md).
+     */
+    public static final String BROKERS_PROPERTY = "awards.test.embedded-kafka.brokers";
+
+    private static final String BOOT_BOOTSTRAP_PROPERTY = "spring.kafka.bootstrap-servers";
+
     private KafkaTestSupport() {
     }
 
@@ -58,8 +73,18 @@ public final class KafkaTestSupport {
      * {@link EmbeddedKafkaBroker#destroy()} no fim da classe.
      */
     public static EmbeddedKafkaBroker startBroker() {
-        EmbeddedKafkaBroker broker = new EmbeddedKafkaKraftBroker(1, 1);
+        EmbeddedKafkaBroker broker = newBroker();
         broker.afterPropertiesSet();
+        return broker;
+    }
+
+    /**
+     * Um broker embutido ainda não iniciado (KRaft, um nó), que publica o endereço em
+     * {@link #BROKERS_PROPERTY}. Todo broker criado à mão nos testes passa por aqui.
+     */
+    public static EmbeddedKafkaKraftBroker newBroker() {
+        EmbeddedKafkaKraftBroker broker = new EmbeddedKafkaKraftBroker(1, 1);
+        broker.brokerListProperty(BROKERS_PROPERTY);
         return broker;
     }
 
@@ -90,6 +115,14 @@ public final class KafkaTestSupport {
 
     /** Propriedades que ligam a aplicação ao broker e aos tópicos da classe (sem o perfil). */
     public static Map<String, String> properties(String brokers, Topics topics) {
+        // Guarda: se algum broker da JVM gravou a propriedade do Boot, a aplicação ignoraria o broker dado.
+        String leaked = System.getProperty(BOOT_BOOTSTRAP_PROPERTY);
+        if (leaked != null) {
+            throw new IllegalStateException("a propriedade de sistema " + BOOT_BOOTSTRAP_PROPERTY + "=" + leaked
+                    + " está definida e venceria o KAFKA_BOOTSTRAP_SERVERS=" + brokers + " da aplicação. Crie o"
+                    + " broker com KafkaTestSupport.newBroker() ou use bootstrapServersProperty = BROKERS_PROPERTY"
+                    + " no @EmbeddedKafka");
+        }
         Map<String, String> properties = new LinkedHashMap<>();
         properties.put("KAFKA_BOOTSTRAP_SERVERS", brokers);
         properties.put("KAFKA_TOPIC_MOVIES", topics.movies());

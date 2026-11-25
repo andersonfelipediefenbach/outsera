@@ -26,8 +26,8 @@ import org.springframework.kafka.test.EmbeddedKafkaKraftBroker;
  * <p>A aplicação sobe apontando para uma porta que um {@link TcpForwarder} reserva, ainda sem destino: cada
  * conexão é fechada logo depois de aceita, o broker está fora de verdade, e o {@code KafkaAdmin} falha ao
  * criar os tópicos. Depois, o teste sobe o broker embutido, com {@code auto.create.topics.enable=false}, e
- * liga o repassador a ele. A porta fica reservada o tempo todo, para que outro broker embutido da mesma JVM
- * não a ocupe no meio do caminho (falha vista no pipeline do PR do Marco 3). O
+ * liga o repassador a ele. O broker tardio vem de {@link KafkaTestSupport#newBroker()}, para não gravar o
+ * próprio endereço na {@code spring.kafka.bootstrap-servers} da JVM. O
  * {@code EmbeddedKafkaKraftBroker} do Spring Kafka 4.1.2 ignora o {@code kafkaPorts} e sempre sobe numa porta
  * aleatória. O repassador só leva a conexão inicial ao broker; daí em diante, os clientes falam direto com
  * ele, pelo endereço que o próprio broker anuncia.
@@ -52,7 +52,7 @@ class KafkaBrokerLateStartIT {
                         assertThat(Http.get(port, "/actuator/health/readiness").status())
                                 .as("readiness sem o broker").isEqualTo(503);
 
-                        EmbeddedKafkaKraftBroker late = new EmbeddedKafkaKraftBroker(1, 1);
+                        EmbeddedKafkaKraftBroker late = KafkaTestSupport.newBroker();
                         late.brokerProperty("auto.create.topics.enable", "false");
                         late.afterPropertiesSet();
                         broker[0] = late;

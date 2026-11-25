@@ -20,8 +20,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * sobe numa porta aleatória.
  *
  * <p>A porta fica reservada desde {@link #reserve()}: enquanto não há destino, cada conexão é fechada logo
- * depois de aceita, como um serviço fora do ar. Sem a reserva, a porta ficaria livre entre a escolha e o
- * uso, e outro broker embutido da mesma JVM poderia ocupá-la (falha vista no pipeline do PR do Marco 3).
+ * depois de aceita, como um serviço fora do ar. Assim, a porta não fica livre entre a escolha e o uso.
  */
 public final class TcpForwarder implements AutoCloseable {
 

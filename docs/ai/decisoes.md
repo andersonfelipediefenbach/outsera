@@ -3,6 +3,55 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-25 — Pipeline do PR do Marco 3: endereço do broker vazando entre os testes pela propriedade de sistema
+
+- **Falha:** no commit `230dffc`, o job `build` reprovou nos dois eventos. No `push`, só o
+  `KafkaBrokerLateStartIT` falhou, em 2,4 s: o broker tardio não tinha os tópicos. No `pull_request`, ele
+  falhou do mesmo jeito, e o `KafkaEquivalenceIT` também falhou, três vezes, sem readiness 200 em 60 s. As
+  duas falhas acontecem na primeira execução do Failsafe, a de log em texto, com 261 testes. A execução com
+  log em JSON (85 testes) passou nos dois eventos, porque não roda essas classes.
+- **Causa** (a mesma nas duas classes e nos dois eventos):
+  - todo `EmbeddedKafkaKraftBroker` do spring-kafka-test 4.1.2 grava o próprio endereço na propriedade de
+    sistema `spring.kafka.bootstrap-servers` ao subir. O valor padrão do `bootstrapServersProperty` do
+    `@EmbeddedKafka` é esse nome. O comportamento vale para todo broker embutido: os dos contextos
+    `KafkaScenarioIT`, o compartilhado e os criados à mão;
+  - essa propriedade de sistema vence o `bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:...}` do
+    `application-kafka.yml`. Por isso, toda aplicação que um IT sobe com `SpringApplication` se ligava ao
+    último broker criado na JVM, e não ao que o teste passou em `KAFKA_BOOTSTRAP_SERVERS`;
+  - `KafkaBrokerLateStartIT`: o broker do contexto do `KafkaConsumerGroupIT`, que roda antes, continuava no
+    ar no cache do Spring. A aplicação criou os tópicos e publicou nele em vez de esperar o broker tardio;
+  - `KafkaEquivalenceIT`: o broker compartilhado já existia, criado antes pelo `KafkaStructuralFailureIT`.
+    A propriedade guardava o endereço do broker do `KafkaIdempotencyIT`, que o `@DirtiesContext` já tinha
+    fechado. A aplicação nunca ficava pronta.
+- **O que muda no runner:** a ordem das classes. O Failsafe roda na ordem do sistema de arquivos:
+  - no Windows (NTFS), ela é alfabética. O `KafkaBrokerLateStartIT` roda antes de qualquer
+    `@EmbeddedKafka`, quando a propriedade ainda não existe. O `KafkaEquivalenceIT` é o primeiro a pedir o
+    broker compartilhado, e a criação dele regrava a propriedade com o endereço certo. Ele passava por
+    sorte, às vezes ligado a outro broker que ainda estava no ar;
+  - no runner (ext4), a ordem segue o hash dos nomes e mudou até entre os checkouts do `push` e do
+    `pull_request`.
+
+  Não é problema de porta, de paralelismo nem de prazo.
+- **Diagnóstico anterior corrigido:** na rodada passada, atribuí a falha do `KafkaBrokerLateStartIT` a uma
+  corrida na porta com um IT em paralelo. O log mostra as classes rodando em sequência, e a falha voltou
+  com a porta reservada.
+- **Correção**, sem mudar nenhum prazo:
+  - `KafkaTestSupport.BROKERS_PROPERTY` (`awards.test.embedded-kafka.brokers`) recebe o endereço em vez da
+    propriedade do Boot;
+  - o `KafkaScenarioIT` usa `bootstrapServersProperty = BROKERS_PROPERTY`. O broker compartilhado, o
+    `startBroker()` e o broker tardio passam pelo novo `KafkaTestSupport.newBroker()`, que faz o mesmo;
+  - o `KafkaTestSupport.properties()` reprova com uma mensagem clara se a `spring.kafka.bootstrap-servers`
+    estiver definida na JVM. Um broker novo criado sem esses cuidados quebra na hora, em vez de ligar a
+    aplicação ao broker errado em silêncio.
+- **Comprovação:** a falha foi reproduzida localmente, forçando a ordem com
+  `-Dfailsafe.runOrder=reversealphabetical`. Sem a correção:
+  - com `KafkaConsumerGroupIT` e `KafkaBrokerLateStartIT`, o segundo falha na mesma asserção, em 2,6 s;
+  - com `KafkaStructuralFailureIT`, `KafkaIdempotencyIT` e `KafkaEquivalenceIT`, o último falha três
+    vezes, sem readiness 200 em 60 s (193 s no total, contra 191 s no runner).
+
+  Com a correção, as cinco classes passam nessa ordem, e o log mostra a aplicação do `KafkaEquivalenceIT`
+  ligada ao broker compartilhado. O `./mvnw verify` completo passa.
+
 ## 2026-11-25 — Pipeline do PR do Marco 3: lz4-java e snappy-java com correção
 
 - **Falha:** a porta da imagem (Trivy, alta e crítica com versão corrigida) reprovou o `54cae85` com três
@@ -21,6 +70,11 @@ decisões de arquitetura ficam em ADRs, em `docs/adr/`.
   as três vulnerabilidades. A comprovação definitiva é o job `image` (Princípio VI).
 
 ## 2026-11-25 — Pipeline do PR do Marco 3: porta reservada no KafkaBrokerLateStartIT
+
+> **Diagnóstico corrigido:** a causa descrita abaixo estava errada. Os ITs não rodam em paralelo, e a
+> falha voltou com a porta reservada. A causa real está na entrada "Pipeline do PR do Marco 3: endereço do
+> broker vazando entre os testes pela propriedade de sistema". A reserva da porta foi mantida, porque não
+> faz mal e tira a janela entre escolher a porta e usá-la.
 
 - **Falha:** o job `build` reprovou o `54cae85` no `KafkaBrokerLateStartIT`, em 2,2 s: o broker que sobe
   depois não tinha os tópicos da aplicação.

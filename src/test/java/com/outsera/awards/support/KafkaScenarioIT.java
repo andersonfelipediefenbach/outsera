@@ -22,7 +22,9 @@ import org.springframework.test.context.TestPropertySource;
  * para ter um contexto só dela, fechado no fim, e nunca sujar o de outra.
  */
 @ActiveProfiles({"kafka", "kafkatest"})
-@EmbeddedKafka(partitions = 1)
+// O endereço vai para BROKERS_PROPERTY, e não para a spring.kafka.bootstrap-servers padrão, que vazaria
+// para as aplicações que outros testes sobem na mesma JVM (ver KafkaTestSupport.BROKERS_PROPERTY).
+@EmbeddedKafka(partitions = 1, bootstrapServersProperty = KafkaTestSupport.BROKERS_PROPERTY)
 @TestPropertySource(properties = "KAFKA_BOOTSTRAP_SERVERS=${spring.embedded.kafka.brokers}")
 public abstract class KafkaScenarioIT extends ScenarioIT {
 
