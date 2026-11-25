@@ -9,13 +9,16 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 
 /**
  * Depois da carga, um filme novo chega pelo mesmo tópico e aparece nos intervalos e na listagem sem
  * reinício, e o ETag muda junto com o corpo (spec 003, FR-016, US3-1, US3-2, US3-6 e SC-005).
  */
-@TestPropertySource(properties = "movies.csv.path=classpath:movielist.csv")
+// Muda os dados ou a readiness: contexto próprio, fechado no fim (KafkaScenarioIT).
+@DirtiesContext
+@TestPropertySource(properties = {"movies.csv.path=classpath:movielist.csv", "awards.test.context=KafkaNewWinnerIT"})
 class KafkaNewWinnerIT extends KafkaScenarioIT {
 
     private static final String PRODUCERS = "Producer X, Joel Silver and Producer Y";

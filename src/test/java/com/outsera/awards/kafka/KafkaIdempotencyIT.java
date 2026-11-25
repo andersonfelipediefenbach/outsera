@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 
 /**
@@ -17,7 +18,9 @@ import org.springframework.test.context.TestPropertySource;
  * SC-004). Um evento sentinela, enviado depois dos repetidos, marca o fim do processamento deles: o
  * tópico tem uma partição e é consumido em ordem.
  */
-@TestPropertySource(properties = "movies.csv.path=classpath:movielist.csv")
+// Muda os dados ou a readiness: contexto próprio, fechado no fim (KafkaScenarioIT).
+@DirtiesContext
+@TestPropertySource(properties = {"movies.csv.path=classpath:movielist.csv", "awards.test.context=KafkaIdempotencyIT"})
 class KafkaIdempotencyIT extends KafkaScenarioIT {
 
     private void sendSentinel(int year, String title) {
@@ -34,9 +37,7 @@ class KafkaIdempotencyIT extends KafkaScenarioIT {
         assertThat(published).hasSize(207);
 
         // O arquivo inteiro de novo, exatamente como o publicador enviou (menos o marcador).
-        for (Record record : published.subList(0, 206)) {
-            KafkaTestSupport.send(brokers(), MOVIES_TOPIC, record.key(), record.value());
-        }
+        KafkaTestSupport.sendAll(brokers(), MOVIES_TOPIC, published.subList(0, 206));
         sendSentinel(2041, "Sentinela 1");
         await("sentinela 1 gravada", 30, () -> total("year=2041") == 1);
         assertThat(total("")).isEqualTo(207);

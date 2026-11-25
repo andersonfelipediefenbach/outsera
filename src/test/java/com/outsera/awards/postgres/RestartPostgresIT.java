@@ -56,7 +56,7 @@ class RestartPostgresIT {
 
     private static List<String> args(EmbeddedKafkaBroker broker) {
         Topics topics = KafkaTestSupport.topics(RestartPostgresIT.class);
-        List<String> args = new ArrayList<>(PostgresSupport.args(SCHEMA, "postgres,kafka"));
+        List<String> args = new ArrayList<>(PostgresSupport.args(SCHEMA, "postgres,kafka,kafkatest"));
         KafkaTestSupport.properties(broker.getBrokersAsString(), topics)
                 .forEach((name, value) -> args.add("--" + name + "=" + value));
         return args;

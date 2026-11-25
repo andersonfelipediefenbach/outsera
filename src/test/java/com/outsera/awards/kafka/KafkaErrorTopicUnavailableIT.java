@@ -7,6 +7,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 
 /**
@@ -16,9 +17,12 @@ import org.springframework.test.context.TestPropertySource;
  * {@code fail-fast} desligado, a aplicação sobe assim mesmo), e cada envio é recusado de verdade pelo
  * cliente Kafka, sem dublê. A verificação da tarefa T034c confirmou que esse nome não derruba a subida.
  */
+// Muda os dados ou a readiness: contexto próprio, fechado no fim (KafkaScenarioIT).
+@DirtiesContext
 @TestPropertySource(properties = {
         "movies.csv.path=classpath:scenarios/header-only.csv",
-        "KAFKA_TOPIC_ERRORS=awards.movies.errors inválido!"})
+        "KAFKA_TOPIC_ERRORS=awards.movies.errors inválido!",
+        "awards.test.context=KafkaErrorTopicUnavailableIT"})
 @Tag("log")
 class KafkaErrorTopicUnavailableIT extends KafkaScenarioIT {
 

@@ -3,6 +3,59 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-25 — Tempo do `./mvnw verify` do Marco 3 (correção da etapa 2)
+
+- **Origem:** o `verify` passou de 96 s na linha de base para cerca de 4 min, acima do limite de 2× da
+  research R15 (entrada da etapa 2). O responsável não aceitou os 4 min nem o corte de casos, e pediu a
+  redução sem perder cobertura.
+- **Medição** (`./mvnw verify` sem `clean`, com o código já compilado, na mesma máquina):
+
+  | | Tempo | Razão sobre a linha de base (96 s) |
+  | --- | --- | --- |
+  | Antes | 249 s | 2,6× |
+  | Depois | **161 s** | **1,68×**, dentro do limite de 2× |
+
+  Os ITs do Kafka passaram de cerca de 130 s para 59 s, somadas as duas execuções do Failsafe. A cobertura
+  de linhas foi de 96,32% para 97,06%.
+- **O que mudou, sem tirar nenhum caso:**
+  - **perfil de teste `kafkatest`** (`src/test/resources/application-kafkatest.yml`, fora do JAR): prazos
+    curtos dos clientes Kafka (`max.block.ms`, `request.timeout.ms`, `delivery.timeout.ms`,
+    `default.api.timeout.ms` e os prazos do `KafkaAdmin`). Todos os ITs do Kafka o ligam junto com o perfil
+    `kafka`. A produção não muda;
+  - **`KafkaInvalidEventsIT` numa única execução:** os 16 eventos inválidos são publicados de uma vez,
+    seguidos de um evento válido. Como o tópico tem uma partição, quando o válido aparece na listagem,
+    todos os inválidos já foram processados sem travar o consumo. Cada caso é conferido pela chave no tópico
+    de erros, com uma mensagem própria por caso:
+    - os bytes originais;
+    - o motivo e os cabeçalhos;
+    - o aviso no log, agora comparado com o offset do próprio evento, o que é mais forte que antes.
+
+    Passou de 16 s para 4 s por execução. O número de testes caiu de 270 para 255 (e de 96 para 81 na
+    execução `json-logs`) só porque as 16 invocações parametrizadas viraram um teste com os mesmos 16 casos;
+  - **reaproveitamento do contexto:** o `@DirtiesContext` saiu da base `KafkaScenarioIT`.
+    - As classes que só leem e têm as mesmas propriedades compartilham o contexto e o broker. O
+      `KafkaReferenceFileIT` reaproveita o do `KafkaMetricsIT` e passou de 5,7 s para 0,6 s.
+    - As classes que mudam dados ou a readiness declaram `@DirtiesContext` e uma propriedade própria
+      (`awards.test.context`): ganham um contexto só delas e nunca sujam o de outra.
+    - Os testes com `SpringApplication` (`KafkaEquivalenceIT` e `KafkaStructuralFailureIT`) passaram a
+      usar um broker embutido compartilhado na JVM, com tópicos e grupo próprios por classe;
+  - **esperas fixas trocadas por condições determinísticas, com a mesma comprovação:**
+    - `KafkaStructuralFailureIT`: o tópico vazio é conferido pelos offsets, sem esperar 3 s por caso. Foi
+      de 8 s para 1 s;
+    - `KafkaReadinessIT`: depois do marcador de outra execução, um filme sentinela, cuja gravação prova que o
+      marcador já foi processado, no lugar de 3 s de espera. Foi de 8,6 s para 3,6 s;
+    - `KafkaIdempotencyIT`: os 206 eventos são reenviados sem esperar cada confirmação, com um `flush` no
+      fim. Foi de 9,4 s para 4,2 s.
+- **O que sobrou de mais caro**, se um dia for preciso ir além:
+  - `KafkaBrokerUnavailableIT`, cerca de 9 s: a subida sem broker espera o `KafkaAdmin`, e a observação
+    dura 5 s;
+  - `KafkaEquivalenceIT`, cerca de 8 s: seis subidas da aplicação.
+
+  Reduzir esses dois exigiria encurtar a observação ou comparar menos arquivos, ou seja, tirar
+  comprovação, e por isso não foi feito.
+- **Verificações:** `./mvnw verify` verde, `./mvnw -Ppostgres-it verify` verde (7 testes, com o
+  `RestartPostgresIT` e o `RetryPostgresIT` no perfil de teste) e `check-unchanged-tests.sh v0.2.0` verde.
+
 ## 2026-11-24 — Fechamento do bolt do Marco 3 (etapa 5)
 
 - **ADRs (FR-037):**

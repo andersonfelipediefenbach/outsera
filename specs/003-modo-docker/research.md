@@ -411,6 +411,15 @@ research e, se mudar comportamento, para a spec (Princípio IV).
   - no Windows, o broker embutido pode falhar ao apagar os arquivos de log no fim do teste. Se isso
     acontecer, apontar o `log.dirs` para uma pasta temporária por classe e ignorar a falha só na
     limpeza, registrando o motivo.
+- **Resultado (correção da etapa 2, 2026-11-25):** o `verify` ficou em 161 s, ou 1,68× a linha de base.
+  O custo não estava no broker, e sim nas esperas fixas e nos casos enviados um a um. Os ajustes foram:
+  - o perfil de teste `kafkatest`, com prazos curtos dos clientes;
+  - os 16 eventos inválidos numa única execução;
+  - o contexto compartilhado entre as classes que só leem;
+  - um broker compartilhado para os testes com `SpringApplication`;
+  - condições determinísticas no lugar de esperas fixas.
+
+  O detalhe está em `docs/ai/decisoes.md`. O broker embutido funcionou no Windows sem a saída alternativa.
 
 ## R16. Testes com PostgreSQL: perfil Maven `postgres-it`
 

@@ -292,7 +292,7 @@ ou atualizar o filme, para que reinícios sobre um banco persistente não dupliq
   - `S003 FR-014 SC-004`: depois da readiness, o teste lê os 206 eventos de filme do tópico e os reenvia
     todos. `totalElements` continua 206, e os intervalos são os mesmos;
   - o mesmo evento novo enviado duas vezes aumenta `totalElements` em 1.
-- [X] T032 [P] [US3] Criar `src/test/java/com/outsera/awards/kafka/KafkaInvalidEventsIT.java` (`@Tag("log")`, perfil `kafka`, `@ParameterizedTest` com um caso por motivo do data-model.md):
+- [X] T032 [P] [US3] Criar `src/test/java/com/outsera/awards/kafka/KafkaInvalidEventsIT.java` (`@Tag("log")`, perfil `kafka`, um caso por motivo do data-model.md). *Ajustado na correção da etapa 2: os 16 casos são publicados numa única execução e conferidos juntos no tópico de erros, cada um pela sua chave; o evento válido vem depois de todos (`docs/ai/decisoes.md`, "Tempo do `./mvnw verify` do Marco 3").*
   - os casos:
     - `NOT_UTF8`: bytes `0xC3 0x28`;
     - `NOT_JSON`: `não é json`;

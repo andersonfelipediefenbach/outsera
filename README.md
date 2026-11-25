@@ -399,12 +399,12 @@ histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{u
 .\mvnw.cmd verify "-Dit.test=ReferenceFileIT"   # no PowerShell, o -D vai entre aspas
 ```
 
-São **270 testes de integração**, executados pelo Maven Failsafe na fase `verify`, **sem Docker**, em duas
+São **255 testes de integração**, executados pelo Maven Failsafe na fase `verify`, **sem Docker**, em duas
 execuções:
 
 - **padrão:** todos os testes, com o log em texto. Os 5 do `JsonLogFormatIT` ficam pulados, porque só
   valem com o JSON ligado;
-- **`json-logs`:** os 96 testes das classes marcadas com `@Tag("log")` rodam de novo, numa JVM própria,
+- **`json-logs`:** os 81 testes das classes marcadas com `@Tag("log")` rodam de novo, numa JVM própria,
   com `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`. Assim, as mesmas verificações de log valem nos dois
   formatos.
 
@@ -412,9 +412,10 @@ Os testes do Kafka rodam no `./mvnw verify` com o **broker embutido** do Spring 
 próprio teste), sem Docker.
 
 A **cobertura** de linhas é medida pelo JaCoCo sobre as duas execuções, e o `verify` falha abaixo de
-**90%**. Hoje ela está em 96,32%, e o relatório fica em `target/site/jacoco-it/index.html`. A execução
-completa leva cerca de 4 min na máquina de desenvolvimento. A maior parte do tempo está nos testes do
-Kafka que esperam de propósito, como o broker fora do ar e os 16 tipos de evento inválido.
+**90%**. Hoje ela está em 97,06%, e o relatório fica em `target/site/jacoco-it/index.html`. A execução
+completa leva cerca de 2 min e 40 s numa cópia de trabalho já compilada. Os testes do Kafka usam um perfil
+só de teste (`kafkatest`, em `src/test/resources`), com prazos curtos dos clientes, e reaproveitam o
+contexto do Spring entre as classes que só leem.
 
 **Testes com PostgreSQL** (perfil Maven `postgres-it`): o que só existe no PostgreSQL fica fora do
 `./mvnw verify` padrão (Princípio II) e roda obrigatoriamente no job `postgres` do pipeline (Princípio VI,

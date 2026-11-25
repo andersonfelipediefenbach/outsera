@@ -37,11 +37,7 @@ class KafkaBrokerUnavailableIT {
         long start = System.nanoTime();
         List<String> args = new ArrayList<>(KafkaTestSupport.args(brokers,
                 KafkaTestSupport.topics(KafkaBrokerUnavailableIT.class)));
-        // Prazos curtos só para o teste não esperar os 10 s da criação dos tópicos nem o fechamento longo
-        // do produtor com envios pendentes. O comportamento observado é o mesmo.
-        args.add("--spring.kafka.admin.operation-timeout=2s");
-        args.add("--spring.kafka.admin.close-timeout=1s");
-        args.add("--spring.kafka.producer.properties.max.block.ms=2000");
+        // Os prazos curtos dos clientes vêm do perfil de teste kafkatest (KafkaTestSupport.args).
         Result result = ApplicationStarter.startAndCall("classpath:movielist.csv", args, port -> {
                     long deadline = System.nanoTime() + 5_000_000_000L;
                     while (System.nanoTime() < deadline) {

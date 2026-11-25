@@ -9,81 +9,99 @@ import com.outsera.awards.support.PrometheusText;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Stream;
-import org.junit.jupiter.api.BeforeEach;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.assertj.core.api.SoftAssertions;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 
 /**
  * Cada evento inválido vai ao tópico de erros com os bytes originais e o motivo, sem ser gravado e sem
  * travar o consumo (spec 003, FR-015, FR-017, US3-3, US3-4 e SC-006). Os motivos são os do
  * data-model.md, inclusive os de conteúdo, que são as mesmas regras da linha do CSV.
+ *
+ * <p>Os 16 casos são publicados numa única execução, cada um com a sua chave, seguidos de um evento
+ * válido. O tópico tem uma partição e é consumido em ordem: quando o evento válido aparece na listagem,
+ * todos os inválidos já foram processados sem travar o consumo. Depois, cada caso é conferido no tópico de
+ * erros pela chave, com uma mensagem própria por caso.
  */
-@TestPropertySource(properties = "movies.csv.path=classpath:scenarios/header-only.csv")
+// Muda os dados ou a readiness: contexto próprio, fechado no fim (KafkaScenarioIT).
+@DirtiesContext
+@TestPropertySource(properties = {"movies.csv.path=classpath:scenarios/header-only.csv", "awards.test.context=KafkaInvalidEventsIT"})
 @Tag("log")
 class KafkaInvalidEventsIT extends KafkaScenarioIT {
 
-    private static final AtomicInteger SEQUENCE = new AtomicInteger(2100);
     private static final String MARKER = "conteudo-do-evento";
 
-    @BeforeEach
-    void ready() {
+    /** Um evento inválido: a chave, o código do motivo esperado e os bytes enviados. */
+    private record Case(String key, String reason, byte[] payload) {
+    }
+
+    private static List<Case> cases() {
+        return List.of(
+                new Case("invalido-01", "NOT_UTF8", new byte[] {(byte) 0xC3, (byte) 0x28}),
+                new Case("invalido-02", "NOT_JSON", utf8("não é json " + MARKER)),
+                new Case("invalido-03", "NOT_JSON", utf8("[1, 2, \"" + MARKER + "\"]")),
+                new Case("invalido-04", "TYPE_UNKNOWN", movie("\"type\":\"other\",", "2000", "\"" + MARKER + "\"", "\"P\"", "true")),
+                new Case("invalido-05", "RUN_ID_MISSING", utf8("{\"type\":\"load-completed\",\"count\":1,\"note\":\"" + MARKER + "\"}")),
+                new Case("invalido-06", "YEAR_MISSING", movie("", null, "\"" + MARKER + "\"", "\"P\"", "true")),
+                new Case("invalido-07", "YEAR_NOT_NUMERIC", movie("", "\"1990\"", "\"" + MARKER + "\"", "\"P\"", "true")),
+                new Case("invalido-08", "YEAR_NOT_NUMERIC", movie("", "1990.5", "\"" + MARKER + "\"", "\"P\"", "true")),
+                new Case("invalido-09", "YEAR_OUT_OF_RANGE", movie("", "0", "\"" + MARKER + "\"", "\"P\"", "true")),
+                new Case("invalido-10", "YEAR_OUT_OF_RANGE", movie("", "10000", "\"" + MARKER + "\"", "\"P\"", "true")),
+                new Case("invalido-11", "TITLE_MISSING", movie("", "2000", "\"   \"", "\"" + MARKER + "\"", "true")),
+                new Case("invalido-12", "PRODUCERS_MISSING", movie("", "2000", "\"" + MARKER + "\"", "\" , and \"", "true")),
+                new Case("invalido-13", "WINNER_INVALID", movie("", "2000", "\"" + MARKER + "\"", "\"P\"", "\"yes\"")),
+                new Case("invalido-14", "WINNER_INVALID", movie("", "2000", "\"" + MARKER + "\"", "\"P\"", null)),
+                new Case("invalido-15", "FIELD_TOO_LONG", movie("", "2000", "\"" + MARKER + "T".repeat(501) + "\"", "\"P\"", "true")),
+                new Case("invalido-16", "FIELD_TOO_LONG", movie("", "2000", "\"" + MARKER + "\"", "\"" + "P".repeat(1001) + "\"", "true")));
+    }
+
+    @Test
+    @DisplayName("S003 FR-015 US3-3 US3-4 SC-006 FR-017 os 16 tipos de evento inválido vão ao tópico de erros")
+    void invalidEventsGoToTheErrorTopic(CapturedOutput output) {
         awaitReady();
-    }
-
-    static Stream<Arguments> invalidEvents() {
-        return Stream.of(
-                Arguments.of("NOT_UTF8", new byte[] {(byte) 0xC3, (byte) 0x28}),
-                Arguments.of("NOT_JSON", utf8("não é json " + MARKER)),
-                Arguments.of("NOT_JSON", utf8("[1, 2, \"" + MARKER + "\"]")),
-                Arguments.of("TYPE_UNKNOWN", movie("\"type\":\"other\",", "2000", "\"" + MARKER + "\"", "\"P\"", "true")),
-                Arguments.of("RUN_ID_MISSING", utf8("{\"type\":\"load-completed\",\"count\":1,\"note\":\"" + MARKER + "\"}")),
-                Arguments.of("YEAR_MISSING", movie("", null, "\"" + MARKER + "\"", "\"P\"", "true")),
-                Arguments.of("YEAR_NOT_NUMERIC", movie("", "\"1990\"", "\"" + MARKER + "\"", "\"P\"", "true")),
-                Arguments.of("YEAR_NOT_NUMERIC", movie("", "1990.5", "\"" + MARKER + "\"", "\"P\"", "true")),
-                Arguments.of("YEAR_OUT_OF_RANGE", movie("", "0", "\"" + MARKER + "\"", "\"P\"", "true")),
-                Arguments.of("YEAR_OUT_OF_RANGE", movie("", "10000", "\"" + MARKER + "\"", "\"P\"", "true")),
-                Arguments.of("TITLE_MISSING", movie("", "2000", "\"   \"", "\"" + MARKER + "\"", "true")),
-                Arguments.of("PRODUCERS_MISSING", movie("", "2000", "\"" + MARKER + "\"", "\" , and \"", "true")),
-                Arguments.of("WINNER_INVALID", movie("", "2000", "\"" + MARKER + "\"", "\"P\"", "\"yes\"")),
-                Arguments.of("WINNER_INVALID", movie("", "2000", "\"" + MARKER + "\"", "\"P\"", null)),
-                Arguments.of("FIELD_TOO_LONG", movie("", "2000", "\"" + MARKER + "T".repeat(501) + "\"", "\"P\"", "true")),
-                Arguments.of("FIELD_TOO_LONG", movie("", "2000", "\"" + MARKER + "\"", "\"" + "P".repeat(1001) + "\"", "true")));
-    }
-
-    @ParameterizedTest(name = "S003 FR-015 US3-3 US3-4 SC-006 FR-017 {0} vai ao tópico de erros")
-    @MethodSource("invalidEvents")
-    void invalidEventGoesToTheErrorTopic(String reason, byte[] payload, CapturedOutput output) {
-        int sequence = SEQUENCE.incrementAndGet();
-        String key = "invalido-" + sequence;
+        List<Case> cases = cases();
         double rejectedBefore = rejected();
-        // Cada caso anterior deixou exatamente um registro no tópico de erros.
-        int errorsBefore = sequence - 2101;
 
-        KafkaTestSupport.send(brokers(), MOVIES_TOPIC, key, payload);
-        // Um evento válido logo depois do inválido é gravado (US3-4, SC-006).
-        sendMovie(sequence + "|Valido", "{\"year\":" + sequence + ",\"title\":\"Valido\",\"studios\":null,"
-                + "\"producers\":\"P\",\"winner\":false}");
-        await("evento válido seguinte gravado", 5, () -> total("year=" + sequence) == 1);
+        for (Case invalid : cases) {
+            KafkaTestSupport.send(brokers(), MOVIES_TOPIC, invalid.key(), invalid.payload());
+        }
+        // Um evento válido depois de todos os inválidos é gravado: nenhum deles travou o consumo (US3-4).
+        sendMovie("2101|Valido", "{\"year\":2101,\"title\":\"Valido\",\"studios\":null,\"producers\":\"P\",\"winner\":false}");
+        await("evento válido seguinte gravado", 10, () -> total("year=2101") == 1);
 
-        List<Record> errors = KafkaTestSupport.read(brokers(), ERRORS_TOPIC, errorsBefore + 1, Duration.ofSeconds(10));
-        Record error = errors.stream().filter(record -> key.equals(record.key())).findFirst()
-                .orElseThrow(() -> new AssertionError("o tópico de erros não recebeu " + key));
-        assertThat(error.value()).as("bytes originais").isEqualTo(payload);
-        assertThat(error.headers().get("awards-error-reason")).startsWith(reason + ":");
-        assertThat(error.headers()).containsKeys("awards-error-at", "awards-source-topic",
-                "awards-source-partition", "awards-source-offset");
-        assertThat(error.headers().get("awards-source-topic")).isEqualTo(MOVIES_TOPIC);
-
-        assertThat(output.getAll()).contains("Evento rejeitado").contains(reason);
-        assertThat(output.getAll()).as("o log não traz o conteúdo do evento").doesNotContain(MARKER);
-        assertThat(total("")).as("o evento inválido não foi gravado").isEqualTo(SEQUENCE.get() - 2100);
-        assertThat(rejected()).isEqualTo(rejectedBefore + 1);
+        Map<String, Record> errors = KafkaTestSupport.read(brokers(), ERRORS_TOPIC, cases.size(), Duration.ofSeconds(10))
+                .stream().collect(Collectors.toMap(Record::key, Function.identity()));
+        SoftAssertions softly = new SoftAssertions();
+        softly.assertThat(errors).as("registros no tópico de erros").hasSize(cases.size());
+        for (Case invalid : cases) {
+            Record error = errors.get(invalid.key());
+            softly.assertThat(error).as("%s (%s) no tópico de erros", invalid.key(), invalid.reason()).isNotNull();
+            if (error == null) {
+                continue;
+            }
+            softly.assertThat(error.value()).as("%s: bytes originais", invalid.key()).isEqualTo(invalid.payload());
+            softly.assertThat(error.headers().get("awards-error-reason")).as("%s: motivo", invalid.key())
+                    .startsWith(invalid.reason() + ":");
+            softly.assertThat(error.headers()).as("%s: cabeçalhos", invalid.key()).containsKeys("awards-error-at",
+                    "awards-source-topic", "awards-source-partition", "awards-source-offset");
+            softly.assertThat(error.headers().get("awards-source-topic")).as("%s: tópico de origem", invalid.key())
+                    .isEqualTo(MOVIES_TOPIC);
+            // O aviso do log cita a posição do próprio evento e o motivo dele.
+            softly.assertThat(output.getAll()).as("%s: aviso no log", invalid.key()).contains(
+                    "Evento rejeitado (tópico " + MOVIES_TOPIC + ", partição 0, offset "
+                            + error.headers().get("awards-source-offset") + "): " + invalid.reason() + ":");
+        }
+        softly.assertThat(output.getAll()).as("o log não traz o conteúdo dos eventos").doesNotContain(MARKER);
+        softly.assertThat(total("")).as("só o evento válido foi gravado").isEqualTo(1);
+        softly.assertThat(rejected()).as("contador de rejeitados (FR-017)").isEqualTo(rejectedBefore + cases.size());
+        softly.assertAll();
     }
 
     private double rejected() {

@@ -1,0 +1,18 @@
+# Perfil só de teste (está em src/test/resources e nunca vai no JAR): prazos curtos dos clientes Kafka,
+# para que os ITs não esperem os prazos de produção quando o broker está fora do ar ou um tópico não
+# existe. Os ITs do Kafka o ligam junto com o perfil kafka. O comportamento observado é o mesmo; só o tempo
+# de espera muda (docs/ai/decisoes.md, "Tempo do ./mvnw verify do Marco 3").
+spring:
+  kafka:
+    producer:
+      properties:
+        max.block.ms: 2000
+        request.timeout.ms: 5000
+        delivery.timeout.ms: 7000
+    consumer:
+      properties:
+        default.api.timeout.ms: 5000
+        request.timeout.ms: 5000
+    admin:
+      operation-timeout: 2s
+      close-timeout: 1s

@@ -9,6 +9,7 @@ import com.outsera.awards.support.MovieJson;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 
 /**
@@ -17,7 +18,9 @@ import org.springframework.test.context.TestPropertySource;
  *
  * <p>Na carga, {@code Producer A} vence em 2000 e 2008 (8) e {@code Producer B} em 2008 e 2012 (4).
  */
-@TestPropertySource(properties = "movies.csv.path=classpath:scenarios/kafka/update-base.csv")
+// Muda os dados ou a readiness: contexto próprio, fechado no fim (KafkaScenarioIT).
+@DirtiesContext
+@TestPropertySource(properties = {"movies.csv.path=classpath:scenarios/kafka/update-base.csv", "awards.test.context=KafkaUpdateIT"})
 class KafkaUpdateIT extends KafkaScenarioIT {
 
     private void send(int year, String title, String producers, boolean winner) {

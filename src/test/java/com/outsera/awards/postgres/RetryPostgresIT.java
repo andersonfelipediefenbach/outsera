@@ -60,7 +60,7 @@ class RetryPostgresIT {
     void retriesWhenTheWriteFails() {
         String brokers = broker.getBrokersAsString();
         Topics topics = KafkaTestSupport.topics(RetryPostgresIT.class);
-        List<String> args = new ArrayList<>(PostgresSupport.args(SCHEMA, "postgres,kafka"));
+        List<String> args = new ArrayList<>(PostgresSupport.args(SCHEMA, "postgres,kafka,kafkatest"));
         KafkaTestSupport.properties(brokers, topics).forEach((name, value) -> args.add("--" + name + "=" + value));
 
         Result result = ApplicationStarter.startAndCall("classpath:scenarios/header-only.csv", args, port -> {

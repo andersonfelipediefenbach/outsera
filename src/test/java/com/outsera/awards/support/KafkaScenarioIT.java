@@ -6,20 +6,23 @@ import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.context.EmbeddedKafka;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
 /**
  * Base dos testes com a ingestão por Kafka num contexto {@code @SpringBootTest} (spec 003; research R15).
  *
- * <p>Cada classe tem o seu broker embutido (KRaft, sem Docker; Princípio II) e o seu contexto, fechado
- * no fim da classe ({@code @DirtiesContext}), então os tópicos padrão de uma classe nunca recebem eventos
- * de outra. O banco é o H2 do modo padrão: o perfil {@code kafka} troca só a origem dos dados (FR-002).
+ * <p>Cada contexto tem o seu broker embutido (KRaft, sem Docker; Princípio II). O banco é o H2 do modo
+ * padrão: o perfil {@code kafka} troca só a origem dos dados (FR-002). O perfil {@code kafkatest}, que só
+ * existe em {@code src/test/resources}, encurta os prazos dos clientes Kafka.
+ *
+ * <p><strong>Reaproveitamento do contexto:</strong> classes que só leem e têm as mesmas propriedades
+ * compartilham o contexto (e o broker) pelo cache do Spring. Uma classe que muda os dados ou o estado da
+ * readiness declara {@code @DirtiesContext} e uma propriedade própria ({@code awards.test.context}),
+ * para ter um contexto só dela, fechado no fim, e nunca sujar o de outra.
  */
-@ActiveProfiles("kafka")
+@ActiveProfiles({"kafka", "kafkatest"})
 @EmbeddedKafka(partitions = 1)
-@DirtiesContext
 @TestPropertySource(properties = "KAFKA_BOOTSTRAP_SERVERS=${spring.embedded.kafka.brokers}")
 public abstract class KafkaScenarioIT extends ScenarioIT {
 

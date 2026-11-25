@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 
 /**
@@ -18,9 +19,12 @@ import org.springframework.test.context.TestPropertySource;
  * ({@code awards.ingestion.publish-completion=false}) e o envia ele mesmo, pelo broker real, com o
  * {@code runId} lido do cabeçalho {@code awards-run-id} dos eventos publicados.
  */
+// Muda os dados ou a readiness: contexto próprio, fechado no fim (KafkaScenarioIT).
+@DirtiesContext
 @TestPropertySource(properties = {
         "movies.csv.path=classpath:movielist.csv",
-        "awards.ingestion.publish-completion=false"})
+        "awards.ingestion.publish-completion=false",
+        "awards.test.context=KafkaReadinessIT"})
 class KafkaReadinessIT extends KafkaScenarioIT {
 
     private int status(String path) {
@@ -43,12 +47,12 @@ class KafkaReadinessIT extends KafkaScenarioIT {
         String runId = movies.getFirst().headers().get("awards-run-id");
         assertThat(runId).isNotBlank();
 
+        // Marcador de outra execução, seguido de um filme sentinela. O tópico tem uma partição e é consumido
+        // em ordem: quando o sentinela aparece na listagem, o marcador errado já foi processado.
         sendCompletion(UUID.randomUUID().toString());
-        try {
-            Thread.sleep(3000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        sendMovie("2039|Sentinela", "{\"year\":2039,\"title\":\"Sentinela\",\"studios\":null,"
+                + "\"producers\":\"P\",\"winner\":false}");
+        await("sentinela depois do marcador errado", 10, () -> total("year=2039") == 1);
         assertThat(readinessStatus()).as("readiness com o marcador de outra execução").isEqualTo(503);
 
         sendCompletion(runId);

@@ -9,12 +9,9 @@ import com.outsera.awards.support.KafkaTestSupport.Topics;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.kafka.test.EmbeddedKafkaBroker;
 
 /**
  * O mesmo arquivo pela carga direta e pela ingestão por Kafka produz respostas idênticas, byte a byte e
@@ -22,18 +19,6 @@ import org.springframework.kafka.test.EmbeddedKafkaBroker;
  * cláusula "múltiplas execuções" do Princípio I (constituição 1.5.0), com o broker embutido real.
  */
 class KafkaEquivalenceIT {
-
-    private static EmbeddedKafkaBroker broker;
-
-    @BeforeAll
-    static void startBroker() {
-        broker = KafkaTestSupport.startBroker();
-    }
-
-    @AfterAll
-    static void stopBroker() {
-        broker.destroy();
-    }
 
     private static final List<String> PATHS = List.of(
             "/api/producers/intervals",
@@ -57,7 +42,7 @@ class KafkaEquivalenceIT {
 
         Map<String, Http.Response> direct = ApplicationStarter.runAndCall(csvPath, port -> Http.snapshot(port, PATHS));
         Map<String, Http.Response> kafka = ApplicationStarter.runAndCall(csvPath,
-                KafkaTestSupport.args(broker.getBrokersAsString(), topics), port -> {
+                KafkaTestSupport.args(KafkaTestSupport.sharedBroker().getBrokersAsString(), topics), port -> {
                     Http.awaitReady(port, Duration.ofSeconds(60));
                     return Http.snapshot(port, PATHS);
                 });
