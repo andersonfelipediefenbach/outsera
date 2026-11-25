@@ -868,3 +868,11 @@ Um commit por causa. Rode o ./mvnw verify e o check-unchanged-tests.sh v0.2.0 an
 </pasted_content id="03d1">
 
 ```
+
+## 2026-11-25 11:09:26 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+No pipeline do commit atual, o build falhou nos dois eventos: push depois de 3 min e pull_request depois de 5 min. Leia os logs dos dois com o gh (gh run list --branch marco/3-docker e gh run view <id> --log-failed) e diagnostique a causa antes de corrigir. Diga se é a mesma falha nos dois e em qual das duas execuções do Failsafe ela acontece (texto ou JSON). Localmente o verify passou, então explique o que é diferente no runner. Não aumente prazos para esconder o problema. Um commit, sem push.
+```
