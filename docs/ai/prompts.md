@@ -839,3 +839,32 @@ Rode o ./mvnw verify e o perfil postgres-it. Informe os tempos. Faça um commit 
 </pasted_content id="03d1">
 
 ```
+
+## 2026-11-25 09:33:00 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+O CodeQL abriu dois alertas altos no PR: "Disabled Spring CSRF protection" no SecurityConfiguration e "User-controlled bypass of sensitive method" no TokenAuthenticationFilter. Vou dispensar os dois como falso positivo. Confira se o ADR 0017 justifica explicitamente o CSRF desligado (API stateless, token em cabeçalho, sem sessão nem cookie). Se não justificar, acrescente. Registre os dois alertas e a dispensa em docs/ai/decisoes.md. Junte isso ao commit do apontamento 1 ou faça um commit à parte, mas sem push.
+```
+
+## 2026-11-25 10:10:17 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+
+
+<pasted_content id="03d1">
+O pipeline do PR falhou no 54cae85. Já diagnostiquei duas causas:
+
+1. Política: docs/ai/decisoes.md tem um byte NUL literal na linha 9 (na entrada do caractere nulo). O grep passa a tratar o arquivo como binário e o check-unchanged-tests.sh não encontra o título da exceção do ApiDocsIT. Troque o byte pelo texto \u0000 entre crases. Para evitar que isso se repita, acrescente ao job de política uma verificação que reprove qualquer byte NUL em arquivo de texto versionado.
+
+2. CodeQL: a porta de severidade lê o SARIF, então dispensar os alertas no GitHub não resolve. Crie .github/codeql-exceptions.txt no mesmo padrão do unchanged-tests-exceptions.txt: id da regra, caminho do arquivo e título da entrada do decisoes.md que justifica. A porta ignora só os achados listados e reprova se uma exceção citar uma entrada que não existe. Registre as duas exceções (java/spring-disabled-csrf-protection no SecurityConfiguration e java/user-controlled-bypass no TokenAuthenticationFilter; confirme os ids no SARIF) com a entrada que você já escreveu. Mostre no resumo do job os achados ignorados, para não ficarem escondidos.
+
+Para o build e a imagem, leia os logs com gh run view 45614392460 --log-failed (ou gh run view --job 139205920430 --log e --job 139206050037 --log). Se o gh não estiver disponível, me avise. Diagnostique antes de corrigir e me diga a causa de cada um.
+
+Um commit por causa. Rode o ./mvnw verify e o check-unchanged-tests.sh v0.2.0 antes de cada commit. Não faça push.
+</pasted_content id="03d1">
+
+```
