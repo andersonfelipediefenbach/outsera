@@ -70,8 +70,8 @@ tag ou faz push sem autorização.
 
 **Purpose**: ponto de partida medido, sem commit.
 
-- [ ] T001 Conferir que o branch é `marco/4-acabamento`, criado a partir da `main` com o merge do Marco 3, e que `git status` só mostra `docs/ai/prompts.md` (gravado pelo hook, não editar). Rodar `./mvnw verify` e anotar o resultado e o tempo total, para a descrição do commit da etapa 1.
-- [ ] T002 Conferir as ferramentas locais e anotar as que faltam: `docker version` (com compose v2), `jq`, `yq` (mikefarah v4), `gh`. As tarefas que precisam de uma ferramenta ausente marcam `PULADO` localmente, com o motivo, e a comprovação fica no pipeline.
+- [X] T001 Conferir que o branch é `marco/4-acabamento`, criado a partir da `main` com o merge do Marco 3, e que `git status` só mostra `docs/ai/prompts.md` (gravado pelo hook, não editar). Rodar `./mvnw verify` e anotar o resultado e o tempo total, para a descrição do commit da etapa 1.
+- [X] T002 Conferir as ferramentas locais e anotar as que faltam: `docker version` (com compose v2), `jq`, `yq` (mikefarah v4), `gh`. As tarefas que precisam de uma ferramenta ausente marcam `PULADO` localmente, com o motivo, e a comprovação fica no pipeline.
 
 ---
 
@@ -86,7 +86,7 @@ verdes no `./mvnw verify`.
 
 ### Verificação da etapa 1 (antes da correção; precisa mostrar a lacuna)
 
-- [ ] T003 [US7] Investigar a causa (research R12, FR-032). Ler o `action.yaml` da `aquasecurity/trivy-action` v0.36.0 e anotar a versão do Trivy que ela instala. Achar o último commit em que o `lz4-java` efetivo era 1.11.2 (`git log -S lz4-java -- pom.xml`, o commit anterior ao da fixação). Num `git worktree` temporário fora do repositório, nesse commit:
+- [X] T003 [US7] Investigar a causa (research R12, FR-032). Ler o `action.yaml` da `aquasecurity/trivy-action` v0.36.0 e anotar a versão do Trivy que ela instala. Achar o último commit em que o `lz4-java` efetivo era 1.11.2 (`git log -S lz4-java -- pom.xml`, o commit anterior ao da fixação). Num `git worktree` temporário fora do repositório, nesse commit:
   1. rodar `docker run --rm -v "<worktree>:/src" aquasec/trivy:<versão> fs --scanners vuln --list-all-pkgs --format json --output /src/trivy-pom.json /src` e procurar `lz4-java` e `snappy-java` com `jq`;
   2. rodar `./mvnw -B -q dependency:tree -Dscope=runtime -DoutputFile=deps.txt` e anotar as versões efetivas;
   3. rodar `./mvnw -B -q dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=target/runtime-deps` e o mesmo `trivy fs` sobre `target/runtime-deps`, com a porta (`--severity HIGH,CRITICAL --ignore-unfixed --exit-code 1`), que **precisa** sair com 1 pelas CVEs da `lz4-java` e da `snappy-java`.
@@ -95,19 +95,19 @@ verdes no `./mvnw verify`.
 
 ### Implementação da etapa 1
 
-- [ ] T004 [US7] Registrar em `docs/ai/decisoes.md`, numa entrada "Decisões do plano do Marco 4", as quatro decisões de `specs/004-acabamento-operacional/plan.md` ("Decisões do responsável sobre o plano (2026-11-25)") e as duas clarificações da spec (cache só da JVM; assinatura num registro temporário), sem dado pessoal.
-- [ ] T005 [US7] **Pedido ao Anderson:** acionar o testador adversário (Codex) para a ingestão por Kafka (T050 da spec 003, FR-035, R13). Ele cria eventos de ataque a partir de `specs/003-modo-docker/spec.md` e de `specs/003-modo-docker/contracts/kafka-events.md`, sem ler `src/main`. Para cada falha encontrada:
+- [X] T004 [US7] Registrar em `docs/ai/decisoes.md`, numa entrada "Decisões do plano do Marco 4", as quatro decisões de `specs/004-acabamento-operacional/plan.md` ("Decisões do responsável sobre o plano (2026-11-25)") e as duas clarificações da spec (cache só da JVM; assinatura num registro temporário), sem dado pessoal.
+- [ ] T005 [US7] **PENDENTE (etapa 1: não acionado; ver "Testador adversário: ingestão por Kafka" em docs/ai/decisoes.md).** **Pedido ao Anderson:** acionar o testador adversário (Codex) para a ingestão por Kafka (T050 da spec 003, FR-035, R13). Ele cria eventos de ataque a partir de `specs/003-modo-docker/spec.md` e de `specs/003-modo-docker/contracts/kafka-events.md`, sem ler `src/main`. Para cada falha encontrada:
   - se a correção muda comportamento, atualizar primeiro `specs/003-modo-docker/spec.md` (Princípio IV);
   - escrever o IT em `src/test/java/com/outsera/awards/kafka/adversario/<Nome>IT.java`, com o broker embutido, sem mocks e verificação por HTTP (Princípio I), `@DisplayName` começando por `S004 FR-035` e pelo requisito da spec 003 violado. Confirmar que ele **falha**;
   - corrigir em `src/main` e confirmar que o IT passa.
 
   Registrar em `docs/ai/decisoes.md`, numa entrada "Testador adversário: ingestão por Kafka", a lista dos ataques tentados, as falhas, os ITs e as correções, **também se não houver falhas**. Se o Anderson não acionar o testador nesta etapa, marcar `PENDENTE` com o motivo e repetir a pendência na etapa 6 (T062).
-- [ ] T006 [US7] Em `.github/workflows/ci.yml`, job `dependencies` (FR-033, R12): acrescentar `actions/setup-java` (o mesmo hash e a mesma configuração do job `build`) e um passo `./mvnw -B -q dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=target/runtime-deps`. Trocar o `scan-ref` dos dois passos do Trivy de `.` para `target/runtime-deps`. Acrescentar um terceiro passo do Trivy com `format: json`, `list-all-pkgs: true` e `output: trivy-inventario.json`, e um passo `run:` que escreve no `$GITHUB_STEP_SUMMARY` uma tabela com o nome e a versão de `lz4-java` e `snappy-java`, lidos com `jq`. O passo **falha** se algum dos dois não estiver no inventário. Atualizar o comentário do job com a spec 004, FR-033.
-- [ ] T007 [US7] Conferir o T006 localmente, no HEAD: `./mvnw -B -q dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=target/runtime-deps` e o `trivy fs` do T003 (com a mesma versão) sobre `target/runtime-deps`. A porta precisa sair com 0, e o inventário precisa ter `lz4-java` 1.11.4 e `snappy-java` 1.1.10.12. Anotar na descrição do commit.
-- [ ] T008 [US7] Em `.github/workflows/ci.yml`, job `workflow-policy`: acrescentar o passo `Testes de integração dos Marcos 1 a 3 sem alteração desde a v0.3.0`, com `run: .github/scripts/check-unchanged-tests.sh v0.3.0`, depois do passo da `v0.2.0` (R14, FR-001). Rodar `.github/scripts/check-unchanged-tests.sh v0.3.0` localmente: precisa passar.
-- [ ] T009 [US7] Rodar `.github/scripts/check-workflows.sh`: precisa passar (nenhuma action nova nesta etapa).
-- [ ] T010 [US7] Rodar `./mvnw verify`: verde, sem Docker. Informar o resultado real.
-- [ ] T011 [US7] Commit `Etapa 1: pendências do Marco 3 e inventário efetivo no job de dependências` com T003 a T010. Na descrição: os números do T001, o resultado do T003 e do T007, e o estado do T005.
+- [X] T006 [US7] Em `.github/workflows/ci.yml`, job `dependencies` (FR-033, R12): acrescentar `actions/setup-java` (o mesmo hash e a mesma configuração do job `build`) e um passo `./mvnw -B -q dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=target/runtime-deps`. Trocar o `scan-ref` dos dois passos do Trivy de `.` para `target/runtime-deps`, com `scan-type: rootfs` (o `fs` não analisa JARs; verificado no T003, R12). Acrescentar um terceiro passo do Trivy com `format: json`, `list-all-pkgs: true` e `output: trivy-inventario.json`, e um passo `run:` que escreve no `$GITHUB_STEP_SUMMARY` uma tabela com o nome e a versão de `lz4-java` e `snappy-java`, lidos com `jq`. O passo **falha** se algum dos dois não estiver no inventário. Atualizar o comentário do job com a spec 004, FR-033.
+- [X] T007 [US7] Conferir o T006 localmente, no HEAD: `./mvnw -B -q dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=target/runtime-deps` e o `trivy rootfs` do T003 (com a mesma versão) sobre `target/runtime-deps`. A porta precisa sair com 0, e o inventário precisa ter `lz4-java` 1.11.4 e `snappy-java` 1.1.10.12. Anotar na descrição do commit.
+- [X] T008 [US7] Em `.github/workflows/ci.yml`, job `workflow-policy`: acrescentar o passo `Testes de integração dos Marcos 1 a 3 sem alteração desde a v0.3.0`, com `run: .github/scripts/check-unchanged-tests.sh v0.3.0`, depois do passo da `v0.2.0` (R14, FR-001). Rodar `.github/scripts/check-unchanged-tests.sh v0.3.0` localmente: precisa passar.
+- [X] T009 [US7] Rodar `.github/scripts/check-workflows.sh`: precisa passar (nenhuma action nova nesta etapa).
+- [X] T010 [US7] Rodar `./mvnw verify`: verde, sem Docker. Informar o resultado real.
+- [X] T011 [US7] Commit `Etapa 1: pendências do Marco 3 e inventário efetivo no job de dependências` com T003 a T010. Na descrição: os números do T001, o resultado do T003 e do T007, e o estado do T005.
 - [ ] T012 [US7] **Pendente: exige o push, que é do Anderson.** Verificação única da FR-034, pelo roteiro da T050 do Marco 2 (R12):
   - criar o branch temporário `verificacao/trivy-transitivas` a partir de `marco/4-acabamento`, com um único commit que muda a propriedade da versão do `lz4-java` no `pom.xml` para `1.11.2`;
   - o push do branch é do Anderson ou com a autorização dele;

@@ -270,12 +270,20 @@ correções do testador adversário (R13).
      `snappy-java` no resultado;
   2. comparar com `./mvnw -B dependency:tree -Dscope=runtime` (versões efetivas);
   3. conferir na documentação e nas *issues* do Trivy a limitação correspondente, se houver.
+- **Resultado da investigação (T003, 2026-11-25):** a causa é outra que a hipótese. O Trivy 0.70.0 chega às
+  versões efetivas quando tem os POMs: com o `~/.m2` montado e `--offline-scan`, ele lista 122 pacotes,
+  inclusive `lz4-java` 1.11.2 e `snappy-java` 1.1.10.7, com as CVEs. Sem o `~/.m2`, ele busca os POMs no
+  Maven Central na hora da análise. Quando a busca falha (aqui, com 429 em todas as tentativas), ele lista
+  só as 14 dependências diretas, avisa num `WARN` genérico e sai com 0. O registro completo está em
+  `docs/ai/decisoes.md`, na entrada "Job de dependências: causa da lacuna das transitivas do kafka-clients".
 - **Correção:** o job deixa de analisar o `pom.xml` e passa a analisar o **inventário efetivo do build**:
   `actions/setup-java` (já fixado), `./mvnw -B -q dependency:copy-dependencies -DincludeScope=runtime
-  -DoutputDirectory=target/runtime-deps`, e o `trivy fs` (relatório e porta) sobre essa pasta, que o Trivy
-  analisa pelos `pom.properties` dentro dos JARs, como faz na imagem. Um passo lista no resumo, com `jq`
-  sobre um relatório `--list-all-pkgs`, as versões de `lz4-java` e `snappy-java` (FR-033). Nada muda no
-  `pom.xml`: o plugin de dependências já faz parte do Maven.
+  -DoutputDirectory=target/runtime-deps`, e o Trivy (relatório e porta) sobre essa pasta, que ele analisa
+  pelos metadados dentro dos JARs, como faz na imagem. O modo é **`rootfs`**, e não `fs`: verificado no
+  T003, o `trivy fs` não analisa JARs (só `pom.xml` e afins) e, sobre essa pasta, não acha nada e sai com
+  0. Um passo lista no resumo, com `jq` sobre um relatório `--list-all-pkgs`, as versões de `lz4-java` e
+  `snappy-java` (FR-033). Nada muda no `pom.xml`: o plugin de dependências já faz parte do Maven. A
+  análise não depende mais da rede para resolver versões: o Maven já baixou os JARs.
 - **Comprovação única (FR-034):** roteiro da T050 do Marco 2, num branch temporário
   `verificacao/trivy-transitivas` a partir de `marco/4-acabamento`: um commit volta `lz4-java` para 1.11.2
   no `dependencyManagement`; o job `dependencies` precisa ficar vermelho por essa CVE. O branch nunca é

@@ -3,6 +3,105 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-25 — Job de dependências: causa da lacuna das transitivas do kafka-clients
+
+Investigação da spec 004 (FR-032, research R12, T003), feita num `git worktree` temporário fora do
+repositório, no commit `011eeba`. É o anterior à fixação das versões (`ae2ba76`), com o `lz4-java` 1.11.2
+efetivo. O worktree foi removido no fim.
+
+- **Versão do Trivy:** a `aquasecurity/trivy-action` v0.36.0 (`ed142fd`) instala o Trivy **v0.70.0**
+  (input `version`, padrão `v0.70.0` no `action.yaml`). Todas as execuções abaixo usaram a imagem
+  `aquasec/trivy:0.70.0`.
+- **Item 1, `trivy fs --list-all-pkgs` sobre o repositório, como no job:** o inventário tem só as 14
+  dependências do `pom.xml` (13 diretas e a raiz), sem nenhuma transitiva. O `lz4-java`, o `snappy-java` e
+  o `kafka-clients` não aparecem. A saída foi 0.
+  - Com `--debug`, o motivo aparece. O Trivy busca os POMs no Maven Central na hora da análise, a começar
+    pelo pai `spring-boot-starter-parent` 4.1.2. Nas três execuções, o Central respondeu **429** (limite de
+    requisições) a todas as buscas.
+  - Sem o pai, as versões das diretas que vêm do BOM ficam indefinidas, e o Trivy não desce às
+    transitivas. O único aviso é um `WARN` genérico ("Dependency version cannot be determined. Child
+    dependencies will not be found"), com o link
+    <https://trivy.dev/docs/v0.70/guide/coverage/language/java#empty-dependency-version>. As falhas de busca
+    só aparecem em `DEBUG`.
+  - **Contraprova:** o mesmo comando com o `~/.m2` local montado e `--offline-scan` não faz nenhuma busca.
+    Ele lista 122 pacotes, entre eles `lz4-java` 1.11.2, `snappy-java` 1.1.10.7 e `kafka-clients` 4.2.2,
+    com as CVE-2026-106451, CVE-2026-108106 e CVE-2026-93451. Quando tem os POMs, o Trivy chega às mesmas
+    versões do build.
+- **Item 2, versões efetivas do Maven:** `dependency:list -DincludeScope=runtime` dá `lz4-java` 1.11.2
+  (runtime), `snappy-java` 1.1.10.7 (runtime) e `kafka-clients` 4.2.2 (compile). As duas vêm do
+  `kafka-clients`. O `dependency:tree -Dscope=runtime` pedido no T003 corta esse ramo e não as mostra, por
+  isso o inventário foi conferido com o `dependency:list`, que usa o mesmo filtro do `copy-dependencies`.
+- **Item 3, porta sobre `target/runtime-deps`:** os 115 JARs copiados pelo Maven.
+  - **Com `trivy fs`, a porta não analisa nada.** O log mostra "Number of language-specific files num=0", e
+    a saída é 0. No Trivy, a análise de JAR só existe nos modos `image` e `rootfs`. No `fs`, o Java coberto
+    é o `pom.xml`.
+  - **Com `trivy rootfs`**, com a porta do pipeline (`--severity HIGH,CRITICAL --ignore-unfixed --exit-code
+    1`), a saída é **1**, com exatamente as três CVEs: CVE-2026-106451 no `lz4-java` 1.11.2, CVE-2026-108106
+    e CVE-2026-93451 no `snappy-java` 1.1.10.7.
+- **Causa:** a análise do `pom.xml` depende de buscas remotas que podem falhar sem reprovar o job. Quando
+  uma falha, as transitivas somem do inventário e nada é apontado.
+  - Isso difere da hipótese da R12, que era uma resolução de versões diferente da do build. O Trivy resolve
+    certo quando tem os POMs.
+  - Não há como saber qual busca falhou no runner do Marco 3, porque o log do job não tem `DEBUG`. O efeito
+    é o mesmo: o job ficou verde sem ver as transitivas.
+  - A R12 foi atualizada com o resultado e com a troca de `fs` por `rootfs`.
+- **Correção (T006):** o job `dependencies` passa a analisar o que o Maven copia, com
+  `dependency:copy-dependencies -DincludeScope=runtime` e o Trivy em `rootfs`. O inventário não depende da
+  rede, porque o Maven já baixou os JARs. Um passo confere no resumo que `lz4-java` e `snappy-java` estão no
+  inventário e falha se algum faltar.
+- **Conferência no HEAD (T007):** com o `pom.xml` atual, a mesma porta em `rootfs` sai com 0. O inventário
+  JSON tem `at.yawk.lz4:lz4-java` 1.11.4 e `org.xerial.snappy:snappy-java` 1.1.10.12. A expressão `jq` do
+  passo novo foi testada sobre esse inventário, inclusive com um pacote ausente, que cai no ramo de falha.
+  A comprovação contra uma versão vulnerável no pipeline é a verificação única do T012 (FR-034), que
+  depende do push.
+
+## 2026-11-25 — Decisões do plano do Marco 4
+
+Decisões do responsável sobre o plano da spec 004 (`plan.md`, "Decisões do responsável sobre o plano"),
+mais as duas clarificações da spec:
+
+1. **Limite do SLO de latência:** é o bucket que já existe no histograma, cerca de 112 ms
+   (`le="0.111848106"`, a conferir no T026), sem mudar o `application.yml` (R1).
+2. **Folga do pipeline:** os limites do k6 são 2× a maior medição de cada percentil, arredondados para cima
+   (R5).
+3. **Execuções de medição:** as 5 execuções são feitas com "Re-run jobs" do job `load` no mesmo commit, sem
+   commits vazios (R5).
+4. **Etapas:** cada etapa do bolt termina com o `./mvnw verify` verde e um commit.
+5. **Clarificação: cache só da JVM.** O cache AOT é só o da JVM, gerado por uma execução de treino no build
+   da imagem. O processamento AOT do Spring fica de fora, porque fixaria as condições de perfil no build. A
+   escolha de perfil continua na execução, e a mesma imagem serve ao modo padrão e ao compose (US4-6,
+   FR-020).
+6. **Clarificação: assinatura num registro temporário.** Sem publicar a imagem, ela vai a um registro
+   temporário dentro do job, é assinada lá e recebe o SBOM como atestado assinado. O registro é descartado
+   no fim do job. Só a entrada no registro de transparência é pública (US5-6, FR-025).
+
+## 2026-11-25 — Proteção da main ao fim do Marco 3
+
+Configuração da proteção da `main` feita pelo Anderson depois do merge do Marco 3 (T093 da spec 003; spec
+004, FR-031, R14). Está registrada aqui como ponto de partida. A lista com os 12 checks do Marco 4 é o
+T064, na entrada "Proteção da main depois do Marco 4".
+
+- **Mecanismo:** um ruleset **ativo**, aplicado à branch padrão (`main`).
+- **Bypass:** nenhum *bypass actor*. Ninguém, nem administrador, passa por cima das regras.
+- **Pull request obrigatório,** com **0 aprovações** exigidas. A revisão do Codex fica nos comentários do
+  PR, e o repositório tem um único responsável humano.
+- **Resolução das conversas obrigatória** antes do merge.
+- **Checks obrigatórios:** os 8 jobs do Marco 3, que são `workflow-policy`, `build`, `postgres`, `codeql`,
+  `dependencies`, `dockerfile-lint`, `image` e `compose`.
+- **Branch atualizado antes do merge:** não é exigido.
+- **Force push:** bloqueado.
+- **Exclusão da branch:** bloqueada.
+
+## 2026-11-25 — Testador adversário: ingestão por Kafka
+
+**PENDENTE.** É o T005 da spec 004 (FR-035, R13; T050 da spec 003). O Codex ainda não foi acionado como
+testador adversário da ingestão por Kafka. O acionamento é do Anderson e foi pedido no fim da etapa 1.
+
+- Até lá, não há lista de ataques, falhas, ITs nem correções a registrar.
+- Esta entrada recebe o resultado, com ou sem falhas.
+- Se a execução não acontecer antes da etapa 6, a pendência é repetida no README e no fechamento do bolt
+  (T062 e T066).
+
 ## 2026-11-25 — Pipeline do PR do Marco 3: endereço do broker vazando entre os testes pela propriedade de sistema
 
 - **Falha:** no commit `230dffc`, o job `build` reprovou nos dois eventos. No `push`, só o

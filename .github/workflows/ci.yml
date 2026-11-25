@@ -22,7 +22,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Histórico e tags: o check-unchanged-tests.sh compara com a tag v0.2.0 (spec 003, research R14).
+          # Histórico e tags: o check-unchanged-tests.sh compara com as tags v0.2.0 e v0.3.0 (spec 003,
+          # research R14; spec 004, research R14).
           fetch-depth: 0
       - name: Hash de commit, permissões, segredos, publicação, Dependabot e imagens do compose por digest
         run: .github/scripts/check-workflows.sh
@@ -30,6 +31,9 @@ jobs:
         run: .github/scripts/check-text-files.sh
       - name: Testes de integração dos Marcos 1 e 2 sem alteração desde a v0.2.0
         run: .github/scripts/check-unchanged-tests.sh v0.2.0
+      # Spec 004, FR-001 e SC-001; research R14.
+      - name: Testes de integração dos Marcos 1 a 3 sem alteração desde a v0.3.0
+        run: .github/scripts/check-unchanged-tests.sh v0.3.0
 
   build:
     name: Build, testes e cobertura
@@ -133,16 +137,27 @@ jobs:
           .github/scripts/codeql-gate.sh sarif-results/*.sarif
 
   dependencies:
+    # Inventário efetivo das dependências de runtime (spec 004, FR-032 e FR-033; research R12). O Trivy
+    # analisa os JARs que o Maven copia, com as versões que o build resolve, e não o pom.xml. No pom.xml,
+    # ele busca os POMs no Maven Central na hora da análise, e uma busca que falha (por exemplo, com 429)
+    # tira as transitivas do inventário sem reprovar nada. O modo é rootfs porque o fs não analisa JARs.
     name: Vulnerabilidades das dependências (Trivy)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Dependências de runtime copiadas pelo Maven (versões efetivas do build)
+        run: ./mvnw -B -q dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=target/runtime-deps
       - name: Relatório completo (todas as severidades, sem reprovar)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          scan-type: fs
-          scan-ref: .
+          scan-type: rootfs
+          scan-ref: target/runtime-deps
           scanners: vuln
           format: table
           output: trivy-dependencias.txt
@@ -154,13 +169,46 @@ jobs:
       - name: Porta (alta e crítica, só com versão corrigida)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          scan-type: fs
-          scan-ref: .
+          scan-type: rootfs
+          scan-ref: target/runtime-deps
           scanners: vuln
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           format: table
           exit-code: '1'
+      - name: Inventário completo (todos os pacotes, sem reprovar)
+        if: always()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: rootfs
+          scan-ref: target/runtime-deps
+          scanners: vuln
+          format: json
+          list-all-pkgs: true
+          output: trivy-inventario.json
+          exit-code: '0'
+      - name: lz4-java e snappy-java no inventário (FR-033)
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "### Inventário efetivo: transitivas do kafka-clients"
+            echo
+            echo "| Pacote | Versão |"
+            echo "| --- | --- |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          missing=0
+          for pkg in at.yawk.lz4:lz4-java org.xerial.snappy:snappy-java; do
+            versions="$(jq -r --arg p "$pkg" '[.Results[]?.Packages[]? | select(.Name == $p) | .Version] | unique | join(", ")' trivy-inventario.json)"
+            if [[ -z "$versions" ]]; then
+              echo "| $pkg | **ausente** |" >> "$GITHUB_STEP_SUMMARY"
+              echo "::error::$pkg não está no inventário do Trivy"
+              missing=1
+            else
+              echo "| $pkg | $versions |" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+          exit "$missing"
 
   dockerfile-lint:
     name: Lint do Dockerfile (hadolint)
