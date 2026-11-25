@@ -876,3 +876,116 @@ Um commit por causa. Rode o ./mvnw verify e o check-unchanged-tests.sh v0.2.0 an
 ```text
 No pipeline do commit atual, o build falhou nos dois eventos: push depois de 3 min e pull_request depois de 5 min. Leia os logs dos dois com o gh (gh run list --branch marco/3-docker e gh run view <id> --log-failed) e diagnostique a causa antes de corrigir. Diga se é a mesma falha nos dois e em qual das duas execuções do Failsafe ela acontece (texto ou JSON). Localmente o verify passou, então explique o que é diferente no runner. Não aumente prazos para esconder o problema. Um commit, sem push.
 ```
+
+## 2026-11-25 11:53:28 -03:00
+
+- Sessao: `048e1f72-29a7-44c0-8bbc-2fb4cca3f2b7`
+
+```text
+
+
+<pasted_content id="3d64">
+/speckit-specify Marco 4: acabamento operacional, num único bolt. Nada muda no modo padrão do enunciado (./mvnw, H2, só testes de integração), e cada item tem a comprovação do seu tipo pelo Princípio VI. Escopo:
+1. Alertas de SLO no Prometheus do compose (disponibilidade e latência do endpoint de intervalos), com regras versionadas e verificadas no pipeline.
+2. Teste de carga com k6 contra o compose, com limites de latência e de erro que reprovam o job, rodando no pipeline.
+3. Dados gerados: um gerador de CSV grande e determinístico para o k6 e para medir a carga inicial, sem substituir o movielist.csv padrão.
+4. Cache de AOT (Spring Boot e JVM) na imagem, com o tempo de subida medido antes e depois.
+5. SBOM da imagem e assinatura (cosign keyless no Actions), sem publicação da imagem neste marco.
+6. Dev container para abrir o projeto pronto (JDK 25, Maven, Docker).
+Inclua também as pendências do marco 3: o registro da proteção da main (T093), a investigação de por que o job de dependências do Trivy não apontou as transitivas do kafka-clients (com correção) e a execução do testador adversário na ingestão por Kafka. O README ganha a seção do marco 4 entre os extras.
+</pasted_content id="3d64">
+
+```
+
+## 2026-11-25 11:53:42 -03:00
+
+- Sessao: `048e1f72-29a7-44c0-8bbc-2fb4cca3f2b7`
+
+```text
+ /cl
+```
+
+## 2026-11-25 11:54:26 -03:00
+
+- Sessao: `7e42c09a-3302-4816-a904-f00f64eff940`
+
+```text
+
+
+<pasted_content id="21fb">
+/speckit-specify Marco 4: acabamento operacional, num único bolt. Nada muda no modo padrão do enunciado (./mvnw, H2, só testes de integração), e cada item tem a comprovação do seu tipo pelo Princípio VI. Escopo:
+1. Alertas de SLO no Prometheus do compose (disponibilidade e latência do endpoint de intervalos), com regras versionadas e verificadas no pipeline.
+2. Teste de carga com k6 contra o compose, com limites de latência e de erro que reprovam o job, rodando no pipeline.
+3. Dados gerados: um gerador de CSV grande e determinístico para o k6 e para medir a carga inicial, sem substituir o movielist.csv padrão.
+4. Cache de AOT (Spring Boot e JVM) na imagem, com o tempo de subida medido antes e depois.
+5. SBOM da imagem e assinatura (cosign keyless no Actions), sem publicação da imagem neste marco.
+6. Dev container para abrir o projeto pronto (JDK 25, Maven, Docker).
+Inclua também as pendências do marco 3: o registro da proteção da main (T093), a investigação de por que o job de dependências do Trivy não apontou as transitivas do kafka-clients (com correção) e a execução do testador adversário na ingestão por Kafka. O README ganha a seção do marco 4 entre os extras.
+</pasted_content id="21fb">
+
+```
+
+## 2026-11-25 12:12:30 -03:00
+
+- Sessao: `7e42c09a-3302-4816-a904-f00f64eff940`
+
+```text
+
+
+<pasted_content id="21fb">
+Suposições aceitas, com três ajustes na spec:
+1. O pipeline comprova o determinismo do gerador: gera o arquivo duas vezes com a mesma semente e compara os hashes.
+2. O teste do Trivy contra uma versão vulnerável segue o roteiro da T050 do Marco 2: branch temporário, nunca mergeado, apagado no fim, sem nenhum commit voltando ao branch do marco.
+3. Deixe explícito que o objetivo do SLO e os limites do k6 vêm da medição num runner compartilhado, e que o limite do pipeline é mais folgado por causa do ruído do runner, para o job não ficar instável. Registre a medição e a folga escolhida em docs/ai/decisoes.md.
+Depois disso, siga para o /speckit-plan.
+</pasted_content id="21fb">
+
+```
+
+## 2026-11-25 14:02:35 -03:00
+
+- Sessao: `7e42c09a-3302-4816-a904-f00f64eff940`
+
+```text
+/speckit-tasks Aceito as decisões do plano: o SLO de latência usa o limite que já existe no histograma (cerca de 112 ms), e a folga do pipeline é de 2× sobre a maior medição. As 5 execuções de medição do job de carga são feitas com Re-run jobs no mesmo commit, sem commits vazios. Divida em etapas, cada uma terminando com o ./mvnw verify verde e um commit.
+```
+
+## 2026-11-25 14:08:57 -03:00
+
+- Sessao: `7e42c09a-3302-4816-a904-f00f64eff940`
+
+```text
+/speckit-analyze
+```
+
+## 2026-11-25 14:12:04 -03:00
+
+- Sessao: `7e42c09a-3302-4816-a904-f00f64eff940`
+
+```text
+Aplique o H1 como recomendado: o job devcontainer sobe o compose com docker compose up -d --build --wait e confere o resultado de referência; as portas encaminhadas ficam como item de revisão no checklist. Aplique também os seis MEDIUM e os três LOW como recomendados. Se algum deles mudar o que a spec promete, em vez de só como comprovar, me mostre antes de aplicar. Depois rode o /speckit-analyze de novo e me mostre o resultado. Não faça commit.
+```
+
+## 2026-11-25 14:23:30 -03:00
+
+- Sessao: `7e42c09a-3302-4816-a904-f00f64eff940`
+
+```text
+Sim, aplique o L4 e o L5 agora no tasks.md. Não faça commit.
+```
+
+## 2026-11-25 14:25:13 -03:00
+
+- Sessao: `7e42c09a-3302-4816-a904-f00f64eff940`
+
+```text
+export docs/ai/sessoes/12-marco-4.md
+```
+
+## 2026-11-25 14:27:41 -03:00
+
+- Sessao: `7e42c09a-3302-4816-a904-f00f64eff940`
+
+```text
+export docs/ai/sessoes/12-marco-4-planejamento.md
+```
