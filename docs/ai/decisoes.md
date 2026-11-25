@@ -3,6 +3,23 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-25 — Pipeline do PR do Marco 3: lz4-java e snappy-java com correção
+
+- **Falha:** a porta da imagem (Trivy, alta e crítica com versão corrigida) reprovou o `54cae85` com três
+  vulnerabilidades altas em bibliotecas que o `kafka-clients` 4.2.2 traz em runtime e que o BOM do Spring
+  Boot 4.1.2 não gerencia:
+  - `lz4-java` 1.11.2: CVE-2026-106451, corrigida na 1.11.4;
+  - `snappy-java` 1.1.10.7: CVE-2026-108106 e CVE-2026-93451, corrigidas na 1.1.10.9.
+
+  Elas entraram com a ingestão por Kafka, neste marco. O job `dependencies`, que analisa o repositório, não
+  as apontou. A causa disso não foi investigada.
+- **Correção:** o `pom.xml` fixa as versões no `dependencyManagement`, com a última correção de cada linha:
+  `lz4-java` 1.11.4 e `snappy-java` 1.1.10.12. As versões ficam em propriedades, com um comentário para
+  retirá-las quando o `kafka-clients` trouxer versões corrigidas.
+- **Comprovação:** os ITs de Kafka passam no `./mvnw verify`. O Trivy 0.70.0, com a mesma porta do
+  pipeline, não acha nada nas 103 bibliotecas do jar, extraídas como na imagem. Nos jars antigos, ele acha
+  as três vulnerabilidades. A comprovação definitiva é o job `image` (Princípio VI).
+
 ## 2026-11-25 — Pipeline do PR do Marco 3: porta reservada no KafkaBrokerLateStartIT
 
 - **Falha:** o job `build` reprovou o `54cae85` no `KafkaBrokerLateStartIT`, em 2,2 s: o broker que sobe

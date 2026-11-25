@@ -31,7 +31,29 @@
              cobertura mínima, que é a do ./mvnw verify padrão (spec 003, research R16). -->
         <it.default.skip>false</it.default.skip>
         <jacoco.check.skip>false</jacoco.check.skip>
+        <!-- Dependências de runtime do kafka-clients 4.2.2, fora do BOM do Spring Boot 4.1.2. As versões
+             trazidas por ele (lz4-java 1.11.2 e snappy-java 1.1.10.7) têm vulnerabilidades altas com
+             correção, que reprovaram a porta da imagem no PR do Marco 3: CVE-2026-106451 no lz4-java e
+             CVE-2026-108106 e CVE-2026-93451 no snappy-java. Fica a última correção da mesma linha.
+             Retirar quando o kafka-clients trouxer versões corrigidas. -->
+        <lz4-java.version>1.11.4</lz4-java.version>
+        <snappy-java.version>1.1.10.12</snappy-java.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>at.yawk.lz4</groupId>
+                <artifactId>lz4-java</artifactId>
+                <version>${lz4-java.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.xerial.snappy</groupId>
+                <artifactId>snappy-java</artifactId>
+                <version>${snappy-java.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>
