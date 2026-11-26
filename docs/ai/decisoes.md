@@ -3,6 +3,58 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-25 — Emenda 2.0.0 da constituição: `./mvnw verify` só com os testes do modo padrão
+
+- **Origem:** com os ITs dos Marcos 2 a 4, o `./mvnw verify` padrão chegou a cerca de 8 min nas medições
+  mais lentas da máquina local (540 s no último verde). É o comando que o avaliador roda para o core.
+- **Decisão do Anderson:**
+  - o `./mvnw verify` padrão roda só os ITs do modo padrão, numa única execução do Failsafe;
+  - os ITs do que vem desligado por padrão e a execução com o log em JSON vão para o perfil Maven `extras`
+    (`./mvnw -Pextras verify`), sem Docker e só com o JDK. O job `build` roda esse perfil
+    obrigatoriamente;
+  - a cobertura mínima de 90% é conferida nesse perfil, sobre a soma das execuções.
+- **Versão:** o pedido era uma emenda MINOR do Princípio VI. A mudança atinge também o Princípio II, que
+  exigia que "os testes do enunciado e dos extras da API" passassem com `./mvnw verify`. Levada a
+  escolha ao Anderson, ele decidiu por **MAJOR, 2.0.0**, porque essa garantia literal deixa de valer.
+- **Critério do recorte** (ajustado pelo Anderson, no lugar do primeiro recorte, que era só o Marco 1):
+  - **perfil padrão:** os ITs de todo comportamento do modo padrão, que roda sem nenhuma configuração.
+    São o H2, a carga do CSV com todas as regras (inclusive as da spec 003, como o `FIELD_TOO_LONG` e o
+    `NUL_CHARACTER`), os endpoints, o Swagger e o que vem ligado por padrão;
+  - **perfil `extras`:** o que vem desligado por padrão, ou seja, Kafka, autenticação ligada, log em JSON
+    e observabilidade que dependa de configuração. O PostgreSQL continua no `postgres-it`.
+- **Lista do perfil padrão** (`src/test/default-mode-its.txt`, 63 ITs). A execução padrão usa a lista
+  como `includesFile`, e a execução `extras` a usa como `excludesFile`, então todo IT roda numa execução
+  só. As bases abstratas ficam de fora, porque o Failsafe não as roda.
+  - os 46 ITs do Marco 1 (tag `v0.1.0`);
+  - `FieldTooLongIT` e `NulCharacterIT`, as regras do CSV da spec 003;
+  - `etag/*`, `health/*` e `MetricsIT`: o ETag, as sondas e o `/actuator/prometheus` vêm ligados sem
+    configuração (`exposure: health,prometheus`);
+  - `TextLogFormatIT`: o log em texto é o padrão;
+  - `ApiDocsSecurityIT`: o contrato que o Swagger serve no modo padrão;
+  - `AuthDisabledByDefaultIT`, `CacheHeadersIT`, `NoGeneratedPasswordIT` e `DefaultModeIsolationIT`:
+    o comportamento do modo padrão sem token, sem senha gerada e sem Kafka.
+- **No perfil `extras`:** `kafka/**` (inclusive os ITs do testador adversário), `AuthEnabledIT`,
+  `AuthProblemDetailsIT`, `AuthContractIT`, `CacheHeadersWithTokenIT`, `TokenNotLoggedIT` e
+  `JsonLogFormatIT`, mais a execução `json-logs`.
+- **O que não muda:** nenhum IT foi alterado, só o perfil em que roda. O `check-unchanged-tests.sh` contra
+  a `v0.2.0` e a `v0.3.0` continua valendo, e passa. O perfil `postgres-it` não muda.
+- **Atualizados:** constituição (II, VI e o portão de merge), `pom.xml`, job `build` do `ci.yml`,
+  `AGENTS.md`, README (seções 2 e 5, tabela do pipeline e estrutura) e a spec 004 (Clarifications,
+  FR-001, FR-035, FR-038, SC-001, plano e tarefas). Os ADRs 0001, 0004, 0010, 0012 e 0019 falam do
+  `./mvnw verify` da época e ficaram como registro histórico.
+- **Medição** (mesma máquina, sem Docker, todas verdes):
+
+  | Comando | Onde | Tempo | Testes |
+  | --- | --- | --- | --- |
+  | `./mvnw verify` antes da emenda | cópia de trabalho compilada | 266 a 540 s | 269 (5 pulados) e 85 |
+  | `./mvnw verify` com o primeiro recorte (só o Marco 1) | clone limpo, com a compilação | 64 s | 142 |
+  | `./mvnw verify` com o critério do modo padrão | **clone limpo**, com a compilação | **63 s** | 209 |
+  | `./mvnw verify` com o critério do modo padrão | cópia de trabalho | 69 s | 209 |
+  | `./mvnw -Pextras verify` com o critério do modo padrão | cópia de trabalho compilada | 247 s | 209, 60 (5 pulados) e 85 |
+
+  Os 209 e os 60 somam os 269 de antes, e os 85 da execução com o log em JSON são os mesmos. A
+  cobertura de linhas no `-Pextras` ficou em 95,36%. O `./mvnw -Ppostgres-it verify` não muda.
+
 ## 2026-11-25 — Publicador Kafka: envio assíncrono, com o marcador por último
 
 - **Falha encontrada pelo T021 da spec 004:** no compose, a carga por Kafka dos 100 mil filmes gerados

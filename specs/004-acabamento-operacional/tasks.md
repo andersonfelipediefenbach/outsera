@@ -13,7 +13,7 @@ operacao.md), quickstart.md
 **Tests**: a comprovação segue o Princípio VI (constituição 1.7.0), pelo tipo de cada requisito:
 
 - **comportamento da aplicação:** só as correções do testador adversário (FR-035), com ITs `*IT` no
-  `./mvnw verify`, broker embutido, sem mocks, verificados por HTTP, com `@DisplayName` começando por
+  `./mvnw -Pextras verify`, broker embutido, sem mocks, verificados por HTTP, com `@DisplayName` começando por
   `S004` e pelos IDs dos requisitos;
 - **regras de alerta:** `promtool test rules`, escrito **antes** das regras e confirmado falhando;
 - **scripts e jobs:** cada script novo é rodado antes da mudança que ele verifica e precisa **falhar** (ou
@@ -24,7 +24,7 @@ operacao.md), quickstart.md
 etapas** (plano, "Ordem das etapas"). Cada etapa:
 
 1. começa pela verificação que precisa falhar;
-2. termina com `./mvnw verify` **verde**, sem Docker, com o resultado real informado;
+2. termina com `./mvnw verify` e `./mvnw -Pextras verify` **verdes**, sem Docker, com o resultado real informado;
 3. fecha com **um commit** próprio, de assunto único.
 
 O push, o PR, o merge, as tags e os "Re-run jobs" são do Anderson. Nenhum agente abre PR, faz merge, cria
@@ -106,7 +106,7 @@ verdes no `./mvnw verify`.
 - [X] T007 [US7] Conferir o T006 localmente, no HEAD: `./mvnw -B -q dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=target/runtime-deps` e o `trivy rootfs` do T003 (com a mesma versão) sobre `target/runtime-deps`. A porta precisa sair com 0, e o inventário precisa ter `lz4-java` 1.11.4 e `snappy-java` 1.1.10.12. Anotar na descrição do commit.
 - [X] T008 [US7] Em `.github/workflows/ci.yml`, job `workflow-policy`: acrescentar o passo `Testes de integração dos Marcos 1 a 3 sem alteração desde a v0.3.0`, com `run: .github/scripts/check-unchanged-tests.sh v0.3.0`, depois do passo da `v0.2.0` (R14, FR-001). Rodar `.github/scripts/check-unchanged-tests.sh v0.3.0` localmente: precisa passar.
 - [X] T009 [US7] Rodar `.github/scripts/check-workflows.sh`: precisa passar (nenhuma action nova nesta etapa).
-- [X] T010 [US7] Rodar `./mvnw verify`: verde, sem Docker. Informar o resultado real.
+- [X] T010 [US7] Rodar `./mvnw verify` e `./mvnw -Pextras verify`: verdes, sem Docker. Informar o resultado real.
 - [X] T011 [US7] Commit `Etapa 1: pendências do Marco 3 e inventário efetivo no job de dependências` com T003 a T010. Na descrição: os números do T001, o resultado do T003 e do T007, e o estado do T005.
 - [ ] T012 [US7] **Pendente: exige o push, que é do Anderson.** Verificação única da FR-034, pelo roteiro da T050 do Marco 2 (R12):
   - criar o branch temporário `verificacao/trivy-transitivas` a partir de `marco/4-acabamento`, com um único commit que muda a propriedade da versão do `lz4-java` no `pom.xml` para `1.11.2`;
@@ -172,7 +172,7 @@ sair com 99.
 
   Anotar todos os resultados e os tempos de carga local, identificados como da máquina local, na descrição do commit. O resultado do limite impossível vai também para a entrada do T034. Se o Docker não estiver disponível, `PULADO` com o motivo; a comprovação fica no pipeline.
 - [ ] T022 [US2] Rodar `.github/scripts/check-workflows.sh` (a imagem do k6 por digest e a action do job `load` por hash) e `.github/scripts/check-docker-context.sh` (nada de `tools/`, `load/` ou `target/generated-data/` no contexto da imagem): os dois precisam passar.
-- [ ] T023 [US2] Rodar `./mvnw verify`: verde, sem Docker. Informar o resultado real.
+- [ ] T023 [US2] Rodar `./mvnw verify` e `./mvnw -Pextras verify`: verdes, sem Docker. Informar o resultado real.
 - [ ] T024 [US2] Commit `Etapa 2: gerador de CSV determinístico e teste de carga com k6` com T013 a T023. Na descrição: os pares tag → digest e tag → hash, o SHA-256 do T015 e os resultados do T021.
 - [ ] T025 [US2] **Pendente: exige o push, que é do Anderson. Bloqueia a etapa 3.** Medição no runner compartilhado (R5, FR-011a): depois do push do commit do T024, o job `load` roda uma vez pelo push, e o Anderson dispara mais 4 execuções com "Re-run jobs" no **mesmo commit**, sem commits vazios. De cada execução, anotar o link, o p95, o p99, a vazão e a taxa de erro de cada endpoint, e os dois tempos de carga. Calcular, por métrica, o menor, o maior e a mediana. **Parar e levar ao Anderson** se:
   - a maior medição de algum percentil passar de 2× a menor (a folga de 2× não basta);
@@ -218,7 +218,7 @@ cenários certos; o `compose-test.sh` confere as regras carregadas e nenhum aler
 - [ ] T033 [US1] Limites finais do k6 (R5, FR-011a): em `load/intervals.js`, trocar os padrões provisórios do T019 por 2× a maior medição de cada percentil do T025, arredondada para cima (em ms inteiros), e `K6_MAX_ERROR_RATE=0.01`. Comentário com a origem dos números e o link da entrada do T034.
 - [ ] T034 [US1] Registrar em `docs/ai/decisoes.md`, numa entrada "Medição do teste de carga e folga dos limites do pipeline" (FR-011a): as 5 execuções do T025 (links e valores por endpoint), o menor, o maior e a mediana, o tipo do runner, os objetivos do SLO (disponibilidade de 99,5% e 99% até o bucket do T026, em 28 dias), os limites finais do T033, a folga de 2× e o motivo (ruído do runner compartilhado, para o job não ficar instável). Incluir a verificação única do limite impossível do T021 (`K6_P95_INTERVALS_MS=1`, saída 99 do k6 e `FALHA` do script) e a execução com o token errado, como prova de que os limites reprovam o job (SC-004).
 - [ ] T035 [US1] Rodar localmente com o Docker: `.github/scripts/compose-test.sh`, com todos os passos `OK`, inclusive o 4b. Depois, a seção 4 de `specs/004-acabamento-operacional/quickstart.md`: com `docker compose stop app`, o `AwardsAppDown` fica `firing` em até 2 min, e o `runbook_url` aponta para `docs/runbook.md#awardsappdown`. A âncora só existe depois do T060, então conferir o formato agora e o destino na etapa 6. Também `load-test.sh` com os limites finais: `OK`. Sem o Docker, `PULADO` com o motivo.
-- [ ] T036 [US1] Rodar `./mvnw verify`: verde, sem Docker. Informar o resultado real.
+- [ ] T036 [US1] Rodar `./mvnw verify` e `./mvnw -Pextras verify`: verdes, sem Docker. Informar o resultado real.
 - [ ] T037 [US1] Commit `Etapa 3: alertas de SLO no Prometheus e limites do k6 pela medição` com T026 a T036. Na descrição: o `le` do T026, a forma do `promtool` do T027 e o resultado do T035.
 
 **Checkpoint**: US1 completa; US2 com os limites finais.
@@ -316,7 +316,7 @@ errada falhando; a política reprova qualquer push ou `id-token` fora do lugar.
 - [ ] T049 [US5] Em `.github/workflows/ci.yml`, job `image`: acrescentar o passo `Assinatura pulada (pull request de fork)`, com `if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository`, que escreve no `$GITHUB_STEP_SUMMARY` o motivo: a execução não tem a permissão de identidade, e a assinatura roda nos pushes e nos PRs do próprio repositório (FR-027).
 - [ ] T050 [US5] Rodar `.github/scripts/check-workflows.sh` com o `ci.yml` novo: passa. Repetir os casos negativos do T047: continuam falhando.
 - [ ] T051 [US5] Conferir localmente o SBOM: `docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:<versão do T003> image --format cyclonedx --output - awards:local | jq` contém `lz4-java` 1.11.4 e `snappy-java` 1.1.10.12, e os pacotes do Alpine. A assinatura keyless só roda no Actions: `PULADO` local, com a comprovação no T063.
-- [ ] T052 [US5] Rodar `./mvnw verify`: verde, sem Docker. Informar o resultado real.
+- [ ] T052 [US5] Rodar `./mvnw verify` e `./mvnw -Pextras verify`: verdes, sem Docker. Informar o resultado real.
 - [ ] T053 [US5] Commit `Etapa 5: SBOM e assinatura keyless num registro temporário` com T047 a T052. Na descrição: os pares tag → hash e tag → digest, a conferência das referências aninhadas do `cosign-installer`, os casos do T047 e o resultado do T051.
 
 **Checkpoint**: US5 completa, com a comprovação no pipeline (T063).
@@ -389,7 +389,7 @@ os arquivos de `docs/` e o README.
   Conferir na página do PR que os 12 aparecem como obrigatórios. Registrar em `docs/ai/decisoes.md`, numa entrada "Proteção da main depois do Marco 4", a lista configurada e a confirmação do bypass desligado, sem nenhum dado pessoal.
 - [ ] T065 Rodar as seções 1 a 5 e 7 de `specs/004-acabamento-operacional/quickstart.md`, num clone limpo do branch: só com o JDK, a seção 1 e a 2; com o Docker, as demais. Anotar os resultados e os `PULADO` na descrição do commit.
 - [ ] T066 Registrar em `docs/ai/decisoes.md` o fechamento do bolt: o resultado do T012 (entrada própria), do T063 e do T065, os `PULADO`, o estado do T005 e as pendências. Marcar na seção "Revisão da documentação" de `specs/004-acabamento-operacional/checklists/requirements.md` os itens conferidos, inclusive o das portas encaminhadas do dev container (FR-029), a partir do T058 ou de uma abertura manual no VS Code.
-- [ ] T067 Rodar `./mvnw verify`: verde, sem Docker. Informar o resultado real. Atualizar o **Status** de `specs/004-acabamento-operacional/spec.md` para `Implemented`, listando o que ainda depende de push ou do Anderson. Atualizar o **Status** de `specs/003-modo-docker/spec.md`, retirando as pendências fechadas (T050 e T093 da spec 003).
+- [ ] T067 Rodar `./mvnw verify` e `./mvnw -Pextras verify`: verdes, sem Docker. Informar o resultado real. Atualizar o **Status** de `specs/004-acabamento-operacional/spec.md` para `Implemented`, listando o que ainda depende de push ou do Anderson. Atualizar o **Status** de `specs/003-modo-docker/spec.md`, retirando as pendências fechadas (T050 e T093 da spec 003).
 - [ ] T068 Commit `Etapa 6: dev container, SLO, runbook, ADRs e README do Marco 4` com T054 a T067. Avisar o Anderson de que o bolt está pronto para o PR. Depois do merge, a sessão é exportada para `docs/ai/sessoes/`.
 
 ---

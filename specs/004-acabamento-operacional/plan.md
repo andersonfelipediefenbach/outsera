@@ -121,7 +121,7 @@ muda. O "Complexity Tracking" não se aplica.
 
 | Requisito | Comprovação |
 | --- | --- |
-| FR-001, FR-002, SC-001 | job `build` (`./mvnw verify`, suíte sem mudança); `workflow-policy` (`check-unchanged-tests.sh` contra `v0.2.0` e `v0.3.0`) |
+| FR-001, FR-002, SC-001 | job `build` (`./mvnw -Pextras verify`, suíte sem mudança; o `./mvnw verify` padrão roda só os ITs do modo padrão, constituição 2.0.0); `workflow-policy` (`check-unchanged-tests.sh` contra `v0.2.0` e `v0.3.0`) |
 | FR-003, FR-007, FR-011a | checklist "Revisão da documentação" (SLO, runbook e registro da medição e da folga) |
 | FR-004, FR-006, FR-008, SC-002 | job `alert-rules` |
 | FR-005 | `slo.test.yml` (5xx ruim; 2xx, 304 e 4xx bons; alvo fora) no job `alert-rules` |
@@ -253,7 +253,7 @@ A registrar em `docs/ai/decisoes.md`, no commit da etapa 1.
    cima (R5).
 3. **Execuções de medição:** as 5 são feitas com "Re-run jobs" do job `load` no mesmo commit, sem
    commits vazios (R5).
-4. **Etapas:** cada etapa termina com o `./mvnw verify` verde e um commit.
+4. **Etapas:** cada etapa termina com o `./mvnw verify` e o `./mvnw -Pextras verify` verdes e um commit (constituição 2.0.0).
 
 ## Complexity Tracking
 

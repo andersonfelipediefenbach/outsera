@@ -16,6 +16,8 @@ Se a tarefa contradiz uma fonte de prioridade maior, pare e pergunte ao Anderson
 ## Regras invioláveis
 
 - **O modo padrão é sagrado.** A aplicação sobe e os testes passam só com `./mvnw` (`./mvnw spring-boot:run` e `./mvnw verify`), sem Docker e sem nada instalado além do JDK. Nenhum extra pode quebrar isso.
+  - O `./mvnw verify` padrão roda só os ITs do **modo padrão** (listados em `src/test/default-mode-its.txt`), numa única execução do Failsafe: H2, carga do CSV com todas as regras (inclusive as da spec 003), endpoints, Swagger e o que vem ligado sem configuração. É o comando que o avaliador roda para o core (constituição 2.0.0, Princípio II).
+  - Os ITs do que vem desligado por padrão (Kafka, autenticação ligada, log em JSON e observabilidade que dependa de configuração), a execução com o log em JSON e a cobertura mínima de 90% rodam com `./mvnw -Pextras verify`, também sem Docker e só com o JDK. O job `build` do pipeline roda esse perfil obrigatoriamente.
 - **O contrato de intervalos é exatamente o do PDF.** `GET /api/producers/intervals` devolve `{ "min": [...], "max": [...] }` com itens `producer`, `interval`, `previousWin` e `followingWin`. Nenhum campo é adicionado, renomeado ou removido.
 - **No back-end, só testes de integração** (item 4.2). Nada de testes unitários na API.
   - Todo teste usa `@SpringBootTest` com o contexto completo da aplicação, sem mocks.
@@ -37,11 +39,12 @@ O trabalho é Spec-Driven Development com o GitHub Spec Kit, no modo *spec-ancho
   4. O implementador corrige apenas o que o Anderson aceitar.
   5. O merge acontece com o pipeline verde, e a sessão é exportada.
 - **Rastreabilidade:** cada requisito aponta para a comprovação adequada ao seu tipo (Princípio VI,
-  constituição 1.7.0):
-  - comportamento da aplicação: teste de integração no `./mvnw verify`. Se o comportamento depende de
-    infraestrutura indisponível no modo padrão, como o PostgreSQL, o teste de integração roda num perfil
-    Maven dedicado, que o pipeline executa obrigatoriamente. Se a dependência tem substituto embutido sem
-    Docker, como o broker Kafka do Spring, o teste continua no `./mvnw verify`;
+  constituição 2.0.0):
+  - comportamento da aplicação: teste de integração no `./mvnw verify`, se for do modo padrão, ou no
+    `./mvnw -Pextras verify`, se depender de algo desligado por padrão. Se o comportamento depende de infraestrutura
+    indisponível no modo padrão, como o PostgreSQL, o teste de integração roda num perfil Maven dedicado,
+    que o pipeline executa obrigatoriamente. Se a dependência tem substituto embutido sem Docker, como o
+    broker Kafka do Spring, o teste continua sem Docker, no `./mvnw -Pextras verify`;
   - documentação: revisão, com item no checklist da spec;
   - pipeline e imagem: execução do pipeline.
 - Não abra pull request, não faça merge e não crie tags por conta própria. Esses passos são do Anderson.
@@ -96,11 +99,13 @@ O detalhe fica na spec. Estas regras não mudam sem decisão registrada.
 ## Testes
 
 - Todo comportamento novo ou alterado chega com o teste de integração correspondente, no mesmo bolt.
-- Os testes do enunciado e dos extras da API rodam com `./mvnw verify` **sem Docker**. Kafka usa o broker embutido do Spring, não Testcontainers.
-- Testes que exigem PostgreSQL ficam em um perfil Maven separado, executado obrigatoriamente no pipeline (Princípio VI, 1.7.0). Eles cobrem só o que depende do PostgreSQL. O comportamento comum aos dois bancos é testado também no `./mvnw verify`, com H2.
+- Os testes do modo padrão rodam com `./mvnw verify`, e os do que vem desligado por padrão com `./mvnw -Pextras verify`, os dois **sem Docker** (constituição 2.0.0). Kafka usa o broker embutido do Spring, não Testcontainers.
+- Um IT novo entra em `src/test/default-mode-its.txt` se testa o modo padrão (sem nenhuma configuração); se depende de algo desligado por padrão, fica fora da lista e roda no perfil `extras`.
+- A cobertura mínima de 90% é conferida no `./mvnw -Pextras verify`, sobre a soma das execuções do Failsafe.
+- Testes que exigem PostgreSQL ficam em um perfil Maven separado, executado obrigatoriamente no pipeline (Princípio VI). Eles cobrem só o que depende do PostgreSQL. O comportamento comum aos dois bancos é testado também sem Docker, com H2.
 - CSVs de cenário ficam em `src/test/`.
 - Um teste que verifica por log ou banco, porque o endpoint ainda não existe, ganha a verificação por HTTP no bolt em que o endpoint surgir (Princípio I).
-- Antes de dar uma tarefa como pronta, rode `./mvnw verify` e informe o resultado real. Se algo falhou ou foi pulado, diga.
+- Antes de dar uma tarefa como pronta, rode `./mvnw verify` e `./mvnw -Pextras verify` e informe o resultado real. Se algo falhou ou foi pulado, diga.
 
 ## Segurança
 
@@ -141,7 +146,7 @@ Pontos que estavam em aberto e já foram decididos (detalhe em `specs/001-produc
 - [ ] A spec reflete o comportamento entregue.
 - [ ] Cada requisito do bolt tem a comprovação do seu tipo (Princípio VI): teste de integração para
   comportamento, item de revisão no checklist para documentação, estágio do pipeline para pipeline e
-  imagem. `./mvnw verify` passa sem Docker.
+  imagem. `./mvnw verify` e `./mvnw -Pextras verify` passam sem Docker.
 - [ ] O contrato de intervalos continua idêntico ao do PDF.
 - [ ] Nenhum segredo nem dado pessoal foi adicionado.
 - [ ] As decisões relevantes foram registradas em `docs/ai/decisoes.md` ou em um ADR.

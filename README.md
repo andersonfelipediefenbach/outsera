@@ -16,7 +16,14 @@ wrapper baixa o Maven, e o banco é um H2 em memória.
 | | Linux, macOS ou Git Bash | Windows (PowerShell ou cmd) |
 | --- | --- | --- |
 | Subir a aplicação | `./mvnw spring-boot:run` | `.\mvnw.cmd spring-boot:run` |
-| Rodar os testes | `./mvnw verify` | `.\mvnw.cmd verify` |
+| Rodar os testes do modo padrão | `./mvnw verify` | `.\mvnw.cmd verify` |
+| Rodar também os testes do que vem desligado (opcional) | `./mvnw -Pextras verify` | `.\mvnw.cmd -Pextras verify` |
+
+O `./mvnw verify` roda os **testes de integração de todo o modo padrão**: H2, a carga do CSV com todas as
+regras, os dois endpoints, o Swagger e o que vem ligado sem configuração (ETag, sondas, métricas e log em
+texto). Num clone limpo, com as dependências do Maven já baixadas, ele leva cerca de 1 minuto (63 s medidos, com a compilação). Os testes do que
+vem desligado por padrão (Kafka, autenticação ligada e log em JSON) e a cobertura mínima de 90% rodam com
+`./mvnw -Pextras verify`, também sem Docker, em cerca de 4 a 9 minutos. O pipeline roda os dois em todo push (seção 5).
 
 A aplicação responde em `http://localhost:8080`. A carga do CSV termina antes de o servidor aceitar
 conexões, e o log mostra o resumo:
@@ -390,32 +397,39 @@ histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{u
 ## 5. Testes
 
 ```bash
-./mvnw verify                          # todos os testes (Linux, macOS ou Git Bash)
-./mvnw verify -Dit.test=ReferenceFileIT # uma classe só
+./mvnw verify                          # testes do enunciado (Linux, macOS ou Git Bash)
+./mvnw -Pextras verify                 # todos os testes, com os dos extras e a cobertura mínima
+./mvnw -Pextras verify -Dit.test=ReferenceFileIT   # uma classe só
 ```
 
 ```powershell
 .\mvnw.cmd verify
-.\mvnw.cmd verify "-Dit.test=ReferenceFileIT"   # no PowerShell, o -D vai entre aspas
+.\mvnw.cmd -Pextras verify
+.\mvnw.cmd -Pextras verify "-Dit.test=ReferenceFileIT"   # no PowerShell, o -D vai entre aspas
 ```
 
-São **261 testes de integração**, executados pelo Maven Failsafe na fase `verify`, **sem Docker**, em duas
-execuções:
+Todos são **testes de integração**, executados pelo Maven Failsafe na fase `verify`, **sem Docker**
+(constituição 2.0.0, Princípios II e VI):
 
-- **padrão:** todos os testes, com o log em texto. Os 5 do `JsonLogFormatIT` ficam pulados, porque só
-  valem com o JSON ligado;
-- **`json-logs`:** os 85 testes das classes marcadas com `@Tag("log")` rodam de novo, numa JVM própria,
-  com `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`. Assim, as mesmas verificações de log valem nos dois
-  formatos.
+- **`./mvnw verify`:** uma execução, com os **209 testes do modo padrão**, listados em
+  [`src/test/default-mode-its.txt`](src/test/default-mode-its.txt): os do enunciado (Marco 1) e os dos Marcos 2
+  e 3 que valem sem nenhuma configuração. Leva cerca de 1 minuto num clone limpo (63 s medidos, com a compilação);
+- **`./mvnw -Pextras verify`:** a mesma execução e mais duas:
+  - **`extras`:** os testes do que vem desligado por padrão (Kafka, inclusive os do testador adversário,
+    e a autenticação ligada), com o log em texto. Os 5 do `JsonLogFormatIT` ficam
+    pulados, porque só valem com o JSON ligado;
+  - **`json-logs`:** os 85 testes das classes marcadas com `@Tag("log")` rodam de novo, numa JVM
+    própria, com `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`. Assim, as mesmas verificações de log valem nos
+    dois formatos.
 
-Os testes do Kafka rodam no `./mvnw verify` com o **broker embutido** do Spring Kafka (KRaft, dentro do
-próprio teste), sem Docker.
+Os testes do Kafka rodam no `./mvnw -Pextras verify` com o **broker embutido** do Spring Kafka (KRaft,
+dentro do próprio teste), sem Docker.
 
-A **cobertura** de linhas é medida pelo JaCoCo sobre as duas execuções, e o `verify` falha abaixo de
-**90%**. Hoje ela está em 97,35%, e o relatório fica em `target/site/jacoco-it/index.html`. A execução
-completa leva cerca de 3 min numa cópia de trabalho já compilada. Os testes do Kafka usam um perfil
-só de teste (`kafkatest`, em `src/test/resources`), com prazos curtos dos clientes, e reaproveitam o
-contexto do Spring entre as classes que só leem.
+A **cobertura** de linhas é medida pelo JaCoCo sobre a soma das execuções do `./mvnw -Pextras verify`, que
+falha abaixo de **90%**. O relatório fica em `target/site/jacoco-it/index.html`. O job `build` do pipeline
+roda esse perfil em todo push. Os testes do Kafka usam um perfil só de teste (`kafkatest`, em
+`src/test/resources`), com prazos curtos dos clientes, e reaproveitam o contexto do Spring entre as
+classes que só leem.
 
 **Testes com PostgreSQL** (perfil Maven `postgres-it`): o que só existe no PostgreSQL fica fora do
 `./mvnw verify` padrão (Princípio II) e roda obrigatoriamente no job `postgres` do pipeline (Princípio VI,
@@ -486,7 +500,7 @@ publicar a imagem. Toda action é fixada por hash de commit. O contrato completo
 | Job | O que faz | Reprova quando |
 | --- | --- | --- |
 | `workflow-policy` | Confere a política do workflow, do Dependabot e do compose, e que os testes dos Marcos 1 e 2 não mudaram desde a `v0.2.0` | Action sem hash de commit, permissão além de `contents: read` (exceto `security-events: write` no `codeql`), uso de `secrets.`, publicação de imagem, Dependabot incompleto, imagem do compose ou de service container sem digest, senha de banco no workflow, ou um IT da `v0.2.0` alterado sem exceção registrada |
-| `build` | `./mvnw verify`, cobertura no resumo e relatórios como artefato | Qualquer teste falha, ou a cobertura de linhas fica abaixo de 90% |
+| `build` | `./mvnw -Pextras verify` (enunciado, extras e log em JSON), cobertura no resumo e relatórios como artefato | Qualquer teste falha, ou a cobertura de linhas fica abaixo de 90% |
 | `postgres` | `./mvnw -Ppostgres-it verify` contra um PostgreSQL 18 (service container, collation `C`, sem credencial) | Qualquer `*PostgresIT` falha |
 | `compose` | [`compose-test.sh`](.github/scripts/compose-test.sh): sobe o compose e confere a referência, o Prometheus, o dashboard, um vencedor novo pelo Kafka em até 5 s, o tópico de erros, a persistência depois de `down`, a queda real do banco e o token | Qualquer passo falha, ou a subida até o dashboard passa de 3 min |
 | `codeql` | Análise do código Java (`security-extended`) | Achado de severidade alta ou crítica (`security-severity` ≥ 7,0) |
@@ -547,8 +561,8 @@ completa está em [`specs/002-operacao/plan.md`](specs/002-operacao/plan.md#rast
 
 ### Requisitos do Marco 3 (modo Docker e autenticação)
 
-Também fora do enunciado. O comportamento comum aos dois bancos é comprovado no `./mvnw verify`, e o que
-só existe no PostgreSQL, no perfil `postgres-it` (Princípio VI, constituição 1.7.0). A matriz completa está
+Também fora do enunciado. O comportamento comum aos dois bancos é comprovado no `./mvnw -Pextras verify`,
+e o que só existe no PostgreSQL, no perfil `postgres-it` (Princípio VI, constituição 2.0.0). A matriz completa está
 em [`specs/003-modo-docker/plan.md`](specs/003-modo-docker/plan.md#rastreabilidade-princípio-vi). Os
 `@DisplayName` dos testes novos começam por `S003`, porque os IDs das três specs se repetem.
 
@@ -882,9 +896,9 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 │   ├── static/swagger-ui.html   # página do Swagger UI
 │   └── META-INF/spring.factories # registra a mensagem de falha da carga
 ├── src/test/java/com/outsera/awards/  # somente testes de integração (*IT)
-│   ├── adversario/  ingestion/  intervals/  movies/  docs/  web/  support/
-│   ├── etag/  health/  metrics/  logging/   # Marco 2
-│   ├── isolation/  kafka/  security/        # Marco 3, no ./mvnw verify
+│   ├── adversario/  ingestion/  intervals/  movies/  docs/  web/  support/   # modo padrão (lista em src/test/default-mode-its.txt)
+│   ├── etag/  health/  metrics/  logging/   # Marco 2; o JsonLogFormatIT só no perfil extras
+│   ├── isolation/  kafka/  security/        # Marco 3; kafka/ e a autenticação ligada no perfil extras
 │   ├── postgres/                            # Marco 3, só no perfil postgres-it
 │   └── SmokeIT.java
 ├── src/test/resources/scenarios/  # um CSV por cenário de teste

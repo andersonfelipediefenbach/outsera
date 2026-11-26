@@ -46,8 +46,10 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
-      - name: ./mvnw verify (duas execuções do Failsafe e cobertura mínima de 90%)
-        run: ./mvnw -B verify
+      # Perfil extras (constituição 2.0.0, Princípios II e VI): os ITs do enunciado (Marco 1), os dos extras
+      # e a execução com o log em JSON, com a cobertura mínima sobre a soma das três execuções.
+      - name: ./mvnw -Pextras verify (três execuções do Failsafe e cobertura mínima de 90%)
+        run: ./mvnw -B -Pextras verify
       - name: Cobertura no resumo
         if: always()
         run: |
@@ -65,6 +67,7 @@ jobs:
           path: |
             target/site/jacoco-it/
             target/failsafe-reports/
+            target/failsafe-reports-extras/
             target/failsafe-reports-json-logs/
           if-no-files-found: warn
 

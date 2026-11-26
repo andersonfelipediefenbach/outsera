@@ -20,6 +20,13 @@
   temporário dentro do job do pipeline, é assinada lá e recebe o SBOM como atestado assinado. A verificação
   confere a identidade como imagem. O registro é descartado no fim do job; só a entrada no registro de
   transparência é pública. US5-6, FR-025.
+- Q: Com os ITs dos Marcos 2 a 4, o `./mvnw verify` padrão chegou a cerca de 8 min. Ele continua rodando
+  todos os ITs? → A: Não (emenda 2.0.0 da constituição, decidida pelo responsável). O `./mvnw verify`
+  padrão roda só os ITs do modo padrão (H2, carga do CSV com todas as regras, inclusive as da spec 003,
+  endpoints, Swagger e o que vem ligado sem configuração), numa única execução do Failsafe. Os do que vem
+  desligado por padrão (Kafka, autenticação ligada, log em JSON e observabilidade que dependa de
+  configuração), a execução com o log em JSON e a cobertura mínima vão para o perfil `extras` (`./mvnw -Pextras verify`), sem Docker,
+  que o job `build` roda obrigatoriamente. Nenhum IT muda. FR-001, FR-038, SC-001.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -290,9 +297,12 @@ testes permanentes de cada falha encontrada.
 
 **Modo padrão**
 
-- **FR-001**: O modo padrão MUST continuar idêntico ao do Marco 3: `./mvnw spring-boot:run` e `./mvnw
-  verify` funcionam sem Docker, com H2 e o `movielist.csv` embarcado, e nenhum teste dos Marcos 1 a 3 tem o
-  resultado esperado alterado (Princípio II).
+- **FR-001**: O modo padrão MUST continuar funcionando sem Docker, com H2 e o `movielist.csv` embarcado:
+  `./mvnw spring-boot:run` sobe a aplicação, e `./mvnw verify` roda os ITs de todo o modo padrão numa única
+  execução do Failsafe. `./mvnw -Pextras verify` roda também os ITs do que vem desligado por padrão
+  (Kafka, autenticação ligada e log em JSON), a execução com o log em JSON e a cobertura mínima, também
+  sem Docker. Nenhum teste dos Marcos 1 a 3 tem o resultado
+  esperado alterado (Princípio II, constituição 2.0.0).
 - **FR-002**: Nenhum item deste marco MUST adicionar dependência de execução, configuração obrigatória ou
   teste unitário à API. O contrato de intervalos continua idêntico ao do enunciado (Princípio III).
 
@@ -413,7 +423,7 @@ testes permanentes de cada falha encontrada.
   obtido, confirmação de que o branch foi apagado) é a única coisa da verificação que entra no marco.
 - **FR-035**: O testador adversário (Codex) MUST ser acionado pelo Anderson para a ingestão por Kafka (T050
   da spec 003), criando eventos de ataque a partir da spec 003 e do contrato dos eventos, sem ler o código
-  de produção. Cada falha encontrada MUST virar teste de integração permanente no `./mvnw verify`, com o
+  de produção. Cada falha encontrada MUST virar teste de integração permanente no `./mvnw -Pextras verify`, com o
   broker embutido, e a correção, no mesmo bolt (Princípio I). O resultado MUST ser registrado, mesmo sem
   falhas.
 
@@ -430,10 +440,11 @@ testes permanentes de cada falha encontrada.
 
 **Comprovação**
 
-- **FR-038**: Cada requisito MUST ser comprovado na forma do Princípio VI (constituição 1.7.0):
-  - modo padrão (FR-001, FR-002, FR-017): a suíte existente do `./mvnw verify`, verde e sem alteração dos
-    resultados esperados;
-  - correções do testador adversário (FR-035): teste de integração no `./mvnw verify`;
+- **FR-038**: Cada requisito MUST ser comprovado na forma do Princípio VI (constituição 2.0.0):
+  - modo padrão (FR-001, FR-002, FR-017): a suíte existente, verde e sem alteração dos resultados
+    esperados: os ITs do modo padrão no `./mvnw verify` e os do que vem desligado por padrão no
+    `./mvnw -Pextras verify`, que o job `build` roda;
+  - correções do testador adversário (FR-035): teste de integração no `./mvnw -Pextras verify`;
   - regras de alerta, teste de carga, gerador, cache AOT, SBOM, assinatura, dev container e job de
     dependências (FR-008 a FR-016, FR-019 a FR-030, FR-033): estágio do pipeline, indicado no plano;
   - SLO, runbook, README, ADRs e registros em `docs/ai/decisoes.md` (FR-003, FR-007, FR-011a, FR-018,
@@ -458,8 +469,8 @@ testes permanentes de cada falha encontrada.
 
 ### Measurable Outcomes
 
-- **SC-001**: `./mvnw verify` passa sem Docker, com todos os testes dos Marcos 1 a 3 e os resultados
-  esperados sem alteração.
+- **SC-001**: `./mvnw verify` (ITs do modo padrão) e `./mvnw -Pextras verify` (todos os ITs dos Marcos 1 a
+  4, fora os do PostgreSQL) passam sem Docker, com os resultados esperados sem alteração.
 - **SC-002**: 100% das regras de alerta têm ao menos um teste que dispara e um que não dispara, e todos
   passam no pipeline.
 - **SC-003**: Com a aplicação pronta e sem falhas injetadas, nenhum alerta do SLO dispara no compose.
