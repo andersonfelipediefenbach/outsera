@@ -6,12 +6,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Calcula os intervalos entre vitórias vizinhas de cada produtor (FR-011 a FR-016, research R6). O
- * resultado vem só dos dados carregados, sem nenhum valor fixo (FR-016a), e é recalculado a cada
- * chamada.
+ * resultado vem só dos dados carregados, sem nenhum valor fixo (FR-016a).
+ *
+ * <p>O resultado é guardado entre as leituras e invalidado a cada gravação, com consistência imediata
+ * ({@link ProducerIntervalsCache}). Só uma leitura sem resultado válido abre a transação e consulta as
+ * vitórias.
  */
 @Service
 public class ProducerIntervalService {
@@ -22,13 +26,22 @@ public class ProducerIntervalService {
             .thenComparing(ProducerInterval::producer);
 
     private final ProducerRepository producers;
+    private final ProducerIntervalsCache cache;
+    private final TransactionTemplate readOnly;
 
-    public ProducerIntervalService(ProducerRepository producers) {
+    public ProducerIntervalService(ProducerRepository producers, ProducerIntervalsCache cache,
+            PlatformTransactionManager transactionManager) {
         this.producers = producers;
+        this.cache = cache;
+        this.readOnly = new TransactionTemplate(transactionManager);
+        this.readOnly.setReadOnly(true);
     }
 
-    @Transactional(readOnly = true)
     public ProducerIntervalsResponse intervals() {
+        return cache.get(() -> readOnly.execute(status -> compute()));
+    }
+
+    private ProducerIntervalsResponse compute() {
         List<ProducerInterval> intervals = neighbouringIntervals();
         if (intervals.isEmpty()) {
             return new ProducerIntervalsResponse(List.of(), List.of());

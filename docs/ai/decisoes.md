@@ -3,6 +3,58 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-26 — Intervalos guardados entre as leituras, invalidados a cada gravação
+
+- **Falha encontrada no T021 da spec 004:** com os 100 mil filmes gerados, o endpoint de intervalos deu
+  p95 de 227 ms e p99 de 927 ms no k6, na máquina local. O objetivo de latência do SLO é 99% até o bucket
+  de cerca de 112 ms (research R1), e o T025 manda parar se o maior p99 passar dele.
+- **Opções descartadas pelo Anderson:** manter o objetivo e otimizar só o cálculo, trocar o bucket ou
+  medir com um arquivo menor. A decisão foi corrigir o endpoint.
+- **Causa:** o endpoint recalculava tudo a cada chamada. Ele lia todas as vitórias (`findWins`) e montava
+  os intervalos, embora o resultado só mude quando os dados mudam.
+- **Correção (`ProducerIntervalsCache`):** o resultado calculado fica guardado e é invalidado a cada
+  gravação.
+  - **Onde se invalida:** a carga direta do CSV (`importMovies`) e cada evento do Kafka gravado ou
+    atualizado (`record`) chamam `registerWrite()` dentro da sua transação. Com isso, há uma gravação em
+    andamento até o fim dela, com commit ou rollback (`afterCompletion`). Uma geração avança no começo e no
+    fim de cada gravação.
+  - **Consistência imediata:** com uma gravação em andamento, a leitura vai direto ao banco e não guarda
+    nada, então vê exatamente o que o banco mostra. Fora disso, ela serve o resultado guardado só se ele é
+    da geração atual, e só guarda um resultado novo se nenhuma gravação começou ou terminou durante o
+    cálculo. Assim, depois de uma gravação confirmada, nenhuma leitura recebe um resultado anterior a ela,
+    mesmo na janela entre o commit no banco e o fim da transação.
+  - **Por que em memória, e não numa tabela de versão:** a tabela exigiria a migração V2, e o
+    `SchemaPostgresIT` (da `v0.3.0`) confere que o histórico do Flyway tem só a versão 1. Alterar esse IT
+    seria mexer num teste que o `check-unchanged-tests.sh` protege.
+  - **Uma única instância:** o estado em memória vale para uma instância, que é o caso do modo padrão e do
+    compose. Com várias instâncias (Marco 5, Cloud Run), a invalidação precisa passar a um contador de
+    versão no banco ou a um evento compartilhado, como registra o
+    [ADR 0026](../adr/0026-intervalos-guardados-entre-leituras.md).
+  - **ETag:** continua igual, calculado pelo corpo da resposta.
+- **Comprovação:**
+  - `KafkaIntervalsCacheIT`, novo: lê duas vezes, grava dois vencedores por evento e, assim que a listagem
+    os mostra, lê de novo, sem esperar. O resultado e o ETag já são os novos. Depois, uma atualização
+    desfaz a mudança, e o resultado e o ETag voltam aos de antes. **Com o `registerWrite()` desligado, o
+    IT reprova** em "min logo depois da gravação";
+  - `KafkaUpdateIT`, `KafkaNewWinnerIT`, `KafkaIdempotencyIT`, `ReferenceFileIT`, `RandomizedOracleIT`
+    e os ITs de ETag: verdes;
+  - `./mvnw clean verify` verde (209 testes, 79 s) e `./mvnw -Pextras verify` verde (209, 61 com 5
+    pulados, e 85; cobertura de 93,30%; 255 s);
+  - **um `-Pextras` vermelho, descartado:** depois da prova de mutação, o arquivo foi restaurado de uma
+    cópia com data anterior à classe compilada, e a compilação incremental manteve o bytecode mutante.
+    Sete ITs de Kafka reprovaram por isso, com intervalos antigos. Um registro em memória do cache mostrou
+    que a invalidação estava certa, e o `clean verify` confirmou. Daqui em diante, toda prova de mutação
+    termina com `./mvnw clean`.
+- **Medição** (k6 no compose, com os 100 mil filmes gerados, na máquina local, com os limites provisórios):
+
+  | Endpoint | Antes (p95 / p99) | Depois (p95 / p99) |
+  | --- | --- | --- |
+  | intervalos | 227 ms / 927 ms | **1,54 ms / 1,84 ms** |
+  | listagem | 104 ms / 732 ms | 13,1 ms / 16,4 ms |
+
+  Nos dois, nenhum erro HTTP nem de contrato, e o k6 saiu com 0. A listagem melhorou porque os intervalos
+  deixaram de disputar a CPU. Os números do pipeline vêm do T025.
+
 ## 2026-11-25 — Emenda 2.0.0 da constituição: `./mvnw verify` só com os testes do modo padrão
 
 - **Origem:** com os ITs dos Marcos 2 a 4, o `./mvnw verify` padrão chegou a cerca de 8 min nas medições

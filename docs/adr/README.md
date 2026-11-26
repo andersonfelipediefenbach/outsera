@@ -30,6 +30,7 @@ aceito, rejeitado e por quê.
 | [0017](0017-autenticacao-por-token.md) | Autenticação por token com Spring Security, desligada por padrão | Aceito | 2026-11-24 |
 | [0018](0018-compose-com-observabilidade.md) | Compose com PostgreSQL, Kafka nativo, Prometheus e Grafana | Aceito | 2026-11-24 |
 | [0019](0019-testes-com-postgresql-em-perfil-dedicado.md) | Testes que dependem do PostgreSQL num perfil Maven dedicado | Aceito | 2026-11-24 |
+| [0026](0026-intervalos-guardados-entre-leituras.md) | Intervalos guardados entre as leituras, invalidados a cada gravação (uma instância) | Aceito | 2026-11-26 |
 
 A comprovação destes registros é a revisão do pull request, pela seção "Revisão dos ADRs" do checklist de
 cada spec: [`specs/002-operacao/checklists/requirements.md`](../../specs/002-operacao/checklists/requirements.md)
