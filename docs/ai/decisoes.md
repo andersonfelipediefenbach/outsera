@@ -3,6 +3,46 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-25 — Publicador Kafka: envio assíncrono, com o marcador por último
+
+- **Falha encontrada pelo T021 da spec 004:** no compose, a carga por Kafka dos 100 mil filmes gerados
+  levou cerca de 611 s, do início do container `app` à readiness 200. A espera do `load-test.sh` é de
+  600 s, e o runner compartilhado costuma ser mais lento.
+- **Causa:** o publicador enviava um evento por vez e esperava a confirmação de cada um (`send().get()`,
+  com `acks=all`), cerca de 166 eventos por segundo. O consumidor acompanhava logo atrás.
+- **Correção, pedida pelo Anderson:**
+  - **filmes:** envio assíncrono, em blocos de 10 mil. O publicador junta as confirmações de cada bloco e
+    espera todas antes de seguir. O `flush` do produtor só volta quando todos os registros terminaram;
+  - **ordem:** o produtor do publicador é idempotente (`enable.idempotence=true`, `acks=all`), e o tópico
+    tem uma partição;
+  - **marcador:** continua por último, de forma síncrona, e só sai depois de todos os filmes confirmados;
+  - **produtor próprio:** o `linger.ms` (20) e o `batch.size` (256 KiB) valem só para o publicador, numa
+    cópia da fábrica do Boot (`copyWithConfigurationOverride`). O produtor do consumidor, que envia ao
+    tópico de erros, não muda.
+- **Falha de envio, com a spec 003:** uma tentativa em que algum envio falha não publica o marcador, e a
+  readiness fica negativa. Depois da espera crescente, a tentativa seguinte recomeça do primeiro evento sem
+  confirmação. Os eventos reenviados caem na gravação idempotente por ano e título (FR-014). A falha não
+  encerra o publicador de vez, porque o caso de borda "Broker indisponível" da spec 003 exige que a
+  aplicação continue viva e publique quando o broker voltar (`KafkaBrokerLateStartIT` e
+  `KafkaBrokerUnavailableIT`).
+- **Medição local**, no compose, com a mesma imagem de base e o mesmo CSV de 100 mil filmes:
+
+  | | Publicador (fim da publicação) | Carga por Kafka (início do `app` à readiness 200) |
+  | --- | --- | --- |
+  | Antes | cerca de 600 s | cerca de 611 s |
+  | Depois | **cerca de 2 s** | **366 s** |
+
+  Nas duas, 100000 lidas, 100000 publicadas, 0 rejeitadas, 100000 filmes na listagem e os intervalos
+  plantados.
+- **Gargalo que sobra:** o consumidor, com uma transação e uma confirmação de offset por evento
+  (`ack-mode: record`), cerca de 290 eventos por segundo. Mudar isso muda a garantia de "um evento
+  inválido não trava o consumo" e a nova tentativa sem avançar o offset (spec 003, FR-015 e FR-015a), e
+  fica fora desta correção. Se o job `load` passar da espera no runner, a decisão volta ao Anderson.
+- **Comprovação:** os 39 ITs de Kafka verdes (e os 17 da execução com log em JSON), inclusive o
+  `KafkaBrokerLateStartIT`, o `KafkaBrokerUnavailableIT`, o `KafkaReadinessIT`, o `PublisherSummaryIT` e os
+  casos do marcador do testador adversário. `./mvnw -Ppostgres-it verify` verde (9 testes, com o
+  `RestartPostgresIT` e o caso 29). `./mvnw verify` completo verde.
+
 ## 2026-11-25 — Carga direta: flush automático a cada consulta, com custo quadrático
 
 - **Falha encontrada pelo T016 da spec 004:** com o CSV gerado de 100 mil filmes, a carga direta
