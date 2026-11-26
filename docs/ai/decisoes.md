@@ -3,6 +3,49 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-26 — Marco 5: publicação no Cloud Run
+
+Decisões da [spec 005](../../specs/005-deploy-cloud-run/spec.md), do plano e da análise. O resumo de
+arquitetura está no [ADR 0027](../adr/0027-publicacao-no-cloud-run.md).
+
+- **Publicação a cada merge na `main`, e não por tag de versão** (FR-025). O briefing previa a publicação por
+  tag, depois da entrega. O responsável decidiu publicar a cada push na `main`, depois dos 10 checks
+  obrigatórios, para a URL mostrar sempre o que está na `main`. O briefing não foi alterado: ele é o registro
+  do planejamento.
+- **Revisão sem tráfego até ser conferida** (clarificação, opção A, escolhida pelo responsável). A revisão
+  nova é conferida pela URL própria e só depois recebe o tráfego.
+  - Recusada a promoção direta com volta automática: deixaria a revisão ruim na URL pública por alguns
+    segundos.
+  - Recusado o "só reprovar o job": a URL ficaria quebrada até uma ação manual.
+- **O serviço é criado pelo `deploy/gcp/setup.sh`, com a imagem pública de exemplo do Cloud Run.** Isso
+  permite dar à conta de publicação `roles/run.developer` só no serviço, e não no projeto, e deixa o acesso
+  público (`allUsers` como invocador) fora do alcance do pipeline. Até a primeira publicação, a URL serve a
+  página de exemplo.
+- **Métricas fechadas na URL pública** (análise, achado S1; decisão do responsável). A publicação define
+  `MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health`, e `/actuator/prometheus` responde 404 (FR-004a).
+  Recusado expor as métricas como no modo padrão local: com a autenticação desligada, elas ficariam abertas
+  na internet, sem um Prometheus para coletá-las.
+- **`google-github-actions/deploy-cloudrun` não é usada.** Os passos `gcloud` explícitos permitem implantar
+  sem tráfego, conferir e só então trocar o tráfego. Ficaram a `auth` (v3.0.0) e a `setup-gcloud` (v3.0.1),
+  além da `download-artifact` (v8.0.2), todas fixadas por hash e sem `uses:` aninhado (research R2).
+- **Identificadores públicos no `env` do job, e não em variáveis do repositório** (research R10). Número do
+  projeto, provedor de identidade e e-mails das contas não são segredos. No workflow, ficam versionados e
+  visíveis na revisão, sem passo manual no GitHub.
+- **A política do workflow foi ampliada de forma estreita** (FR-012):
+  - `id-token: write` e o `skopeo` passam a ser permitidos só no job `deploy`;
+  - duas regras novas exigem, no job, os 10 checks obrigatórios, a concorrência sem cancelamento e nenhum
+    build;
+  - a concorrência do topo não pode cancelar sempre;
+  - a proibição de `secrets.` não mudou.
+- **Retenção do registro de 30 dias, mantendo as 10 imagens mais recentes** (análise, achado C1). A regra de
+  apagar só as imagens sem tag não bastaria, porque toda imagem recebe a tag do commit.
+- **Conferências locais reduzidas** (decisão do responsável, durante a implementação). Localmente, cada etapa
+  rodou só o `./mvnw verify` padrão. O `./mvnw -Pextras verify` e as conferências de política e de script
+  (T018, T021 e T026) ficaram para o pipeline. Os casos negativos da política não têm execução registrada.
+- **No Windows, o `gcloud` em bash precisa do `CLOUDSDK_PYTHON`** apontando para o Python do próprio SDK. Sem
+  ele, o atalho `python` da Microsoft Store responde no lugar, e o comando falha. O `setup.sh` define a
+  variável quando ela falta (research R9).
+
 ## 2026-11-26 — Proteção da main depois do Marco 4
 
 O ruleset `main` está ativo para a branch padrão, com a lista de bypass vazia. Para concluir o T064

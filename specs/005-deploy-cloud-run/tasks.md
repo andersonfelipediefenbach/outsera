@@ -297,34 +297,34 @@ merge (Phase 6).
 
 **Independent Test**: revisão no PR, guiada pelos itens de `checklists/revisao.md`.
 
-- [ ] T028 [P] [US5] Em `README.md`, seção "2. Avalie em 2 minutos": a URL pública de intervalos e do Swagger UI
+- [X] T028 [P] [US5] Em `README.md`, seção "2. Avalie em 2 minutos": a URL pública de intervalos e do Swagger UI
   (da T009), com o aviso de que a primeira chamada pode levar alguns segundos (partida a frio) e um `curl` de
   exemplo.
-- [ ] T029 [US5] Em `README.md`:
+- [X] T029 [US5] Em `README.md`:
   - subseção "Marco 5: publicação no Cloud Run (opcional)", depois da do Marco 4: o que é publicado (só o modo
     padrão), o fluxo sem tráfego, conferência e promoção, a federação sem chaves, o limite de uma instância e
     o motivo (ADR 0026), o que fica de fora e o `deploy/gcp/setup.sh`;
   - "Requisitos do Marco 5" na seção 6, com a comprovação de cada requisito (FR-026);
   - o job `deploy` na seção "Pipeline".
-- [ ] T030 [P] [US5] Criar `docs/adr/0027-publicacao-no-cloud-run.md` (contexto, decisão, alternativas e
+- [X] T030 [P] [US5] Criar `docs/adr/0027-publicacao-no-cloud-run.md` (contexto, decisão, alternativas e
   consequências: Cloud Run com 0 a 1 instância, WIF restrito pelo ID, a mesma imagem por digest sem rebuild,
   sem tráfego antes da conferência, o serviço criado pelo script, a convivência de duas revisões na troca e as
   métricas fechadas na URL pública com `MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health`, com o motivo:
   autenticação desligada e nenhum Prometheus coletando no Cloud Run) e incluí-lo no índice de
   `docs/adr/README.md`.
-- [ ] T031 [P] [US5] Em `docs/runbook.md`, seção "Publicação no Cloud Run":
+- [X] T031 [P] [US5] Em `docs/runbook.md`, seção "Publicação no Cloud Run":
   - falha antes da promoção: nada a fazer na URL, e como ler o resumo;
   - falha depois da promoção: `gcloud run services update-traffic awards --region=southamerica-east1 --to-revisions=<anterior>=100`
     e como achar a revisão anterior;
   - como reexecutar a publicação.
-- [ ] T032 [P] [US5] Em `docs/ai/decisoes.md`, as entradas:
+- [X] T032 [P] [US5] Em `docs/ai/decisoes.md`, as entradas:
   - publicação a cada merge na `main`, e não por tag, como previa o briefing (FR-025);
   - opção A da clarificação (sem tráfego antes da conferência);
   - serviço criado pelo script, com a imagem de exemplo;
   - `deploy-cloudrun` não usada;
   - identificadores no `env` do workflow, e não em variáveis do repositório;
   - política do workflow ampliada.
-- [ ] T033 [P] [US5] Criar `specs/005-deploy-cloud-run/checklists/revisao.md`, com os itens que o revisor
+- [X] T033 [P] [US5] Criar `specs/005-deploy-cloud-run/checklists/revisao.md`, com os itens que o revisor
   confere em FR-023, FR-024 e FR-025:
   - a URL e o aviso no README;
   - a seção e os requisitos do Marco 5;
@@ -332,7 +332,7 @@ merge (Phase 6).
   - o runbook;
   - as entradas em `decisoes.md`;
   - nenhum dado pessoal nem segredo nos arquivos novos e nas evidências.
-- [ ] T034 [US5] Rodar `./mvnw verify` e `./mvnw -Pextras verify`, informar o resultado real e fazer o commit
+- [X] T034 [US5] Rodar `./mvnw verify` (o `-Pextras` fica para o pipeline, por decisão do responsável), informar o resultado real e fazer o commit
   "Marco 5, etapa 4: README, ADR 0027, runbook e decisões".
 
 **Checkpoint**: o bolt está completo no branch.

@@ -1,6 +1,7 @@
 # Runbook dos alertas
 
-Uma seção por alerta do Prometheus do compose (`observability/prometheus/rules/slo.yml`). Cada alerta
+Uma seção por alerta do Prometheus do compose (`observability/prometheus/rules/slo.yml`), mais a
+[publicação no Cloud Run](#publicação-no-cloud-run) (Marco 5). Cada alerta
 traz o link da sua seção em `annotations.runbook_url`. Os objetivos e o orçamento estão em
 [`slo.md`](slo.md). Não há Alertmanager: os alertas aparecem em <http://localhost:9090/alerts> e no
 dashboard do Grafana.
@@ -86,3 +87,62 @@ minuto (`up{job="app"} == 0`). Para o SLO, esse tempo conta como indisponibilida
 - Erro na subida: corrigir a causa no log (por exemplo, o caminho em `MOVIES_CSV_PATH`) e subir de novo.
 - Token divergente: subir o compose com o mesmo `API_TOKEN` para a aplicação e o Prometheus
   (`API_TOKEN=<token> docker compose up -d`).
+
+## Publicação no Cloud Run
+
+Job `deploy` do pipeline, só em push na `main` (spec 005; [ADR 0027](adr/0027-publicacao-no-cloud-run.md)).
+O serviço é o `awards`, no projeto `outsera-awards`, região `southamerica-east1`, com a URL pública
+<https://awards-2564509384.southamerica-east1.run.app>. Os comandos abaixo precisam do login de quem tem
+acesso ao projeto (`gcloud auth login`). O pipeline não tem chave: ele usa a identidade federada.
+
+```bash
+gcloud run revisions list --service=awards --region=southamerica-east1 --project=outsera-awards
+gcloud run services describe awards --region=southamerica-east1 --project=outsera-awards \
+  --format='yaml(status.traffic)'
+.github/scripts/verify-deployment.sh --expect-no-metrics https://awards-2564509384.southamerica-east1.run.app
+```
+
+**Como ler a execução:** o resumo do job `deploy` traz a URL, o digest da imagem, a revisão, a URL da revisão
+e a tabela de cada conferência. Cada tabela tem o status e o tempo de cada chamada.
+
+### Falha antes da troca de tráfego
+
+Se o job parou até o passo "Conferência pela URL da revisão, antes do tráfego", **a URL pública não mudou**.
+Ela continua servindo a revisão anterior.
+
+- **Envio da imagem ou implantação:**
+  - erro de permissão (`PERMISSION_DENIED`): rodar `deploy/gcp/setup.sh` de novo, que reaplica os vínculos
+    que faltarem. Se faltar um papel de leitura do projeto que o script não concede, acrescentar só esse
+    papel ao script, com o motivo (spec 005, research R4);
+  - revisão que não sobe (o startup probe não chega a 200): ver o log com
+    `gcloud run services logs read awards --region=southamerica-east1 --project=outsera-awards --limit=200`.
+- **Conferência pela URL da revisão:** a revisão existe, mas não recebe tráfego. O resumo mostra o passo que
+  falhou e o corpo recebido. Corrigir num PR novo. Não é preciso voltar nada.
+
+### Falha depois da troca de tráfego
+
+Se o passo "Conferência pela URL pública" falhou, a revisão nova já recebe o tráfego. Para voltar à anterior:
+
+1. Achar a revisão anterior, a segunda da lista, por ordem de criação:
+
+   ```bash
+   gcloud run revisions list --service=awards --region=southamerica-east1 --project=outsera-awards \
+     --sort-by=~metadata.creationTimestamp --format='value(metadata.name)' --limit=2
+   ```
+
+2. Passar o tráfego para ela:
+
+   ```bash
+   gcloud run services update-traffic awards --region=southamerica-east1 --project=outsera-awards \
+     --to-revisions=<revisão anterior>=100
+   ```
+
+3. Conferir com o `verify-deployment.sh` na URL pública e registrar o incidente. A correção vem num PR novo. A
+   próxima publicação da `main` volta a promover só depois das duas conferências.
+
+### Publicar de novo
+
+- Reexecutar o job `deploy` na execução da `main` (re-run no GitHub Actions). A operação é segura de repetir:
+  a imagem é a do mesmo commit e o fluxo é o mesmo.
+- O artefato da imagem (`awards-oci`) fica guardado por 1 dia. Depois disso, a reexecução falha no download, e
+  é preciso reexecutar a execução inteira da `main`, que reconstrói e testa a imagem.
