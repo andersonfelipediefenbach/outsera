@@ -7,8 +7,9 @@
 **Status**: Implemented, com escopo reduzido (2026-11-26). Entregues: US7 (pendências do Marco 3), US3 (gerador),
 US2 (teste de carga) e US1 (SLO e alertas), com a página do SLO, o runbook e a seção do Marco 4 no README. Adiados,
 por decisão do responsável: US4 (cache AOT, etapa 4), US5 (SBOM e assinatura, etapa 5), US6 (dev container, etapa 6)
-e os ADRs 0020 a 0025 (FR-037). Dependem do responsável: T012 (verificação com o `lz4-java` 1.11.2) e T064 (proteção
-da `main` com os 10 checks).
+e os ADRs 0020 a 0025 (FR-037). O T012 (verificação no pipeline com o `lz4-java` 1.11.2) não foi executado, por
+decisão do responsável: a FR-034 fica comprovada pelas provas locais do T003 e do T007. Depende do responsável o T064
+(proteção da `main` com os 10 checks).
 
 **Input**: User description: "Marco 4: acabamento operacional, num único bolt. Nada muda no modo padrão do enunciado (./mvnw, H2, só testes de integração), e cada item tem a comprovação do seu tipo pelo Princípio VI. Escopo: 1. Alertas de SLO no Prometheus do compose (disponibilidade e latência do endpoint de intervalos), com regras versionadas e verificadas no pipeline. 2. Teste de carga com k6 contra o compose, com limites de latência e de erro que reprovam o job, rodando no pipeline. 3. Dados gerados: um gerador de CSV grande e determinístico para o k6 e para medir a carga inicial, sem substituir o movielist.csv padrão. 4. Cache de AOT (Spring Boot e JVM) na imagem, com o tempo de subida medido antes e depois. 5. SBOM da imagem e assinatura (cosign keyless no Actions), sem publicação da imagem neste marco. 6. Dev container para abrir o projeto pronto (JDK 25, Maven, Docker). Inclua também as pendências do marco 3: o registro da proteção da main (T093), a investigação de por que o job de dependências do Trivy não apontou as transitivas do kafka-clients (com correção) e a execução do testador adversário na ingestão por Kafka. O README ganha a seção do marco 4 entre os extras."
 

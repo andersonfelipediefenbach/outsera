@@ -108,7 +108,7 @@ verdes no `./mvnw verify`.
 - [X] T009 [US7] Rodar `.github/scripts/check-workflows.sh`: precisa passar (nenhuma action nova nesta etapa).
 - [X] T010 [US7] Rodar `./mvnw verify` e `./mvnw -Pextras verify`: verdes, sem Docker. Informar o resultado real.
 - [X] T011 [US7] Commit `Etapa 1: pendências do Marco 3 e inventário efetivo no job de dependências` com T003 a T010. Na descrição: os números do T001, o resultado do T003 e do T007, e o estado do T005.
-- [ ] T012 [US7] **Pendente: exige o push, que é do Anderson.** Verificação única da FR-034, pelo roteiro da T050 do Marco 2 (R12):
+- [ ] T012 [US7] **NÃO EXECUTADO, por decisão do Anderson (2026-11-26).** A comprovação é a local do T003 (com o `lz4-java` 1.11.2 efetivo, o Trivy em `rootfs` sobre `target/runtime-deps` sai com 1 e aponta a CVE-2026-106451) e do T007 (no HEAD, a mesma porta sai com 0 e o inventário traz o `lz4-java` 1.11.4), mais o job `dependencies` verde no pipeline. O branch `verificacao/trivy-transitivas` ficou só local, sem push. Texto original: **Pendente: exige o push, que é do Anderson.** Verificação única da FR-034, pelo roteiro da T050 do Marco 2 (R12):
   - criar o branch temporário `verificacao/trivy-transitivas` a partir de `marco/4-acabamento`, com um único commit que muda a propriedade da versão do `lz4-java` no `pom.xml` para `1.11.2`;
   - o push do branch é do Anderson ou com a autorização dele;
   - conferir que o job `dependencies` fica **vermelho** pela CVE da `lz4-java`, e que o resumo mostra `lz4-java` 1.11.2;

@@ -3,6 +3,27 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-26 — T012 não executado: verificação do job de dependências
+
+- **Decisão do Anderson:** o T012 da spec 004 não é executado. Ele previa um branch temporário com o
+  `lz4-java` 1.11.2, publicado só para ver o job `dependencies` ficar vermelho no pipeline (FR-034).
+- **Comprovação que fica no lugar,** toda local, com o Trivy 0.70.0 da action e a mesma porta do pipeline:
+  - **T003:** no commit `011eeba`, com o `lz4-java` 1.11.2 efetivo, o Trivy em `rootfs` sobre os JARs de
+    runtime copiados pelo Maven (`target/runtime-deps`) saiu com **1**, com a CVE-2026-106451 no
+    `lz4-java` e a CVE-2026-108106 e a CVE-2026-93451 no `snappy-java` 1.1.10.7;
+  - **T007:** no HEAD, a mesma porta saiu com **0**, e o inventário JSON trouxe o `lz4-java` 1.11.4 e o
+    `snappy-java` 1.1.10.12. A expressão `jq` do passo de inventário foi testada, inclusive com um pacote
+    ausente, que cai no ramo de falha;
+  - **pipeline:** o job `dependencies` passa a rodar com o inventário efetivo e mostra as duas versões no
+    resumo (SC-010).
+
+  O registro completo está na entrada "Job de dependências: causa da lacuna das transitivas do
+  kafka-clients".
+- **O que não fica comprovado:** só a execução do job vermelho no próprio GitHub Actions. O comando, a
+  versão do Trivy e a porta são os mesmos do job, então o risco é a diferença de ambiente, e não a lógica.
+- **Branch `verificacao/trivy-transitivas`:** ficou só local, com o commit `3c1fc42`, sem push. Nenhum
+  commit dele entrou no `marco/4-acabamento`.
+
 ## 2026-11-26 — Marco 4 com escopo reduzido
 
 - **Decisão do Anderson:** o Marco 4 fecha com as etapas 1 a 3, e as etapas 4, 5 e 6 ficam adiadas.
@@ -21,8 +42,7 @@ decisões de arquitetura ficam em ADRs, em `docs/adr/`.
   - os checks obrigatórios da `main` (FR-031, T064) passam a ser 10: os 8 do Marco 3, `alert-rules` e
     `load`;
   - a conferência do pipeline (T063) vale para esses 10 jobs;
-  - o T012, a verificação única do job de dependências com o `lz4-java` 1.11.2, continua pendente do push
-    do branch `verificacao/trivy-transitivas`, que está criado localmente;
+  - o T012 não é executado (entrada "T012 não executado: verificação do job de dependências").
   - a spec 004 registra a decisão em Clarifications e no Status, e as tarefas adiadas estão marcadas como
     ADIADO no `tasks.md`.
 
