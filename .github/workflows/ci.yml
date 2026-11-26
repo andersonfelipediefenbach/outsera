@@ -270,6 +270,41 @@ jobs:
           format: table
           exit-code: '1'
 
+  load:
+    # Teste de carga e medição da carga inicial (spec 004, FR-010 a FR-019, SC-004 a SC-006; research R4
+    # a R7). Gera o CSV duas vezes e compara os SHA-256, mede a carga direta e a carga por Kafka com o CSV
+    # gerado e roda o k6 com os limites. O resumo vai ao $GITHUB_STEP_SUMMARY, e os relatórios, aos
+    # artefatos. Nenhum segredo: o token do k6, quando usado, é o de demonstração.
+    name: Teste de carga (k6) e carga inicial com o CSV gerado
+    needs: dockerfile-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build da imagem (sem publicação)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          push: false
+          load: true
+          tags: awards:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Gerador, carga direta, carga por Kafka e k6
+        run: .github/scripts/load-test.sh awards:ci
+      - name: Relatórios do teste de carga
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: relatorios-load
+          path: target/load/
+          if-no-files-found: warn
+
   compose:
     # Ambiente completo do modo Docker (spec 003, FR-015a, FR-028 a FR-035, SC-005 e SC-008; research
     # R20). O token do passo 8 é gerado no próprio job e nunca é impresso nem gravado. A credencial do

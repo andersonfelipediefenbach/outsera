@@ -137,6 +137,31 @@ services:
       timeout: 3s
       retries: 30
 
+  k6:
+    # Teste de carga (spec 004, FR-010 a FR-013; research R4). Só sobe sob demanda, depois da readiness:
+    #   docker compose -f compose.yaml -f compose.load.yaml --profile load run --rm k6
+    # Os limites vêm de K6_* (load/intervals.js); vazios, valem os padrões do roteiro. O relatório vai para
+    # target/load/. O usuário padrão da imagem (12345) não escreve na pasta montada no runner Linux, então
+    # o load-test.sh passa o UID e o GID de quem roda em K6_USER.
+    image: grafana/k6:2.4.0@sha256:d41bb79cd8de5a7ad619b53570e3712633e8bff0937010a5c6c57a4747e7a276
+    profiles: [load]
+    user: "${K6_USER:-12345}"
+    environment:
+      BASE_URL: http://app:8080
+      API_TOKEN: ${API_TOKEN:-}
+      K6_P95_INTERVALS_MS: ${K6_P95_INTERVALS_MS:-}
+      K6_P99_INTERVALS_MS: ${K6_P99_INTERVALS_MS:-}
+      K6_P95_MOVIES_MS: ${K6_P95_MOVIES_MS:-}
+      K6_P99_MOVIES_MS: ${K6_P99_MOVIES_MS:-}
+      K6_MAX_ERROR_RATE: ${K6_MAX_ERROR_RATE:-}
+    volumes:
+      - ./load:/scripts:ro
+      - ./target/load:/out
+    command: ["run", "/scripts/intervals.js"]
+    depends_on:
+      app:
+        condition: service_healthy
+
   kafka-cli:
     # Ferramentas de linha de comando do Kafka, que a imagem nativa não tem. Só sobe sob demanda:
     #   docker compose --profile tools run --rm kafka-cli /opt/kafka/bin/kafka-console-producer.sh ...
