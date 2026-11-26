@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Configuração do GCP para a publicação no Cloud Run (spec 005, FR-017 a FR-021; research R3, R4 e R9;
+# spec 006, FR-027 e FR-028: o serviço awards-web do front;
 # contracts/setup-script.md).
 #
 # Uso: deploy/gcp/setup.sh
@@ -23,12 +24,16 @@ POOL=github
 PROVIDER=github-actions
 DEPLOY_SA=github-deployer
 RUNTIME_SA=awards-runtime
+# Front (spec 006, FR-027 e FR-028; research R10): segundo serviço, com conta de execução própria e sem papéis.
+WEB_SERVICE=awards-web
+WEB_RUNTIME_SA=awards-web-runtime
 PLACEHOLDER_IMAGE=us-docker.pkg.dev/cloudrun/container/hello
 ISSUER=https://token.actions.githubusercontent.com
 APIS=(run.googleapis.com artifactregistry.googleapis.com iam.googleapis.com iamcredentials.googleapis.com sts.googleapis.com)
 
 DEPLOY_EMAIL="$DEPLOY_SA@$PROJECT_ID.iam.gserviceaccount.com"
 RUNTIME_EMAIL="$RUNTIME_SA@$PROJECT_ID.iam.gserviceaccount.com"
+WEB_RUNTIME_EMAIL="$WEB_RUNTIME_SA@$PROJECT_ID.iam.gserviceaccount.com"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLEANUP_POLICY="$SCRIPT_DIR/cleanup-policy.json"
 
@@ -332,6 +337,62 @@ step9() {
   echo "URL_ALTERNATIVA=$hashed"
 }
 
+# Front (spec 006, FR-027 e FR-028; research R10; contracts/ci-frontend.md, "deploy/gcp/setup.sh").
+
+step10() { ensure_sa "$WEB_RUNTIME_SA" "$WEB_RUNTIME_EMAIL" "Execução do serviço awards-web"; }
+
+step11() {
+  local sa
+  if sa="$(gc run services describe "$WEB_SERVICE" --region="$REGION" --format='value(spec.template.spec.serviceAccountName)' 2>/dev/null)"; then
+    [[ "$sa" == "$WEB_RUNTIME_EMAIL" ]] || fail "o serviço $WEB_SERVICE roda com '$sa', e não com $WEB_RUNTIME_EMAIL" || return 1
+    return 0
+  fi
+  # Como o awards: criado com a imagem pública de exemplo, para os papéis ficarem no serviço e a URL ser
+  # conhecida antes da primeira publicação. 0 a 1 instância (FR-027).
+  gc_write run deploy "$WEB_SERVICE" --image="$PLACEHOLDER_IMAGE" --region="$REGION" \
+    --service-account="$WEB_RUNTIME_EMAIL" --min-instances=0 --max-instances=1 --cpu=1 --memory=256Mi \
+    --no-allow-unauthenticated \
+    || fail "não foi possível criar o serviço $WEB_SERVICE" || return 1
+  changed criado "serviço $WEB_SERVICE com a imagem de exemplo"
+}
+
+step12() {
+  local get add
+
+  # A mesma conta de publicação implanta revisões e muda o tráfego só do awards-web, sem poder mudar o IAM
+  # dele (não é run.admin). A identidade federada é a do Marco 5, sem vínculo novo.
+  get=(run services get-iam-policy "$WEB_SERVICE" --region="$REGION")
+  add=(run services add-iam-policy-binding "$WEB_SERVICE" --region="$REGION")
+  ensure_binding "serviço $WEB_SERVICE" "serviceAccount:$DEPLOY_EMAIL" roles/run.developer get add || return 1
+
+  # Implanta revisões que rodam com a conta de execução do front (actAs só nela).
+  get=(iam service-accounts get-iam-policy "$WEB_RUNTIME_EMAIL"); add=(iam service-accounts add-iam-policy-binding "$WEB_RUNTIME_EMAIL")
+  ensure_binding "conta $WEB_RUNTIME_SA" "serviceAccount:$DEPLOY_EMAIL" roles/iam.serviceAccountUser get add || return 1
+
+  # Front público, como a API (FR-027). O nginx chama a URL pública do awards, sem identidade do GCP, então
+  # a conta de execução do front não recebe nenhum papel.
+  get=(run services get-iam-policy "$WEB_SERVICE" --region="$REGION")
+  add=(run services add-iam-policy-binding "$WEB_SERVICE" --region="$REGION")
+  ensure_binding "serviço $WEB_SERVICE" allUsers roles/run.invoker get add || return 1
+
+  local keys
+  keys="$(gc iam service-accounts keys list --iam-account="$WEB_RUNTIME_EMAIL" --managed-by=user --format='value(name)')" \
+    || fail "não foi possível listar as chaves de $WEB_RUNTIME_EMAIL" || return 1
+  [[ -z "$keys" ]] || fail "a conta $WEB_RUNTIME_EMAIL tem chave gerenciada pelo usuário (proibido)" || return 1
+  echo "    $WEB_RUNTIME_EMAIL sem chaves gerenciadas pelo usuário"
+}
+
+step13() {
+  local web_url="https://$WEB_SERVICE-$PROJECT_NUMBER.$REGION.run.app" urls
+  urls="$(gc run services describe "$WEB_SERVICE" --region="$REGION" --format='value(metadata.annotations."run.googleapis.com/urls")')" \
+    || fail "não foi possível ler as URLs do serviço $WEB_SERVICE" || return 1
+  grep -qF "\"$web_url\"" <<<"$urls" || fail "a URL $web_url não está entre as do serviço: $urls" || return 1
+  echo
+  echo "GCP_WEB_SERVICE=$WEB_SERVICE"
+  echo "GCP_WEB_RUNTIME_SA=$WEB_RUNTIME_EMAIL"
+  echo "WEB_URL=$web_url"
+}
+
 run_step 0 "ferramentas, conta, projeto, faturamento e IDs do repositório" step0
 run_step 1 "APIs ativadas" step1
 run_step 2 "repositório de imagens $REPOSITORY e política de limpeza" step2
@@ -342,4 +403,8 @@ run_step 6 "provedor OIDC $PROVIDER (repositório e main)" step6
 run_step 7 "serviço $SERVICE no Cloud Run" step7
 run_step 8 "vínculos de IAM com permissões mínimas" step8
 run_step 9 "identificadores públicos" step9
+run_step 10 "conta de execução $WEB_RUNTIME_SA" step10
+run_step 11 "serviço $WEB_SERVICE no Cloud Run" step11
+run_step 12 "vínculos de IAM do $WEB_SERVICE com permissões mínimas" step12
+run_step 13 "identificadores públicos do $WEB_SERVICE" step13
 finish

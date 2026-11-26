@@ -1,0 +1,23 @@
+# check-workflows.sh contra o ci.yml do Marco 6 e contra 9 cópias alteradas (spec 006, T057; FR-030).
+# Rodado em alpine:3.22 com bash e yq (mikefarah v4), como no Marco 5. Cada caso altera uma cópia do ci.yml.
+
+workflow real: check-workflows.sh: 1 workflow(s), o dependabot.yml e o compose.yaml dentro da política.
+
+reprovou: 1-id-token-no-web
+    - .github/workflows/ci.yml: job web pede 'id-token: write' (só o job codeql pode ter security-events: write, e só os jobs deploy e deploy-web, id-token: write)
+reprovou: 2-docker-build-no-deploy-web
+    - .github/workflows/ci.yml: job deploy-web com docker build (a imagem publicada é a do job web, sem rebuild)
+reprovou: 3-deploy-web-sem-frontend
+    - .github/workflows/ci.yml: job deploy-web sem o check obrigatório 'frontend' em needs
+reprovou: 4-secrets-no-deploy-web
+    - .github/workflows/ci.yml: referência a secrets.: 750:      TOKEN: ${{ secrets.TOKEN }}
+reprovou: 5-setup-node-por-tag
+    - .github/workflows/ci.yml: uses sem hash de commit de 40 caracteres: actions/setup-node@v7
+reprovou: 6-deploy-web-sem-deploy
+    - .github/workflows/ci.yml: job deploy-web sem o check obrigatório 'deploy' em needs
+reprovou: 7-skopeo-no-web
+    - .github/workflows/ci.yml: job web usa skopeo (o envio de imagem ao registro só pode estar nos jobs deploy e deploy-web)
+reprovou: 8-docker-build-no-deploy
+    - .github/workflows/ci.yml: job deploy com docker build (a imagem publicada é a do job image, sem rebuild)
+reprovou: 9-docker-push-no-web
+    - .github/workflows/ci.yml: passo run com docker push

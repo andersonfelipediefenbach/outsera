@@ -383,26 +383,26 @@ tráfego.
 **Teste independente**: duas execuções seguidas do `setup.sh`, a segunda sem mudanças; `check-workflows.sh`
 aprovando o workflow e reprovando os casos negativos. A publicação real vem com o merge.
 
-- [ ] T054 [US5] Estender `deploy/gcp/setup.sh` conforme contracts/ci-frontend.md ("`deploy/gcp/setup.sh`
+- [X] T054 [US5] Estender `deploy/gcp/setup.sh` conforme contracts/ci-frontend.md ("`deploy/gcp/setup.sh`
   (alterado)") e data-model ("Recursos novos no GCP" e "Vínculos de IAM novos"): constantes `WEB_SERVICE=awards-web`
   e `WEB_RUNTIME_SA=awards-web-runtime`; os passos 1 a 6 com `run_step`, `ensure_sa` e `ensure_binding`; o motivo de
   cada vínculo num comentário; a saída com `GCP_WEB_SERVICE`, `GCP_WEB_RUNTIME_SA` e `WEB_URL`. Conferir `bash -n`.
-- [ ] T055 [US5] `source ~/.bashrc` e rodar `deploy/gcp/setup.sh` duas vezes. A primeira cria os recursos novos
+- [X] T055 [US5] `source ~/.bashrc` e rodar `deploy/gcp/setup.sh` duas vezes. A primeira cria os recursos novos
   (`criado`); a segunda termina com código 0 e tudo em `OK (já existia)`. Guardar as duas saídas em
   `specs/006-frontend-angular/evidencias/setup-execucoes.txt` (sem e-mail nem dados pessoais) e anotar a URL do
   `awards-web`. Conferir que `gcloud iam service-accounts keys list --iam-account=awards-web-runtime@outsera-awards.iam.gserviceaccount.com --managed-by=user`
   vem vazio. Se a primeira execução falhar, parar e informar.
-- [ ] T056 [P] [US5] Criar `.github/scripts/verify-web.sh <url>` com os 5 passos de contracts/ci-frontend.md
+- [X] T056 [P] [US5] Criar `.github/scripts/verify-web.sh <url>` com os 5 passos de contracts/ci-frontend.md
   ("`verify-web.sh <url>`"), com novas tentativas até 120 s, lendo a `REFERENCE` do `smoke-test.sh`. Conferência
   rápida contra a URL do `awards-web` com a imagem de exemplo: precisa **reprovar** no passo 2 (não é o front). O
   caso que aprova é comprovado pelo `deploy-web` depois do merge.
-- [ ] T057 [US5] Acrescentar ao `.github/workflows/ci.yml` o job `deploy-web` ("Publicação do front no Cloud Run e
+- [X] T057 [US5] Acrescentar ao `.github/workflows/ci.yml` o job `deploy-web` ("Publicação do front no Cloud Run e
   conferência"), conforme contracts/ci-frontend.md ("Job `deploy-web`"), com os identificadores públicos do T055 e os
   mesmos hashes de `auth`, `setup-gcloud` e `download-artifact` do `deploy`; e alterar o `check-workflows.sh`: as
   regras de escrita aceitam `deploy` e `deploy-web`, a regra de não rebuild vale para os dois, e a regra 9 confere os
   `needs` dos dois. Rodar o `check-workflows.sh` (aprova) e os cinco casos negativos do contrato ("Política do
   workflow") numa cópia temporária do repositório no scratchpad, com o mesmo contêiner alpine do T050 (todos reprovam). Conferir o YAML com o `js-yaml`.
-- [ ] T058 [US5] Commit da etapa 6: "Marco 6, etapa 6: serviço awards-web e job deploy-web".
+- [X] T058 [US5] Commit da etapa 6: "Marco 6, etapa 6: serviço awards-web e job deploy-web".
 
 ---
 

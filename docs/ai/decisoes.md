@@ -3,6 +3,17 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-26 — Política do workflow: `yq | grep -q` deixava passar `docker build` e `docker push`
+
+- **Origem:** casos negativos do `check-workflows.sh` na etapa 6 do Marco 6 (spec 006, T057). Um `docker build`
+  num passo do `deploy-web` era aprovado.
+- **Causa:** com `set -o pipefail`, `yq ... | grep -q` termina com erro quando o `grep -q` encontra o texto cedo e
+  fecha o pipe (SIGPIPE no `yq`), e o `if` lia isso como "não encontrado". O defeito vinha do Marco 5 e valia
+  também para o `docker build` no `deploy` e para o `docker push` em qualquer job (regras 5 e 9).
+- **Decisão:** a saída do `yq` vai para uma variável antes do `grep`, nas três verificações. Os 9 casos negativos
+  (os 5 do contrato do Marco 6 e mais 4) reprovam, e o workflow real continua aprovado
+  (`specs/006-frontend-angular/evidencias/politica-workflow.txt`).
+
 ## 2026-11-26 — Contrato 1.3.0: agregações do painel (spec 006)
 
 - **Origem:** spec 006 (Marco 6), FR-001 a FR-004. O painel do front precisa dos anos com mais de um vencedor e
