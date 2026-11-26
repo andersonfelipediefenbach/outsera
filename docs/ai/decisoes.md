@@ -3,6 +3,23 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-26 — PR #16: build da imagem da API sem depender do Maven Central no cache
+
+- **Origem:** job `image` vermelho nos runs 45905788282 e 45905598152 (commit 830401c). O passo "Build da imagem"
+  falhou em 3 s com `wget: server returned error: HTTP/1.1 429 Too Many Requests`, ao baixar o Maven do wrapper
+  dentro do `docker build`, e o Trivy seguinte não achou a `awards:ci`.
+- **Diagnóstico:** a pasta `frontend/` não entra no contexto. O passo "Contexto de build contra a lista de
+  permissão" passou, e o `.dockerignore` da raiz continua só com `mvnw`, `.mvn/`, `pom.xml` e `src/main/`. A causa é
+  do Dockerfile, e vinha do Marco 2. O `/root/.m2` era um `--mount=type=cache`, que o cache do GitHub não
+  guarda e que começa vazio em cada runner. Quando a camada do `dependency:go-offline` voltava do cache, o
+  `package` baixava de novo o Maven do wrapper e as dependências. Com o Central limitando a taxa, o build caía.
+- **Decisão:** o Maven do wrapper (`MAVEN_USER_HOME=/build/.m2`) e o repositório local
+  (`-Dmaven.repo.local=/build/.m2/repository`) passam a ficar dentro da camada das dependências, e o `package` roda
+  offline (`-o`). Com a camada em cache, o build não acessa o Central. Sem cache, os downloads acontecem uma vez, na
+  camada das dependências. Só o estágio de build cresce; a imagem final não muda.
+- **Comprovação local:** `docker build --no-cache` verde, com o `package` offline. A imagem sobe e devolve o
+  resultado de referência e as agregações, com o UID 10001. O hadolint e o `check-docker-context.sh` aprovam.
+
 ## 2026-11-26 — Testador adversário: front-end e agregações (Marco 6)
 
 O Anderson acionou o Codex como testador adversário do Marco 6. O Codex escreveu 27 casos a partir da spec 006,
