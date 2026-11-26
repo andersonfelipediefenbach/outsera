@@ -4,7 +4,11 @@
 
 **Created**: 2026-11-25
 
-**Status**: Draft
+**Status**: Implemented, com escopo reduzido (2026-11-26). Entregues: US7 (pendências do Marco 3), US3 (gerador),
+US2 (teste de carga) e US1 (SLO e alertas), com a página do SLO, o runbook e a seção do Marco 4 no README. Adiados,
+por decisão do responsável: US4 (cache AOT, etapa 4), US5 (SBOM e assinatura, etapa 5), US6 (dev container, etapa 6)
+e os ADRs 0020 a 0025 (FR-037). Dependem do responsável: T012 (verificação com o `lz4-java` 1.11.2) e T064 (proteção
+da `main` com os 10 checks).
 
 **Input**: User description: "Marco 4: acabamento operacional, num único bolt. Nada muda no modo padrão do enunciado (./mvnw, H2, só testes de integração), e cada item tem a comprovação do seu tipo pelo Princípio VI. Escopo: 1. Alertas de SLO no Prometheus do compose (disponibilidade e latência do endpoint de intervalos), com regras versionadas e verificadas no pipeline. 2. Teste de carga com k6 contra o compose, com limites de latência e de erro que reprovam o job, rodando no pipeline. 3. Dados gerados: um gerador de CSV grande e determinístico para o k6 e para medir a carga inicial, sem substituir o movielist.csv padrão. 4. Cache de AOT (Spring Boot e JVM) na imagem, com o tempo de subida medido antes e depois. 5. SBOM da imagem e assinatura (cosign keyless no Actions), sem publicação da imagem neste marco. 6. Dev container para abrir o projeto pronto (JDK 25, Maven, Docker). Inclua também as pendências do marco 3: o registro da proteção da main (T093), a investigação de por que o job de dependências do Trivy não apontou as transitivas do kafka-clients (com correção) e a execução do testador adversário na ingestão por Kafka. O README ganha a seção do marco 4 entre os extras."
 
@@ -27,6 +31,11 @@
   desligado por padrão (Kafka, autenticação ligada, log em JSON e observabilidade que dependa de
   configuração), a execução com o log em JSON e a cobertura mínima vão para o perfil `extras` (`./mvnw -Pextras verify`), sem Docker,
   que o job `build` roda obrigatoriamente. Nenhum IT muda. FR-001, FR-038, SC-001.
+- Q: O Marco 4 entrega as seis etapas? → A: Não (decisão do responsável, 2026-11-26). Entram as etapas 1 a 3, mais a
+  página do SLO, o runbook (os alertas apontam para ele) e a seção do Marco 4 no README, com o roteiro do que ficou
+  para depois. Ficam adiadas a etapa 4 (US4, FR-020 a FR-023), a etapa 5 (US5, FR-024 a FR-027) e a etapa 6 (US6,
+  FR-028 a FR-030, e os ADRs da FR-037). Os checks obrigatórios da `main` (FR-031) passam a ser 10: os 8 do Marco 3,
+  `alert-rules` e `load`. A spec e as tarefas dos itens adiados ficam guardadas para um marco futuro.
 
 ## User Scenarios & Testing *(mandatory)*
 

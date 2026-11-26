@@ -275,6 +275,90 @@ Carga do arquivo src/test/resources/scenarios/invalid-lines.csv concluída: 13 l
 
 ---
 
+### Marco 4: SLO, alertas, teste de carga e dados gerados (opcional)
+
+Tudo aqui é extra e roda só com o Docker. O modo padrão não muda (spec 004, FR-001).
+
+**SLO e alertas.** O endpoint de intervalos tem dois objetivos em 28 dias: **99,5% de disponibilidade** e
+**99% das requisições em até cerca de 112 ms** (o bucket `0.111848106` s do histograma). O detalhe está em
+[`docs/slo.md`](docs/slo.md).
+- O Prometheus do compose carrega as regras de
+  [`observability/prometheus/rules/slo.yml`](observability/prometheus/rules/slo.yml), e os alertas aparecem
+  em <http://localhost:9090/alerts>.
+- Os alertas medem a taxa de consumo do orçamento de erro em duas janelas por gravidade. Cada um leva ao
+  [runbook](docs/runbook.md).
+
+| Alerta | Dispara quando |
+| --- | --- |
+| `AwardsIntervalsAvailabilityBudgetBurn` | as respostas 5xx consomem o orçamento 14,4× (página) ou 6× (aviso) mais rápido que o permitido |
+| `AwardsIntervalsLatencyBudgetBurn` | as requisições acima de 112 ms consomem o orçamento 14,4× ou 6× mais rápido |
+| `AwardsAppDown` | o Prometheus não coleta a aplicação há mais de 1 minuto |
+
+Os testes das regras rodam com o `promtool` da mesma imagem do compose:
+
+```bash
+docker compose run --rm --no-deps --entrypoint promtool prometheus test rules /etc/prometheus/rules/slo.test.yml
+```
+
+**Gerador de CSV.** [`tools/csv-generator/GenerateMovies.java`](tools/csv-generator/GenerateMovies.java)
+gera um arquivo grande no formato do enunciado. É só o JDK, sem nenhuma dependência.
+- **Determinístico:** os mesmos parâmetros dão o mesmo SHA-256 em qualquer sistema operacional.
+- **Casos plantados:** dois produtores empatados em `min` (intervalo 0) e dois empatados em `max` (1900 a
+  2099).
+
+```bash
+java tools/csv-generator/GenerateMovies.java --output target/generated-data/movies.csv   # 100 mil filmes
+java tools/csv-generator/GenerateMovies.java --movies 500000 --seed 7 --output /tmp/filmes.csv
+MOVIES_CSV_PATH=target/generated-data/movies.csv ./mvnw spring-boot:run
+```
+
+| Medida | Valor |
+| --- | --- |
+| SHA-256 do padrão (100 mil filmes, semente 20261125) | `c4b741e30f85898ce6a2649554ca2c5b65836a4217a03dae33be243d7880f4a6`, igual no Windows e no Linux do pipeline |
+| Carga direta dos 100 mil até a readiness, no runner do pipeline | de 16,6 s a 20,1 s (3 execuções) |
+| Carga por Kafka dos 100 mil até a readiness, no runner | de 108 s a 193 s |
+| Maior arquivo carregado sem erro de memória | 2 milhões de filmes, em 222 s e com 11,8 GiB, numa VM do Docker com 15,5 GiB (máquina local; a memória cresce cerca de 6 GiB por milhão) |
+
+**Teste de carga.** O k6 roda no compose, no perfil `load`, contra os 100 mil filmes gerados. Ele mede a
+latência e confere o formato de cada resposta.
+
+```bash
+java tools/csv-generator/GenerateMovies.java --output target/generated-data/movies.csv
+docker compose -f compose.yaml -f compose.load.yaml up -d --wait
+docker compose -f compose.yaml -f compose.load.yaml --profile load run --rm k6
+docker compose -f compose.yaml -f compose.load.yaml --profile load down -v
+```
+
+O job `load` do pipeline faz tudo isso com o [`load-test.sh`](.github/scripts/load-test.sh) e reprova se:
+- o p99 dos intervalos passar de 111,848 ms, o mesmo bucket do alerta de latência;
+- o p99 da listagem passar de 100 ms;
+- a taxa de erro passar de 1%.
+
+Os limites ficam no objetivo do SLO para pegar regressões reais, como a perda do cache dos intervalos, e
+não o ruído do runner. Medido no runner, em 3 execuções verdes do commit `38334af`
+([push](https://github.com/andersonfelipediefenbach/outsera/actions/runs/45826809441) e
+[PR](https://github.com/andersonfelipediefenbach/outsera/actions/runs/45826811997)):
+
+| Endpoint | p95 | p99 | Vazão pedida | Erros |
+| --- | --- | --- | --- | --- |
+| `GET /api/producers/intervals` | de 0,78 a 1,40 ms | de 1,04 a 2,02 ms | 50 req/s | 0 |
+| `GET /api/movies` | de 9,23 a 10,13 ms | de 12,09 a 13,15 ms | 10 req/s | 0 |
+
+O resultado dos intervalos fica guardado entre as leituras e é invalidado a cada gravação, com
+consistência imediata, numa única instância ([ADR 0026](docs/adr/0026-intervalos-guardados-entre-leituras.md)).
+Antes disso, com os 100 mil filmes, o p99 dos intervalos era de 927 ms.
+
+**Roteiro: o que o Marco 4 deixou para depois.** O escopo do marco foi reduzido por decisão do responsável
+(spec 004, Status). Ficaram adiados, com a spec e as tarefas guardadas:
+
+| Item | Spec 004 | Situação |
+| --- | --- | --- |
+| Cache AOT da JVM na imagem e medição da subida | US4, FR-020 a FR-023 (etapa 4) | adiado |
+| SBOM da imagem e assinatura keyless com cosign | US5, FR-024 a FR-027 (etapa 5) | adiado |
+| Dev container | US6, FR-028 a FR-030 (etapa 6) | adiado |
+| ADRs 0020 a 0025 das decisões do Marco 4 | FR-037 (etapa 6) | adiado; as decisões estão em [`docs/ai/decisoes.md`](docs/ai/decisoes.md) |
+| Várias instâncias da aplicação | ADR 0026 | o cache dos intervalos precisa passar a um contador no banco ou a um evento compartilhado |
+
 ## 4. Endpoints
 
 O contrato completo (versão 1.2.0, com ETag e a autenticação opcional) está em
@@ -502,9 +586,11 @@ publicar a imagem. Toda action é fixada por hash de commit. O contrato completo
 | `workflow-policy` | Confere a política do workflow, do Dependabot e do compose, e que os testes dos Marcos 1 e 2 não mudaram desde a `v0.2.0` | Action sem hash de commit, permissão além de `contents: read` (exceto `security-events: write` no `codeql`), uso de `secrets.`, publicação de imagem, Dependabot incompleto, imagem do compose ou de service container sem digest, senha de banco no workflow, ou um IT da `v0.2.0` alterado sem exceção registrada |
 | `build` | `./mvnw -Pextras verify` (enunciado, extras e log em JSON), cobertura no resumo e relatórios como artefato | Qualquer teste falha, ou a cobertura de linhas fica abaixo de 90% |
 | `postgres` | `./mvnw -Ppostgres-it verify` contra um PostgreSQL 18 (service container, collation `C`, sem credencial) | Qualquer `*PostgresIT` falha |
-| `compose` | [`compose-test.sh`](.github/scripts/compose-test.sh): sobe o compose e confere a referência, o Prometheus, o dashboard, um vencedor novo pelo Kafka em até 5 s, o tópico de erros, a persistência depois de `down`, a queda real do banco e o token | Qualquer passo falha, ou a subida até o dashboard passa de 3 min |
+| `compose` | [`compose-test.sh`](.github/scripts/compose-test.sh): sobe o compose e confere a referência, o Prometheus, o dashboard, as regras do SLO carregadas sem alerta disparando, um vencedor novo pelo Kafka em até 5 s, o tópico de erros, a persistência depois de `down`, a queda real do banco e o token | Qualquer passo falha, ou a subida até o dashboard passa de 3 min |
 | `codeql` | Análise do código Java (`security-extended`) | Achado de severidade alta ou crítica (`security-severity` ≥ 7,0) |
-| `dependencies` | Trivy nas dependências Maven, com relatório completo | Vulnerabilidade `HIGH` ou `CRITICAL` **com versão corrigida** |
+| `dependencies` | Trivy nas dependências de runtime que o Maven copia (inventário efetivo, com as transitivas), com relatório completo e as versões de `lz4-java` e `snappy-java` no resumo | Vulnerabilidade `HIGH` ou `CRITICAL` **com versão corrigida**, ou `lz4-java` e `snappy-java` fora do inventário |
+| `alert-rules` | `promtool check rules`, `check config` e `test rules` das regras do SLO, com a imagem do Prometheus do compose | Regra inválida ou teste de regra falhando |
+| `load` | [`load-test.sh`](.github/scripts/load-test.sh): gera o CSV de 100 mil filmes duas vezes e compara os SHA-256, mede a carga direta e a carga por Kafka e roda o k6 | Hashes diferentes, linha rejeitada, readiness fora do prazo, ou p99 e taxa de erro acima dos limites |
 | `dockerfile-lint` | hadolint | Aviso ou erro |
 | `image` | Contexto de build, imagem, teste de fumaça (13 passos) e Trivy na imagem | Contexto fora do `.dockerignore`, imagem que não sobe ou não responde o resultado de referência, ou vulnerabilidade `HIGH` ou `CRITICAL` com correção na imagem |
 
@@ -579,6 +665,21 @@ em [`specs/003-modo-docker/plan.md`](specs/003-modo-docker/plan.md#rastreabilida
 | Cabeçalhos de cache e de proteção | FR-022a | `CacheHeadersIT`, `CacheHeadersWithTokenIT` |
 | Compose com observabilidade, imagens por digest e credenciais de demonstração | FR-028 a FR-035 | Jobs `compose` e `workflow-policy` |
 | README e ADRs | FR-036, FR-037 | Revisão do PR, pelas seções de [`specs/003-modo-docker/checklists/requirements.md`](specs/003-modo-docker/checklists/requirements.md) |
+
+### Requisitos do Marco 4 (SLO, alertas, carga e dados gerados)
+
+Também fora do enunciado, com o escopo reduzido descrito no roteiro da seção 3. A matriz completa está em
+[`specs/004-acabamento-operacional/plan.md`](specs/004-acabamento-operacional/plan.md#rastreabilidade-princípio-vi).
+Os `@DisplayName` dos testes novos começam por `S004`.
+
+| Extra | Requisitos | Como é comprovado |
+| --- | --- | --- |
+| Modo padrão sem mudança | FR-001, FR-002, SC-001 | Job `build` e `check-unchanged-tests.sh` contra a `v0.2.0` e a `v0.3.0` |
+| SLO, alertas e runbook | FR-003 a FR-009, SC-002, SC-003 | Job `alert-rules`, passo 4b do job `compose` e revisão de [`docs/slo.md`](docs/slo.md) e [`docs/runbook.md`](docs/runbook.md) |
+| Teste de carga com limites | FR-010 a FR-013, FR-011a, SC-004 | Job `load` e o registro da medição em `docs/ai/decisoes.md` |
+| Gerador de CSV e carga inicial medida | FR-014 a FR-019, SC-005, SC-006 | Job `load` (dois SHA-256 iguais ao do Windows, cargas sem linha rejeitada) |
+| Inventário efetivo no job de dependências | FR-032, FR-033, SC-010 | Job `dependencies` e o registro da causa em `docs/ai/decisoes.md` |
+| Testador adversário na ingestão por Kafka | FR-035 | `KafkaAdversarialEventsIT` e os ITs `KafkaCase*` (job `build`), `KafkaCase29RestartReappliesCsvPostgresIT` (job `postgres`) |
 
 ---
 
@@ -850,12 +951,15 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 ├── README.md                    # este arquivo
 ├── AGENTS.md                    # regras comuns a todos os agentes de IA
 ├── CLAUDE.md                    # aponta o Claude Code para o AGENTS.md
-├── pom.xml                      # build Maven (dependências, Failsafe em duas execuções e JaCoCo)
+├── pom.xml                      # build Maven (dependências, Failsafe, perfis extras e postgres-it, JaCoCo)
 ├── mvnw, mvnw.cmd, .mvn/        # Maven Wrapper: dispensa instalar o Maven
 ├── Dockerfile                   # imagem multi-stage, não root (opcional)
 ├── .dockerignore                # lista de permissão do contexto da imagem
-├── compose.yaml                 # modo Docker: aplicação, PostgreSQL, Kafka, Prometheus e Grafana (opcional)
-├── observability/               # configuração do Prometheus e provisionamento e dashboard do Grafana
+├── compose.yaml                 # modo Docker: aplicação, PostgreSQL, Kafka, Prometheus e Grafana; k6 no perfil load (opcional)
+├── compose.load.yaml            # teste de carga: monta o CSV gerado na aplicação (Marco 4)
+├── observability/               # Prometheus (com as regras do SLO em rules/) e provisionamento e dashboard do Grafana
+├── load/intervals.js            # roteiro do k6, com os limites do SLO (Marco 4)
+├── tools/csv-generator/         # gerador de CSV grande e determinístico, só com o JDK (Marco 4)
 ├── .github/
 │   ├── workflows/ci.yml         # pipeline de CI
 │   ├── scripts/                 # política do workflow, contexto da imagem, fumaça, compose e ITs inalterados
@@ -879,6 +983,7 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 │   └── contracts/               # OpenAPI 1.1.0 (registro), endpoints operacionais, imagem e pipeline
 ├── specs/003-modo-docker/       # Marco 3: spec, plano, research, contratos e tarefas
 │   └── contracts/               # OpenAPI 1.2.0 (fonte única), eventos do Kafka, compose e pipeline
+├── specs/004-acabamento-operacional/ # Marco 4: spec, plano, research, contratos e tarefas
 ├── src/main/java/com/outsera/awards/
 │   ├── AwardsApplication.java   # classe principal
 │   ├── ingestion/               # leitura, validação e carga do CSV; kafka/: ingestão por Kafka (perfil kafka)
@@ -902,6 +1007,8 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 │   ├── postgres/                            # Marco 3, só no perfil postgres-it
 │   └── SmokeIT.java
 ├── src/test/resources/scenarios/  # um CSV por cenário de teste
+├── docs/slo.md                  # objetivos do SLO, orçamento e alertas (Marco 4)
+├── docs/runbook.md              # o que fazer quando cada alerta dispara (Marco 4)
 ├── docs/adr/                    # decisões de arquitetura (ADRs), com índice
 └── docs/ai/                     # evidência do uso de IA (ver docs/ai/README.md)
 ```

@@ -235,7 +235,7 @@ o cache.
 
 ### Verificação da etapa 4 (escrever primeiro; precisa falhar)
 
-- [ ] T038 [US4] Criar `.github/scripts/startup-benchmark.sh` (R8; contracts/ci-pipeline.md, "Scripts"; contracts/operacao.md, "Imagem"). Uso: `startup-benchmark.sh <imagem> [repetições]`, com 7 repetições por padrão. Em cada repetição, alternando os dois modos:
+- [ ] T038 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US4] Criar `.github/scripts/startup-benchmark.sh` (R8; contracts/ci-pipeline.md, "Scripts"; contracts/operacao.md, "Imagem"). Uso: `startup-benchmark.sh <imagem> [repetições]`, com 7 repetições por padrão. Em cada repetição, alternando os dois modos:
   - **sem o cache:** `docker run -d --entrypoint java <imagem> -XX:MaxRAMPercentage=75 -XX:AOTMode=off -jar application.jar`;
   - **com o cache:** `docker run -d <imagem>`, com o `ENTRYPOINT` normal.
 
@@ -250,24 +250,24 @@ o cache.
 
 ### Implementação da etapa 4
 
-- [ ] T039 [US4] No `Dockerfile` (R8; Clarifications da spec, 2026-11-25):
+- [ ] T039 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US4] No `Dockerfile` (R8; Clarifications da spec, 2026-11-25):
   - no estágio de build, trocar o `extract --layers --launcher` por `extract --layers`, mantendo a criação das quatro pastas de camada;
   - no estágio final, copiar as quatro camadas para `/app` como hoje. **Verificar** que o `application.jar` e a pasta `lib/` ficam em `/app`;
   - acrescentar, antes do `USER`, o treino: `RUN java -XX:AOTCacheOutput=app.aot -Dspring.context.exit=onRefresh -jar application.jar && chmod 0444 app.aot`;
   - trocar o `ENTRYPOINT` por `["java", "-XX:MaxRAMPercentage=75", "-XX:AOTCache=app.aot", "-jar", "application.jar"]`.
 
   Não usar o processamento AOT do Spring. Atualizar os comentários: o motivo do classpath de JARs, o treino com o modo padrão (a escolha de perfil continua na execução) e o `AOTMode` padrão (`auto`), que ignora um cache inválido. Manter o usuário `10001`, o `HEALTHCHECK`, o `ENV` e a forma exec.
-- [ ] T040 [US4] **Verificar** os pontos da R8 e anotar na descrição do commit:
+- [ ] T040 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US4] **Verificar** os pontos da R8 e anotar na descrição do commit:
   - se o treino com `onRefresh` sai antes da carga do CSV e da abertura da porta: ler o log do `RUN` no `docker build --progress=plain`. Se o cache ficar sem ganho de tempo (T042), trocar pelo treino até a readiness descrito na R8 e atualizar a R8;
   - o tamanho do `app.aot` (`docker run --rm --entrypoint ls <imagem> -l app.aot`);
   - o texto exato do aviso da JVM com o cache inválido, que o passo do T038 procura no log. Se o texto da JVM 25 for outro que o previsto, ajustar o padrão do script;
   - que o `.github/scripts/smoke-test.sh` não depende do `JarLauncher` nem do caminho das classes. Se depender, ajustar só a referência, sem mudar os passos.
-- [ ] T041 [US4] Rodar localmente `hadolint` (`docker run --rm -i hadolint/hadolint < Dockerfile`, com a configuração do job `dockerfile-lint`), `docker build -t awards:local .`, `.github/scripts/smoke-test.sh awards:local` e `.github/scripts/compose-test.sh`: todos passam (FR-021, US4-1, US4-2, US4-6).
-- [ ] T042 [US4] Rodar `.github/scripts/startup-benchmark.sh awards:local 7`: precisa passar, com a mediana com o cache menor. Anotar a tabela, identificada como da máquina local.
-- [ ] T043 [US4] Em `.github/workflows/ci.yml`, job `image`: depois do teste de fumaça, o passo `Subida sem e com o cache AOT (7 repetições, mediana) e cache inválido` com `run: .github/scripts/startup-benchmark.sh awards:ci 7` (FR-022, FR-023). Atualizar o comentário do job com a spec 004, FR-020 a FR-023.
-- [ ] T044 [US4] Conferir com o relatório do Trivy da imagem (local, com a versão do T003) que o cache não trouxe pacote novo, e rodar `.github/scripts/check-workflows.sh` e `.github/scripts/check-docker-context.sh`: passam.
-- [ ] T045 [US4] Rodar `./mvnw verify` e `./mvnw spring-boot:run` (resultado de referência): os dois como no Marco 3, sem Docker (US4-5). Informar o resultado real.
-- [ ] T046 [US4] Commit `Etapa 4: cache AOT da JVM na imagem e medição da subida` com T038 a T045. Na descrição: as anotações do T040 e a tabela do T042.
+- [ ] T041 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US4] Rodar localmente `hadolint` (`docker run --rm -i hadolint/hadolint < Dockerfile`, com a configuração do job `dockerfile-lint`), `docker build -t awards:local .`, `.github/scripts/smoke-test.sh awards:local` e `.github/scripts/compose-test.sh`: todos passam (FR-021, US4-1, US4-2, US4-6).
+- [ ] T042 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US4] Rodar `.github/scripts/startup-benchmark.sh awards:local 7`: precisa passar, com a mediana com o cache menor. Anotar a tabela, identificada como da máquina local.
+- [ ] T043 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US4] Em `.github/workflows/ci.yml`, job `image`: depois do teste de fumaça, o passo `Subida sem e com o cache AOT (7 repetições, mediana) e cache inválido` com `run: .github/scripts/startup-benchmark.sh awards:ci 7` (FR-022, FR-023). Atualizar o comentário do job com a spec 004, FR-020 a FR-023.
+- [ ] T044 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US4] Conferir com o relatório do Trivy da imagem (local, com a versão do T003) que o cache não trouxe pacote novo, e rodar `.github/scripts/check-workflows.sh` e `.github/scripts/check-docker-context.sh`: passam.
+- [ ] T045 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US4] Rodar `./mvnw verify` e `./mvnw spring-boot:run` (resultado de referência): os dois como no Marco 3, sem Docker (US4-5). Informar o resultado real.
+- [ ] T046 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US4] Commit `Etapa 4: cache AOT da JVM na imagem e medição da subida` com T038 a T045. Na descrição: as anotações do T040 e a tabela do T042.
 
 **Checkpoint**: US4 completa; os números do pipeline vêm do job `image` (T063).
 
@@ -283,7 +283,7 @@ errada falhando; a política reprova qualquer push ou `id-token` fora do lugar.
 
 ### Verificação da etapa 5 (escrever primeiro; precisa falhar)
 
-- [ ] T047 [US5] Em `.github/scripts/check-workflows.sh` (R10, FR-026), mudar as regras:
+- [ ] T047 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US5] Em `.github/scripts/check-workflows.sh` (R10, FR-026), mudar as regras:
   - regra 3: `id-token: write` passa a ser permitido **só** no job `supply-chain`. `security-events: write` continua permitido só no `codeql`. Qualquer outra escrita é violação;
   - regra 5: `push: true` no `docker/build-push-action` e `docker push` num `run:` passam a ser permitidos **só** no job `supply-chain`, e só quando todo valor de `tags` (ou o destino do `docker push`) começa por `localhost:5000/`. Fora disso, é violação, com o job e o destino na mensagem.
 
@@ -298,7 +298,7 @@ errada falhando; a política reprova qualquer push ou `id-token` fora do lugar.
 
 ### Implementação da etapa 5
 
-- [ ] T048 [US5] Em `.github/workflows/ci.yml`, criar o job `supply-chain` (R9, R10; contracts/ci-pipeline.md):
+- [ ] T048 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US5] Em `.github/workflows/ci.yml`, criar o job `supply-chain` (R9, R10; contracts/ci-pipeline.md):
   - configuração: `needs: dockerfile-lint`, `timeout-minutes: 20`, `permissions: { contents: read, id-token: write }`, e `if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository`;
   - *service container* `registry` com `registry:3@sha256:<digest>` e `ports: ["5000:5000"]`;
   - passos:
@@ -313,11 +313,11 @@ errada falhando; a política reprova qualquer push ou `id-token` fora do lugar.
     9. `actions/upload-artifact` de `sbom.cdx.json`, nome `sbom`.
 
   **Verificar** se o cosign aceita o registro HTTP em `localhost` sem flag; se não, usar `--allow-insecure-registry` e `--allow-http-registry` e atualizar a R10. Comentário do job com a spec 004, FR-024 a FR-027.
-- [ ] T049 [US5] Em `.github/workflows/ci.yml`, job `image`: acrescentar o passo `Assinatura pulada (pull request de fork)`, com `if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository`, que escreve no `$GITHUB_STEP_SUMMARY` o motivo: a execução não tem a permissão de identidade, e a assinatura roda nos pushes e nos PRs do próprio repositório (FR-027).
-- [ ] T050 [US5] Rodar `.github/scripts/check-workflows.sh` com o `ci.yml` novo: passa. Repetir os casos negativos do T047: continuam falhando.
-- [ ] T051 [US5] Conferir localmente o SBOM: `docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:<versão do T003> image --format cyclonedx --output - awards:local | jq` contém `lz4-java` 1.11.4 e `snappy-java` 1.1.10.12, e os pacotes do Alpine. A assinatura keyless só roda no Actions: `PULADO` local, com a comprovação no T063.
-- [ ] T052 [US5] Rodar `./mvnw verify` e `./mvnw -Pextras verify`: verdes, sem Docker. Informar o resultado real.
-- [ ] T053 [US5] Commit `Etapa 5: SBOM e assinatura keyless num registro temporário` com T047 a T052. Na descrição: os pares tag → hash e tag → digest, a conferência das referências aninhadas do `cosign-installer`, os casos do T047 e o resultado do T051.
+- [ ] T049 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US5] Em `.github/workflows/ci.yml`, job `image`: acrescentar o passo `Assinatura pulada (pull request de fork)`, com `if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository`, que escreve no `$GITHUB_STEP_SUMMARY` o motivo: a execução não tem a permissão de identidade, e a assinatura roda nos pushes e nos PRs do próprio repositório (FR-027).
+- [ ] T050 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US5] Rodar `.github/scripts/check-workflows.sh` com o `ci.yml` novo: passa. Repetir os casos negativos do T047: continuam falhando.
+- [ ] T051 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US5] Conferir localmente o SBOM: `docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:<versão do T003> image --format cyclonedx --output - awards:local | jq` contém `lz4-java` 1.11.4 e `snappy-java` 1.1.10.12, e os pacotes do Alpine. A assinatura keyless só roda no Actions: `PULADO` local, com a comprovação no T063.
+- [ ] T052 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US5] Rodar `./mvnw verify` e `./mvnw -Pextras verify`: verdes, sem Docker. Informar o resultado real.
+- [ ] T053 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US5] Commit `Etapa 5: SBOM e assinatura keyless num registro temporário` com T047 a T052. Na descrição: os pares tag → hash e tag → digest, a conferência das referências aninhadas do `cosign-installer`, os casos do T047 e o resultado do T051.
 
 **Checkpoint**: US5 completa, com a comprovação no pipeline (T063).
 
@@ -332,20 +332,20 @@ verify` dentro do container.
 
 ### Verificação (escrever primeiro; precisa falhar)
 
-- [ ] T054 [US6] Em `.github/scripts/check-workflows.sh`, regra 6: exigir também o ecossistema `devcontainers` no `.github/dependabot.yml`, com `directory: /` e `schedule.interval` (R11). Testar numa pasta temporária: o `dependabot.yml` atual, sem `devcontainers`, **precisa falhar**. Rodar no repositório: falha até o T056.
+- [ ] T054 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US6] Em `.github/scripts/check-workflows.sh`, regra 6: exigir também o ecossistema `devcontainers` no `.github/dependabot.yml`, com `directory: /` e `schedule.interval` (R11). Testar numa pasta temporária: o `dependabot.yml` atual, sem `devcontainers`, **precisa falhar**. Rodar no repositório: falha até o T056.
 
 ### Implementação
 
-- [ ] T055 [US6] Criar `.devcontainer/devcontainer.json` (R11; contracts/operacao.md, "Dev container"):
+- [ ] T055 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US6] Criar `.devcontainer/devcontainer.json` (R11; contracts/operacao.md, "Dev container"):
   - **verificar** se existe a variante do JDK 25 da imagem `mcr.microsoft.com/devcontainers/java`. Se existir, usá-la por tag e digest. Se não, usar `mcr.microsoft.com/devcontainers/base` com o recurso `ghcr.io/devcontainers/features/java` (`version: 25`, `jdkDistro: tem`, `installMaven: false`) e atualizar a R11;
   - recurso `ghcr.io/devcontainers/features/docker-in-docker` fixado por digest (`@sha256:<digest>`, resolvido com `docker buildx imagetools inspect ghcr.io/devcontainers/features/docker-in-docker:<x.y.z>` ou `oras manifest fetch`), com a versão `<x.y.z>` num comentário e o compose v2. Se o recurso do Java for usado (alternativa acima), também por digest;
   - `forwardPorts: [8080, 9090, 3000]`, com `portsAttributes` nomeando a API, o Prometheus e o Grafana;
   - `postCreateCommand: ./mvnw -B -q dependency:go-offline`;
   - nenhum `containerEnv` com segredo;
   - comentário (JSONC) com a spec 004, FR-028 e FR-029.
-- [ ] T056 [US6] Em `.github/dependabot.yml`, acrescentar o ecossistema `devcontainers`, com `directory: /` e `schedule.interval: weekly`, e o comentário da spec 004. Rodar `.github/scripts/check-workflows.sh`: passa.
-- [ ] T057 [US6] Em `.github/workflows/ci.yml`, criar o job `devcontainer` (FR-030): `timeout-minutes: 30`, `actions/checkout` e `devcontainers/ci` fixado por hash, com as referências aninhadas conferidas, `push: never` e `runCmd: java -version && ./mvnw -v && docker version && ./mvnw -B verify && docker compose up -d --build --wait && curl -fsS http://localhost:8080/api/producers/intervals | jq -e '.min[0].producer == "Joel Silver" and .min[0].previousWin == 1990 and .min[0].followingWin == 1991 and .max[0].producer == "Matthew Vaughn" and .max[0].previousWin == 2002 and .max[0].followingWin == 2015' && docker compose down -v`. Isso comprova o compose dentro do dev container (FR-029). **Verificar** se o `jq` e o `curl` existem na imagem do dev container. Se não existirem, instalá-los no `postCreateCommand` do T055. As portas encaminhadas para a máquina não são observáveis no runner e ficam como item de revisão no checklist (T066). Comentário com a spec 004, FR-028 a FR-030. Rodar `.github/scripts/check-workflows.sh`: passa (o `push: never` não é publicação; **verificar** que a regra 5 não o confunde com `push: true`).
-- [ ] T058 [US6] Localmente, se houver o Docker e o Node: `npx --yes @devcontainers/cli@<versão> up --workspace-folder .` e `... exec --workspace-folder . bash -lc "java -version && ./mvnw -v && docker version && ./mvnw -B verify"`; depois, dentro do container, `docker compose up -d --build --wait` e o resultado de referência pela porta encaminhada (US6-3, US6-4). Sem as ferramentas, `PULADO` com o motivo; a comprovação fica no T063.
+- [ ] T056 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US6] Em `.github/dependabot.yml`, acrescentar o ecossistema `devcontainers`, com `directory: /` e `schedule.interval: weekly`, e o comentário da spec 004. Rodar `.github/scripts/check-workflows.sh`: passa.
+- [ ] T057 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US6] Em `.github/workflows/ci.yml`, criar o job `devcontainer` (FR-030): `timeout-minutes: 30`, `actions/checkout` e `devcontainers/ci` fixado por hash, com as referências aninhadas conferidas, `push: never` e `runCmd: java -version && ./mvnw -v && docker version && ./mvnw -B verify && docker compose up -d --build --wait && curl -fsS http://localhost:8080/api/producers/intervals | jq -e '.min[0].producer == "Joel Silver" and .min[0].previousWin == 1990 and .min[0].followingWin == 1991 and .max[0].producer == "Matthew Vaughn" and .max[0].previousWin == 2002 and .max[0].followingWin == 2015' && docker compose down -v`. Isso comprova o compose dentro do dev container (FR-029). **Verificar** se o `jq` e o `curl` existem na imagem do dev container. Se não existirem, instalá-los no `postCreateCommand` do T055. As portas encaminhadas para a máquina não são observáveis no runner e ficam como item de revisão no checklist (T066). Comentário com a spec 004, FR-028 a FR-030. Rodar `.github/scripts/check-workflows.sh`: passa (o `push: never` não é publicação; **verificar** que a regra 5 não o confunde com `push: true`).
+- [ ] T058 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [US6] Localmente, se houver o Docker e o Node: `npx --yes @devcontainers/cli@<versão> up --workspace-folder .` e `... exec --workspace-folder . bash -lc "java -version && ./mvnw -v && docker version && ./mvnw -B verify"`; depois, dentro do container, `docker compose up -d --build --wait` e o resultado de referência pela porta encaminhada (US6-3, US6-4). Sem as ferramentas, `PULADO` com o motivo; a comprovação fica no T063.
 
 **Checkpoint**: US6 completa, com a comprovação no pipeline (T063).
 
@@ -358,8 +358,8 @@ os arquivos de `docs/` e o README.
 
 - [X] T059 [P] Criar `docs/slo.md` (FR-003; data-model.md, "Objetivo de SLO"): os dois objetivos (disponibilidade de 99,5% e 99% das requisições dos intervalos até o bucket do T026, mostrando o valor exato), a janela de 28 dias, "ruim = 5xx ou alvo sem coleta; boa = 2xx, 304 e 4xx", e, na latência, que o total é o de todas as requisições aos intervalos, com qualquer status (como no T028), a fórmula do orçamento e das taxas de consumo, a origem dos números (link para a entrada do T034), os limites do k6 e a folga de 2× sobre a maior medição, com o motivo, e a tabela dos alertas com os links do runbook.
 - [X] T060 [P] Criar `docs/runbook.md` (FR-007): uma seção por alerta, com o título igual ao nome do alerta, para a âncora em minúsculas do `runbook_url` funcionar (`#awardsintervalsavailabilitybudgetburn`, `#awardsintervalslatencybudgetburn`, `#awardsappdown`). Cada seção traz o que o alerta significa, o que conferir (painéis do dashboard, `docker compose logs app`, readiness, atraso do consumidor, PostgreSQL e Kafka) e o que fazer. Conferir que as três âncoras abrem a seção certa no GitHub (conclui o T035).
-- [ ] T061 [P] Criar os ADRs `docs/adr/0020-slo-e-alertas-por-consumo-do-orcamento.md`, `0021-teste-de-carga-com-k6-no-pipeline.md`, `0022-gerador-de-csv-deterministico.md`, `0023-cache-aot-da-jvm.md`, `0024-sbom-e-assinatura-keyless-sem-publicacao.md` e `0025-dev-container-e-inventario-efetivo-de-dependencias.md`, no formato dos anteriores (FR-037), cada um com o contexto, a decisão, as alternativas rejeitadas da research e as consequências. Atualizar `docs/adr/README.md` com os seis.
-- [ ] T062 Atualizar o `README.md` (FR-018, FR-036):
+- [ ] T061 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** [P] Criar os ADRs `docs/adr/0020-slo-e-alertas-por-consumo-do-orcamento.md`, `0021-teste-de-carga-com-k6-no-pipeline.md`, `0022-gerador-de-csv-deterministico.md`, `0023-cache-aot-da-jvm.md`, `0024-sbom-e-assinatura-keyless-sem-publicacao.md` e `0025-dev-container-e-inventario-efetivo-de-dependencias.md`, no formato dos anteriores (FR-037), cada um com o contexto, a decisão, as alternativas rejeitadas da research e as consequências. Atualizar `docs/adr/README.md` com os seis.
+- [X] T062 **Escopo reduzido (2026-11-26): seção do Marco 4 com o roteiro dos itens adiados; sem cache AOT, assinatura nem dev container.** Atualizar o `README.md` (FR-018, FR-036):
   - seção do Marco 4 entre os extras, depois do Marco 3. Ela cobre:
     - alertas e SLO, com links para `docs/slo.md` e `docs/runbook.md`;
     - teste de carga (como rodar, os números de uma execução verde do job `load` e o link da execução);
@@ -372,7 +372,7 @@ os arquivos de `docs/` e o README.
   - conferir que "Avalie em 2 minutos" continua só com o JDK.
 
   Os números vêm do T063. Se o T005 ficou `PENDENTE`, a pendência vai aqui também.
-- [ ] T063 **Pendente: exige o push, que é do Anderson.** Conferir na execução do branch:
+- [ ] T063 **Escopo reduzido: os 10 jobs, sem `supply-chain` nem `devcontainer`.** **Pendente: exige o push, que é do Anderson.** Conferir na execução do branch:
   - os 12 jobs verdes: `workflow-policy`, `build`, `postgres`, `codeql`, `dependencies`, `dockerfile-lint`, `image`, `compose`, `alert-rules`, `load`, `supply-chain` e `devcontainer`;
   - no `dependencies`: `lz4-java` e `snappy-java` no resumo (SC-010);
   - no `image`: as medianas sem e com o cache (SC-007);
@@ -382,15 +382,15 @@ os arquivos de `docs/` e o README.
   - no `compose`: o passo 4b `OK` (SC-003).
 
   Copiar os números para o README (T062).
-- [ ] T064 **Pedido ao Anderson, depois da primeira execução do pipeline no PR e antes do merge** (FR-031, R14; T093 da spec 003). Configurar a proteção da `main` (Settings → Branches, ou o ruleset da `main`):
+- [ ] T064 **Escopo reduzido: 10 checks (os 8 do Marco 3, `alert-rules` e `load`).** **Pedido ao Anderson, depois da primeira execução do pipeline no PR e antes do merge** (FR-031, R14; T093 da spec 003). Configurar a proteção da `main` (Settings → Branches, ou o ruleset da `main`):
   - os **12** checks do T063 como *required status checks*;
   - o **bypass para administradores desligado** ("Do not allow bypassing the above settings", ou nenhum *bypass actor* no ruleset).
 
   Conferir na página do PR que os 12 aparecem como obrigatórios. Registrar em `docs/ai/decisoes.md`, numa entrada "Proteção da main depois do Marco 4", a lista configurada e a confirmação do bypass desligado, sem nenhum dado pessoal.
-- [ ] T065 Rodar as seções 1 a 5 e 7 de `specs/004-acabamento-operacional/quickstart.md`, num clone limpo do branch: só com o JDK, a seção 1 e a 2; com o Docker, as demais. Anotar os resultados e os `PULADO` na descrição do commit.
-- [ ] T066 Registrar em `docs/ai/decisoes.md` o fechamento do bolt: o resultado do T012 (entrada própria), do T063 e do T065, os `PULADO`, o estado do T005 e as pendências. Marcar na seção "Revisão da documentação" de `specs/004-acabamento-operacional/checklists/requirements.md` os itens conferidos, inclusive o das portas encaminhadas do dev container (FR-029), a partir do T058 ou de uma abertura manual no VS Code.
-- [ ] T067 Rodar `./mvnw verify` e `./mvnw -Pextras verify`: verdes, sem Docker. Informar o resultado real. Atualizar o **Status** de `specs/004-acabamento-operacional/spec.md` para `Implemented`, listando o que ainda depende de push ou do Anderson. Atualizar o **Status** de `specs/003-modo-docker/spec.md`, retirando as pendências fechadas (T050 e T093 da spec 003).
-- [ ] T068 Commit `Etapa 6: dev container, SLO, runbook, ADRs e README do Marco 4` com T054 a T067. Avisar o Anderson de que o bolt está pronto para o PR. Depois do merge, a sessão é exportada para `docs/ai/sessoes/`.
+- [ ] T065 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** Rodar as seções 1 a 5 e 7 de `specs/004-acabamento-operacional/quickstart.md`, num clone limpo do branch: só com o JDK, a seção 1 e a 2; com o Docker, as demais. Anotar os resultados e os `PULADO` na descrição do commit.
+- [ ] T066 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** Registrar em `docs/ai/decisoes.md` o fechamento do bolt: o resultado do T012 (entrada própria), do T063 e do T065, os `PULADO`, o estado do T005 e as pendências. Marcar na seção "Revisão da documentação" de `specs/004-acabamento-operacional/checklists/requirements.md` os itens conferidos, inclusive o das portas encaminhadas do dev container (FR-029), a partir do T058 ou de uma abertura manual no VS Code.
+- [X] T067 **Escopo reduzido: Status da spec 004 atualizado; o da spec 003 fica para o fechamento do marco.** Rodar `./mvnw verify` e `./mvnw -Pextras verify`: verdes, sem Docker. Informar o resultado real. Atualizar o **Status** de `specs/004-acabamento-operacional/spec.md` para `Implemented`, listando o que ainda depende de push ou do Anderson. Atualizar o **Status** de `specs/003-modo-docker/spec.md`, retirando as pendências fechadas (T050 e T093 da spec 003).
+- [X] T068 **Escopo reduzido: commit "Marco 4 com escopo reduzido: README, roteiro e etapas 4 a 6 adiadas".** Commit `Etapa 6: dev container, SLO, runbook, ADRs e README do Marco 4` com T054 a T067. Avisar o Anderson de que o bolt está pronto para o PR. Depois do merge, a sessão é exportada para `docs/ai/sessoes/`.
 
 ---
 

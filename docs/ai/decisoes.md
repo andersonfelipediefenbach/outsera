@@ -3,6 +3,29 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-26 — Marco 4 com escopo reduzido
+
+- **Decisão do Anderson:** o Marco 4 fecha com as etapas 1 a 3, e as etapas 4, 5 e 6 ficam adiadas.
+- **Entra:**
+  - etapa 1: pendências do Marco 3, inventário efetivo no job de dependências e testador adversário;
+  - etapa 2: gerador de CSV e teste de carga;
+  - etapa 3: SLO e alertas;
+  - a página do SLO e o runbook (T059 e T060), porque os alertas apontam para as âncoras do runbook;
+  - a seção do Marco 4 no README, com o roteiro do que ficou para depois (T062, reduzido).
+- **Fica adiado,** com a spec e as tarefas guardadas para um marco futuro:
+  - etapa 4: cache AOT da JVM na imagem (US4, FR-020 a FR-023);
+  - etapa 5: SBOM e assinatura keyless (US5, FR-024 a FR-027);
+  - etapa 6: dev container (US6, FR-028 a FR-030) e os ADRs 0020 a 0025 (FR-037). As decisões desses temas
+    já estão neste registro.
+- **Consequências:**
+  - os checks obrigatórios da `main` (FR-031, T064) passam a ser 10: os 8 do Marco 3, `alert-rules` e
+    `load`;
+  - a conferência do pipeline (T063) vale para esses 10 jobs;
+  - o T012, a verificação única do job de dependências com o `lz4-java` 1.11.2, continua pendente do push
+    do branch `verificacao/trivy-transitivas`, que está criado localmente;
+  - a spec 004 registra a decisão em Clarifications e no Status, e as tarefas adiadas estão marcadas como
+    ADIADO no `tasks.md`.
+
 ## 2026-11-26 — Medição do teste de carga e folga dos limites do pipeline
 
 T025, T033 e T034 da spec 004 (FR-011a; research R5). Medição no job `load`, em runners `ubuntu-latest`
