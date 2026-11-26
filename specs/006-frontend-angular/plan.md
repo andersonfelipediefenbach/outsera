@@ -48,7 +48,8 @@ separados.
 
 **Metas de desempenho**: painéis preenchidos em até 3 s com as instâncias ativas e em até 30 s com partida a
 frio dos dois serviços (SC-001). Bundle inicial de produção, medido sem compressão como os `budgets` do
-`angular.json` medem: aviso acima de 300 kB e build reprovado acima de 500 kB.
+`angular.json` medem: aviso acima de 350 kB e build reprovado acima de 500 kB (o Angular 22 com router, forms e
+http já parte de cerca de 310 kB).
 
 **Restrições**: o `./mvnw` não exige Node (FR-020); contrato de intervalos intacto (Princípio III); sem segredos
 (Princípio VII); actions e imagens base fixadas por hash ou digest; imagem não root; 0 a 1 instância; sem CORS.

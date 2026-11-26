@@ -199,7 +199,7 @@ responsivo e acessível.
 **Teste independente**: `npm run lint`, `npm test -- --watch=false --coverage` (≥ 80%) e `npm run build` verdes;
 `npm start` com a API local mostra os valores de referência (quickstart, passo 3).
 
-- [ ] T027 [US1] Criar o projeto com `npx --yes @angular/cli@22.3.0 new frontend --directory frontend --routing --style=css
+- [X] T027 [US1] Criar o projeto com `npx --yes @angular/cli@22.3.0 new frontend --directory frontend --routing --style=css
   --ssr=false --skip-git --package-manager=npm` (zoneless e standalone, o padrão da 22). Conferir que o construtor de
   testes é o Vitest; se o `ng new` perguntar, escolher Vitest. Depois:
   - fixar as versões exatas dos pacotes `@angular/*` (sem `^` nem `~`) no `frontend/package.json` e regerar o
@@ -209,59 +209,60 @@ responsivo e acessível.
   - `@vitest/coverage-v8` e `jsdom` como dependências de desenvolvimento, e o limite `coverage.thresholds.lines: 80`
     (no `angular.json`, se o construtor aceitar; senão em `frontend/vitest-base.config.ts`, como diz o risco do
     plano). Conferir uma vez que o comando reprova com um limite de 100 e voltar a 80;
-  - `budgets` do `angular.json`: aviso em 300 kB e erro em 500 kB no bundle inicial;
+  - `budgets` do `angular.json`: aviso em 350 kB e erro em 500 kB no bundle inicial (o build básico tem cerca de
+    310 kB);
   - `frontend/proxy.conf.json` com `/api` → `http://localhost:8080` e `"proxyConfig"` no alvo `serve` (FR-021);
   - `index.html` com `lang="pt-BR"` e título "Golden Raspberry Awards".
   Conferir que o `.gitignore` da raiz ou o de `frontend/` deixa fora `node_modules/`, `dist/`, `coverage/`,
   `test-results/` e `playwright-report/`.
-- [ ] T028 [P] [US1] Criar `frontend/src/app/api/awards-api.ts` (`@Injectable({ providedIn: 'root' })`, `HttpClient`, só
+- [X] T028 [P] [US1] Criar `frontend/src/app/api/awards-api.ts` (`@Injectable({ providedIn: 'root' })`, `HttpClient`, só
   caminhos relativos `/api/...`; FR-018) com os tipos do contrato (`ProducerIntervals`, `MoviePage`, `Movie`,
   `YearsWithMultipleWinners`, `StudiosWithWinCount`) e os métodos `intervals()`, `yearsWithMultipleWinners()`,
   `studiosWithWinCount()`, `winnersOf(year)` (`/api/movies?year={ano}&winner=true&size=100`) e
   `movies(filtro)`, que traduz o filtro do front para a API conforme a tabela "Tradução entre a URL do front e a
   API" do data-model (`vencedor=sim` → `winner=true`, `pagina=3` → `page=2`, `size=10` fixo). Testes em
   `awards-api.spec.ts` com `HttpTestingController`, cobrindo cada URL gerada.
-- [ ] T029 [P] [US1] Criar `frontend/src/app/shared/panel-state/` (componente e `panel-state.ts`): o tipo
+- [X] T029 [P] [US1] Criar `frontend/src/app/shared/panel-state/` (componente e `panel-state.ts`): o tipo
   `PanelState<T>` com `status` ∈ {`carregando`, `dados`, `vazio`, `erro`} e um componente que mostra
   "Carregando…" com `aria-live="polite"`, a mensagem de vazio recebida e, no erro, "Não foi possível carregar os
   dados." com o botão "Tentar de novo", que emite um evento (FR-009). Uma função utilitária `load(obs, isEmpty)`
   converte um `Observable` num `signal<PanelState<T>>`. Testes unitários dos quatro estados e do evento.
-- [ ] T030 [P] [US1] Criar `frontend/src/app/shared/validators.ts` com o validador de ano (`^\d+$`, inteiro não
+- [X] T030 [P] [US1] Criar `frontend/src/app/shared/validators.ts` com o validador de ano (`^\d+$`, inteiro não
   negativo) e a mensagem "Informe um ano válido (só números)." (FR-008 e FR-011), com testes de vazio, letras,
   negativo, decimal, espaços e válido.
-- [ ] T031 [US1] Criar o layout e as rotas: `frontend/src/app/app.ts` (cabeçalho com o menu "Painel" e "Filmes",
+- [X] T031 [US1] Criar o layout e as rotas: `frontend/src/app/app.ts` (cabeçalho com o menu "Painel" e "Filmes",
   `routerLinkActive` com `aria-current="page"`; FR-016) e `frontend/src/app/app.routes.ts` com `''` → Dashboard
   (título "Painel — Golden Raspberry Awards"), `'filmes'` → Lista (título "Filmes — Golden Raspberry Awards", com
   um componente provisório até a etapa 4) e `'**'` → redireciona para `''` (contracts/frontend-ui.md, "Rotas").
   `provideHttpClient(withFetch())` no `app.config.ts`. Teste unitário do redirecionamento e do menu ativo.
-- [ ] T032 [P] [US1] Criar `frontend/src/app/dashboard/multiple-winners-panel/`: `h2` "Anos com mais de um
+- [X] T032 [P] [US1] Criar `frontend/src/app/dashboard/multiple-winners-panel/`: `h2` "Anos com mais de um
   vencedor", tabela Ano e Vencedores com `caption`, vazio "Nenhum ano com mais de um vencedor.". Testes: dados,
   vazio, erro e "tentar de novo" refazendo só a chamada deste painel.
-- [ ] T033 [P] [US1] Criar `frontend/src/app/dashboard/top-studios-panel/`: `h2` "Estúdios com mais vitórias", só
+- [X] T033 [P] [US1] Criar `frontend/src/app/dashboard/top-studios-panel/`: `h2` "Estúdios com mais vitórias", só
   os **3 primeiros** itens da API (Estúdio, Vitórias), vazio "Nenhum estúdio vencedor.". Testes: com 5 itens mostra 3
   na ordem da API; com 2 mostra 2; vazio; erro.
-- [ ] T034 [P] [US1] Criar `frontend/src/app/dashboard/producer-intervals-panel/`: `h2` "Produtores com o maior e o
+- [X] T034 [P] [US1] Criar `frontend/src/app/dashboard/producer-intervals-panel/`: `h2` "Produtores com o maior e o
   menor intervalo", duas tabelas "Maior intervalo" (`max`) e "Menor intervalo" (`min`) com Produtor, Intervalo,
   Vitória anterior e Vitória seguinte, **todos** os itens (Princípio III); vazio "Nenhum produtor com duas
   vitórias." quando `min` e `max` vêm vazios. Testes: empates com vários itens; vazio; erro.
-- [ ] T035 [P] [US1] Criar `frontend/src/app/dashboard/winners-by-year-panel/`: `h2` "Vencedores por ano", campo
+- [X] T035 [P] [US1] Criar `frontend/src/app/dashboard/winners-by-year-panel/`: `h2` "Vencedores por ano", campo
   "Ano" (formulário reativo com o validador do T030) e botão "Buscar" desabilitado com valor inválido; antes da
   primeira busca, só o formulário; tabela Ano, Título, Estúdios ("—" quando nulo), Produtores; vazio "Nenhum
   vencedor em {ano}.". Testes: inválido não chama a API; válido chama `winnersOf`; vazio com o ano na mensagem;
   erro.
-- [ ] T036 [US1] Criar `frontend/src/app/dashboard/dashboard-page.ts` com o `h1` "Painel" e os quatro painéis
+- [X] T036 [US1] Criar `frontend/src/app/dashboard/dashboard-page.ts` com o `h1` "Painel" e os quatro painéis
   (FR-007), cada um com o seu estado independente (a falha de um não esconde os outros; teste unitário com um
   painel em erro e os outros com dados).
-- [ ] T037 [US3] Estilos globais em `frontend/src/styles.css` e nos componentes (research R3): variáveis de cor com
+- [X] T037 [US3] Estilos globais em `frontend/src/styles.css` e nos componentes (research R3): variáveis de cor com
   contraste AA, `:focus-visible` em todos os controles, `overflow-wrap: anywhere` nos textos de tabela; abaixo de
   768 px, painéis empilhados e linhas de tabela como cartões (`display: block` e `content: attr(data-label)` nas
   células); a partir de 768 px, grade de duas colunas no Dashboard. Todas as células com `data-label` igual ao
   cabeçalho (FR-015 e FR-016).
-- [ ] T038 [US1] Rodar `npm run lint`, `npm test -- --watch=false --coverage` (≥ 80% de linhas) e `npm run build` em
+- [X] T038 [US1] Rodar `npm run lint`, `npm test -- --watch=false --coverage` (≥ 80% de linhas) e `npm run build` em
   `frontend/`, e informar o resultado real. Conferência rápida: `./mvnw spring-boot:run` e `npm start`, e
   `curl -s localhost:4200/api/aggregations/years-with-multiple-winners` pelo proxy, para confirmar o repasse.
   Parar os dois processos.
-- [ ] T039 [US1] Commit da etapa 3: "Marco 6, etapa 3: projeto Angular 22.3 e Dashboard".
+- [X] T039 [US1] Commit da etapa 3: "Marco 6, etapa 3: projeto Angular 22.3 e Dashboard".
 
 ---
 
