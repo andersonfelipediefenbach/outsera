@@ -101,10 +101,17 @@ skip_step() { # passo, descrição, motivo
 now_ms() { date +%s%3N; }
 
 # Espera a readiness 200 em <url>, consultando a cada 0,5 s, até READY_TIMEOUT segundos. Imprime o
-# instante (ms) da primeira resposta 200.
-await_ready() { # url
+# instante (ms) da primeira resposta 200. Com um container dado, para assim que ele sai e mostra o fim do
+# log dele no erro padrão: sem isso, uma aplicação que termina na subida só aparecia depois do prazo
+# inteiro (job load, commit 127584c).
+await_ready() { # url [container]
   local deadline=$(( $(date +%s) + READY_TIMEOUT ))
   while (( $(date +%s) < deadline )); do
+    if [[ -n "${2:-}" && "$(docker inspect -f '{{.State.Running}}' "$2" 2>/dev/null)" != "true" ]]; then
+      echo "    o container saiu: $(docker inspect -f 'código {{.State.ExitCode}}, OOMKilled={{.State.OOMKilled}}' "$2" 2>/dev/null)" >&2
+      docker logs --tail 40 "$2" >&2 2>&1 || true
+      return 1
+    fi
     if [[ "$(curl -s -o /dev/null -w '%{http_code}' "$1/actuator/health/readiness" || true)" == "200" ]]; then
       now_ms
       return 0
@@ -156,9 +163,9 @@ step2() {
   docker run -d --name "$DIRECT_CONTAINER" -p "127.0.0.1::8080" \
     -v "$(host_path "$DATA_DIR/movies.csv"):/data/movies.csv:ro" -e MOVIES_CSV_PATH=/data/movies.csv \
     "$IMAGE" >/dev/null || return 1
-  url="http://127.0.0.1:$(docker port "$DIRECT_CONTAINER" 8080/tcp | sed -n '1p' | sed 's/.*://')"
-  if ! ready="$(await_ready "$url")"; then
-    echo "    sem readiness 200 em ${READY_TIMEOUT} s"
+  url="http://127.0.0.1:$(docker port "$DIRECT_CONTAINER" 8080/tcp 2>/dev/null | sed -n '1p' | sed 's/.*://')"
+  if ! ready="$(await_ready "$url" "$DIRECT_CONTAINER")"; then
+    echo "    sem readiness 200"
     docker logs "$DIRECT_CONTAINER" > "$OUT_DIR/direct.log" 2>&1 || true
     return 1
   fi
@@ -184,8 +191,8 @@ if [[ "$ONLY_DIRECT" == 0 ]]; then
     fi
     COMPOSE_UP=1
     "${COMPOSE[@]}" up -d --no-build || return 1
-    if ! ready="$(await_ready "http://127.0.0.1:${APP_PORT:-8080}")"; then
-      echo "    sem readiness 200 em ${READY_TIMEOUT} s"
+    if ! ready="$(await_ready "http://127.0.0.1:${APP_PORT:-8080}" "$("${COMPOSE[@]}" ps -q app)")"; then
+      echo "    sem readiness 200"
       return 1
     fi
     started="$(docker inspect -f '{{.State.StartedAt}}' "$("${COMPOSE[@]}" ps -q app)")"

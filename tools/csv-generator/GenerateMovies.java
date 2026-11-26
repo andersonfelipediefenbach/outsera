@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
@@ -89,6 +90,12 @@ public final class GenerateMovies {
         try {
             temporary = Files.createTempFile(options.output().getParent(), ".GenerateMovies-", ".tmp");
             write(options, temporary);
+            // No Linux, o createTempFile cria o arquivo só para o dono (rw-------), e o ATOMIC_MOVE mantém a
+            // permissão. A aplicação no container roda com outro usuário e não conseguiria ler o arquivo
+            // montado (job load, commit 127584c). Fica legível por todos, como um arquivo comum.
+            if (Files.getFileStore(temporary).supportsFileAttributeView("posix")) {
+                Files.setPosixFilePermissions(temporary, PosixFilePermissions.fromString("rw-r--r--"));
+            }
             String sha256 = sha256(temporary);
             Files.move(temporary, options.output(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             System.out.println(options.output() + ": " + options.movies() + " filmes, SHA-256 " + sha256);

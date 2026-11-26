@@ -3,6 +3,31 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-26 — Pipeline do commit 127584c: job load e job compose
+
+Execuções 45813784469 e 45814146445, diagnosticadas pelos logs que o Anderson enviou.
+
+- **Job `load`, nas duas execuções:** o passo do script levou cerca de 21,5 min. A geração passou (os dois
+  SHA-256 iguais ao registrado no Windows), mas a carga direta e a carga por Kafka falharam, cada uma com
+  "sem readiness 200 em 600 s". No passo 4, o compose não subiu o k6 porque "container awards-app-1
+  exited (1)": a aplicação terminava na subida, e o script esperava o prazo inteiro sem perceber.
+- **Causa provável:** o gerador cria o arquivo com `Files.createTempFile`, que no Linux dá a permissão
+  `rw-------`, só para o dono. O `ATOMIC_MOVE` mantém essa permissão. A aplicação roda no container com o
+  usuário 10001 e não consegue ler o `movies.csv` montado, então a carga falha na subida ("o caminho não é
+  um arquivo legível") e a aplicação sai com 1. No Windows não há permissão POSIX, e tudo passava. Os
+  dois caminhos de carga usam o mesmo arquivo.
+- **Correção:**
+  - o gerador deixa o arquivo com `rw-r--r--` quando o sistema de arquivos tem permissões POSIX. O
+    conteúdo e o SHA-256 não mudam;
+  - o `load-test.sh` para a espera da readiness assim que o container sai e mostra o fim do log dele no
+    log do job. Uma falha assim leva segundos, e não 10 minutos.
+- **Tamanho do arquivo:** a carga nunca chegou a começar no runner, então ainda não há medição dos 100 mil
+  filmes lá. O tamanho não mudou.
+- **Job `compose`, só em 45814146445, em 24 s:** falhou no build da imagem, no passo do Dockerfile que baixa
+  as dependências do Maven Central (`dependency:go-offline`, saída 1). Na outra execução do mesmo commit, o
+  mesmo build passou, e o job ficou verde em 3 min 38 s. Falha passageira de rede ou de limite do Maven
+  Central. Nada foi mudado por ela.
+
 ## 2026-11-26 — Intervalos guardados entre as leituras, invalidados a cada gravação
 
 - **Falha encontrada no T021 da spec 004:** com os 100 mil filmes gerados, o endpoint de intervalos deu
