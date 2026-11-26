@@ -173,11 +173,15 @@ na etapa 3. No PR, o `workflow-policy` e o `image` ficam verdes (comprovação d
     - o tar é extraído num diretório, em vez de ler cada arquivo com `tar -xOf`, para não depender do
       prefixo `./`;
     - o passo também confere que a plataforma é `linux/amd64`, e o artefato vai com `compression-level: 0`.
-- [ ] T018 [US2] **Não executada localmente, por decisão do responsável (2026-11-26):** localmente, cada
-  etapa roda só o `./mvnw verify` padrão, e o resto fica para o pipeline. O workflow real é conferido pelo job
-  `workflow-policy` no PR. Os casos negativos não têm execução no pipeline e ficam sem prova registrada; a
-  revisão do PR confere as regras 3, 5, 9 e 10 no script. Feito localmente: `bash -n` do script e a leitura
-  do `ci.yml` como YAML válido. Texto original da tarefa:
+- [X] T018 [US2] **Feita antes do push, a pedido do responsável, junto com a T026.** Rodou num contêiner
+  `alpine:3.22` com o `yq` 4.47.2 e o `bash`, e não com o binário do Windows, sobre o commit `6e876e0`
+  ([`evidencias/politica-workflow.txt`](evidencias/politica-workflow.txt)):
+  - o HEAD passou;
+  - os casos 1, 2, 6 e 7 reprovaram com a mensagem da regra;
+  - os casos 3 a 5 (T026) e mais 5 casos extras também reprovaram;
+  - o `if` normalizado passou.
+
+  Texto original da tarefa:
   - baixar o `yq` v4 (binário do Windows, versão fixada, SHA-256 conferido com o `checksums` do release) para o
     scratchpad e pô-lo no PATH só nesse comando;
   - rodar `.github/scripts/check-workflows.sh`, que precisa passar;
@@ -275,10 +279,9 @@ merge (Phase 6).
     - as URLs passam aos scripts por `env`, e não por expressão no `run`;
     - a readiness espera até 60 s por chamada, para medir a partida a frio (SC-001);
     - o `environment.url` usa a URL literal.
-- [ ] T026 [US2] **Não executada localmente, por decisão do responsável (2026-11-26):** o workflow real é
-  conferido pelo job `workflow-policy` no PR. Os casos negativos 3 a 5 ficam sem prova registrada. Feito
-  localmente: a leitura do `ci.yml` como YAML válido, com o `if`, os `needs`, a concorrência e as permissões do
-  job `deploy` iguais aos do contrato, e nenhuma referência a `secrets.`. Texto original da tarefa:
+- [X] T026 [US2] **Feita antes do push, a pedido do responsável, junto com a T018.** Os casos 3, 4 e 5
+  reprovaram com a mensagem da regra 9, e o HEAD passou
+  ([`evidencias/politica-workflow.txt`](evidencias/politica-workflow.txt)). Texto original da tarefa:
   conferência local rápida da política com o job `deploy`:
   - o `check-workflows.sh` real passa;
   - os casos 3, 4 e 5 de [`contracts/workflow-policy.md`](contracts/workflow-policy.md), numa cópia temporária,

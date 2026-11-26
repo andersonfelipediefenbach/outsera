@@ -39,9 +39,23 @@ arquitetura está no [ADR 0027](../adr/0027-publicacao-no-cloud-run.md).
   - a proibição de `secrets.` não mudou.
 - **Retenção do registro de 30 dias, mantendo as 10 imagens mais recentes** (análise, achado C1). A regra de
   apagar só as imagens sem tag não bastaria, porque toda imagem recebe a tag do commit.
-- **Conferências locais reduzidas** (decisão do responsável, durante a implementação). Localmente, cada etapa
-  rodou só o `./mvnw verify` padrão. O `./mvnw -Pextras verify` e as conferências de política e de script
-  (T018, T021 e T026) ficaram para o pipeline. Os casos negativos da política não têm execução registrada.
+- **Conferências locais reduzidas, com a política conferida antes do push** (decisões do responsável, durante
+  a implementação).
+  - Localmente, cada etapa rodou só o `./mvnw verify` padrão. O `./mvnw -Pextras verify` e o teste local do
+    `verify-deployment.sh` (T021) ficaram para o pipeline. O script é comprovado pelas duas conferências do
+    job `deploy`.
+  - A política do workflow (T018 e T026) foi conferida antes do push, a pedido do responsável. Ela é a
+    proteção que impede outro job de obter a identidade do GCP.
+  - A conferência rodou num contêiner `alpine:3.22` com o `yq` 4.47.2 (mikefarah) e o `bash` do `apk`, sobre o
+    commit `6e876e0`:
+    - o `check-workflows.sh` passou no HEAD;
+    - os 7 casos negativos do contrato e 5 casos extras reprovaram, cada um com a mensagem da sua regra. Os
+      extras são `write-all` num job, `id-token: write` num job novo, cancelamento no job `deploy`,
+      `docker build` e `docker push` no `deploy`;
+    - o mesmo `if` do `deploy`, entre `${{ }}` e com espaços a mais, passou (normalização).
+  - O resultado está em
+    [`specs/005-deploy-cloud-run/evidencias/politica-workflow.txt`](../../specs/005-deploy-cloud-run/evidencias/politica-workflow.txt),
+    com o roteiro usado.
 - **No Windows, o `gcloud` em bash precisa do `CLOUDSDK_PYTHON`** apontando para o Python do próprio SDK. Sem
   ele, o atalho `python` da Microsoft Store responde no lugar, e o comando falha. O `setup.sh` define a
   variável quando ela falta (research R9).

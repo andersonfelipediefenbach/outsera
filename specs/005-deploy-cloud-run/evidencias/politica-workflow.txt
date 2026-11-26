@@ -1,0 +1,136 @@
+# Política do workflow: HEAD e casos negativos (spec 005, T018 e T026), 2026-11-26T19:19Z
+# Commit conferido: 6e876e0 (check-workflows.sh e ci.yml sem mudança depois dele)
+# Contêiner: alpine:3.22 (alpine@sha256:49340b346798875b5592e5d420241f2f9cfba5f47e62ebb1446a1b34734e898f), com bash e yq-go do apk
+# Comando: docker run --rm -v <repo>:/repo:ro -v <roteiro>:/sp:ro alpine:3.22 sh -c 'apk add --no-cache -q bash yq-go && bash /sp/policy-cases.sh'
+# Código de saída do roteiro: 0
+
+yq: yq (https://github.com/mikefarah/yq/) version v4.47.2
+bash: 5.2.37(1)-release
+
+--- HEAD
+      check-workflows.sh: 1 workflow(s), o dependabot.yml e o compose.yaml dentro da política.
+==> HEAD: OK - passa na política (código 0)
+
+--- Casos negativos do contrato (cada um precisa reprovar com a mensagem da regra)
+==> caso 1: OK - id-token: write no job build (regra 3) (código 1, esperado 1)
+      check-workflows.sh: 1 violação(ões) da política:
+        - .github/workflows/ci.yml: job build pede 'id-token: write' (só o job codeql pode ter security-events: write, e só o job deploy, id-token: write)
+==> caso 2: OK - skopeo copy num passo do job image (regra 5) (código 1, esperado 1)
+      check-workflows.sh: 1 violação(ões) da política:
+        - .github/workflows/ci.yml: job image usa skopeo (o envio de imagem ao registro só pode estar no job deploy)
+==> caso 3: OK - job deploy sem compose em needs (regra 9) (código 1, esperado 1)
+      check-workflows.sh: 1 violação(ões) da política:
+        - .github/workflows/ci.yml: job deploy sem o check obrigatório 'compose' em needs
+==> caso 4: OK - job deploy com docker/build-push-action (regra 9) (código 1, esperado 1)
+      check-workflows.sh: 1 violação(ões) da política:
+        - .github/workflows/ci.yml: job deploy com docker/build-push-action (a imagem publicada é a do job image, sem rebuild)
+==> caso 5: OK - job deploy com if só pela ref (regra 9) (código 1, esperado 1)
+      check-workflows.sh: 1 violação(ões) da política:
+        - .github/workflows/ci.yml: job deploy com if diferente do contrato (encontrado: 'github.ref == 'refs/heads/main''; esperado: 'github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'andersonfelipediefenbach/outsera'')
+==> caso 6: OK - secrets.FOO no job deploy (regra 4) (código 1, esperado 1)
+      check-workflows.sh: 1 violação(ões) da política:
+        - .github/workflows/ci.yml: referência a secrets.: 405:      FOO: ${{ secrets.FOO }}
+==> caso 7: OK - cancel-in-progress: true no topo (regra 10) (código 1, esperado 1)
+      check-workflows.sh: 1 violação(ões) da política:
+        - .github/workflows/ci.yml: concurrency.cancel-in-progress do topo é true fixo (use uma expressão que não cancele na main)
+
+--- Casos extras (outra forma de obter a identidade ou de burlar o job deploy)
+==> caso 8: OK - permissions: write-all num job (regra 3) (código 1, esperado 1)
+      check-workflows.sh: 1 violação(ões) da política:
+        - .github/workflows/ci.yml: job image declara permissions 'write-all' (use um mapa com permissões explícitas)
+==> caso 9: OK - id-token: write num job novo (regra 3) (código 1, esperado 1)
+      check-workflows.sh: 1 violação(ões) da política:
+        - .github/workflows/ci.yml: job intruso pede 'id-token: write' (só o job codeql pode ter security-events: write, e só o job deploy, id-token: write)
+==> caso 10: OK - job deploy com cancel-in-progress: true (regra 9) (código 1, esperado 1)
+      check-workflows.sh: 1 violação(ões) da política:
+        - .github/workflows/ci.yml: job deploy deveria ter concurrency.group 'deploy-cloud-run' e cancel-in-progress: false (encontrado: 'deploy-cloud-run', true)
+==> caso 11: OK - docker build num passo run do job deploy (regra 9) (código 1, esperado 1)
+      check-workflows.sh: 1 violação(ões) da política:
+        - .github/workflows/ci.yml: job deploy com docker build (a imagem publicada é a do job image, sem rebuild)
+==> caso 12: OK - docker push num passo do job deploy (regra 5) (código 1, esperado 1)
+      check-workflows.sh: 1 violação(ões) da política:
+        - .github/workflows/ci.yml: passo run com docker push
+
+--- Caso positivo da normalização (o mesmo if, entre ${{ }} e com espaços a mais, precisa passar)
+==> caso 13: OK - if do deploy com ${{ }} e espaços repetidos (código 0, esperado 0)
+      check-workflows.sh: 1 workflow(s), o dependabot.yml e o compose.yaml dentro da política.
+
+Resumo: 14 OK, 0 FALHA
+
+# Roteiro usado (policy-cases.sh, fora do repositório; cada caso numa cópia temporária de .github e compose.yaml)
+
+#!/usr/bin/env bash
+# Casos da política do workflow (spec 005, T018 e T026; contracts/workflow-policy.md).
+# Roda dentro de um contêiner alpine com bash e yq (mikefarah v4). O repositório fica montado só para
+# leitura em /repo; cada caso é aplicado numa cópia temporária de .github, compose.yaml e dependabot.yml.
+set -uo pipefail
+
+SCRIPT=/repo/.github/scripts/check-workflows.sh
+PASS=0; FAIL=0
+
+echo "yq: $(yq --version)"
+echo "bash: ${BASH_VERSION}"
+echo
+
+run_case() { # id, descrição, código esperado, trecho esperado na saída, expressão do yq sobre o ci.yml
+  local id="$1" desc="$2" expected="$3" needle="$4" expr="$5"
+  local dir out code
+  dir="$(mktemp -d)"
+  cp -r /repo/.github "$dir/.github"
+  cp /repo/compose.yaml "$dir/compose.yaml"
+  if [[ -n "$expr" ]]; then
+    yq -i "$expr" "$dir/.github/workflows/ci.yml"
+  fi
+  out="$(bash "$SCRIPT" "$dir" 2>&1)"; code=$?
+  local verdict="OK"
+  if [[ "$code" != "$expected" ]]; then verdict="FALHA"; fi
+  if [[ -n "$needle" ]] && ! grep -qF -- "$needle" <<<"$out"; then verdict="FALHA"; fi
+  if [[ "$verdict" == OK ]]; then PASS=$((PASS + 1)); else FAIL=$((FAIL + 1)); fi
+  echo "==> caso $id: $verdict - $desc (código $code, esperado $expected)"
+  sed 's/^/      /' <<<"$out"
+  rm -rf "$dir"
+}
+
+echo "--- HEAD"
+out="$(bash "$SCRIPT" /repo 2>&1)"; code=$?
+echo "$out" | sed 's/^/      /'
+if [[ "$code" == 0 ]]; then PASS=$((PASS + 1)); echo "==> HEAD: OK - passa na política (código 0)"; else FAIL=$((FAIL + 1)); echo "==> HEAD: FALHA (código $code)"; fi
+echo
+
+echo "--- Casos negativos do contrato (cada um precisa reprovar com a mensagem da regra)"
+run_case 1 "id-token: write no job build (regra 3)" 1 "job build pede 'id-token: write'" \
+  '.jobs.build.permissions = {"contents": "read", "id-token": "write"}'
+run_case 2 "skopeo copy num passo do job image (regra 5)" 1 "job image usa skopeo" \
+  '.jobs.image.steps += [{"name": "envio", "run": "skopeo copy oci-archive:a.tar docker://registro/awards:x"}]'
+run_case 3 "job deploy sem compose em needs (regra 9)" 1 "job deploy sem o check obrigatório 'compose' em needs" \
+  '.jobs.deploy.needs -= ["compose"]'
+run_case 4 "job deploy com docker/build-push-action (regra 9)" 1 "job deploy com docker/build-push-action" \
+  '.jobs.deploy.steps += [{"uses": "docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc"}]'
+run_case 5 "job deploy com if só pela ref (regra 9)" 1 "job deploy com if diferente do contrato" \
+  ".jobs.deploy.if = \"github.ref == 'refs/heads/main'\""
+run_case 6 "secrets.FOO no job deploy (regra 4)" 1 "referência a secrets." \
+  '.jobs.deploy.env.FOO = "${{ secrets.FOO }}"'
+run_case 7 "cancel-in-progress: true no topo (regra 10)" 1 "concurrency.cancel-in-progress do topo é true fixo" \
+  '.concurrency."cancel-in-progress" = true'
+echo
+
+echo "--- Casos extras (outra forma de obter a identidade ou de burlar o job deploy)"
+run_case 8 "permissions: write-all num job (regra 3)" 1 "job image declara permissions 'write-all'" \
+  '.jobs.image.permissions = "write-all"'
+run_case 9 "id-token: write num job novo (regra 3)" 1 "job intruso pede 'id-token: write'" \
+  '.jobs.intruso = {"runs-on": "ubuntu-latest", "permissions": {"contents": "read", "id-token": "write"}, "steps": [{"run": "true"}]}'
+run_case 10 "job deploy com cancel-in-progress: true (regra 9)" 1 "job deploy deveria ter concurrency.group 'deploy-cloud-run' e cancel-in-progress: false" \
+  '.jobs.deploy.concurrency."cancel-in-progress" = true'
+run_case 11 "docker build num passo run do job deploy (regra 9)" 1 "job deploy com docker build" \
+  '.jobs.deploy.steps += [{"run": "docker build -t x ."}]'
+run_case 12 "docker push num passo do job deploy (regra 5)" 1 "passo run com docker push" \
+  '.jobs.deploy.steps += [{"run": "docker push registro/awards:x"}]'
+echo
+
+echo "--- Caso positivo da normalização (o mesmo if, entre \${{ }} e com espaços a mais, precisa passar)"
+run_case 13 "if do deploy com \${{ }} e espaços repetidos" 0 "dentro da política" \
+  ".jobs.deploy.if = \"\${{   github.event_name == 'push' &&  github.ref == 'refs/heads/main' && github.repository == 'andersonfelipediefenbach/outsera'  }}\""
+echo
+
+echo "Resumo: $PASS OK, $FAIL FALHA"
+(( FAIL == 0 ))
