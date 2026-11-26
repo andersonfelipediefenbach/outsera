@@ -3,6 +3,31 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-26 — Marco 6: desvios do briefing no front-end
+
+- **Origem:** spec 006 (Marco 6), FR-031 e FR-034. O briefing ("Front-end") previa hospedagem estática, CORS por
+  variável, um container do front no compose e testes "em pipeline próprio", e deixava a versão do Angular em
+  aberto.
+- **Decisões (responsável, no pedido do marco e na clarificação de 2026-11-26):**
+  - **publicação no Cloud Run** (`awards-web`), e não em Vercel ou Firebase Hosting: reaproveita o projeto, a
+    identidade federada sem chaves e o fluxo conferido do Marco 5, sem outro provedor nem conta;
+  - **mesma origem, sem CORS:** o nginx repassa `/api` ao serviço `awards`, e o `ng serve` faz o mesmo localmente.
+    A API não ganha configuração de CORS, e o navegador não faz preflight (research R8);
+  - **front fora do `compose.yaml`** (opção B da clarificação): o front roda só pela publicação e pelo `npm
+    start`. O compose, o job `compose` e o dono deles não mudam;
+  - **jobs do front no mesmo workflow** (`frontend`, `web` e `deploy-web`), e não num workflow próprio: um segundo
+    arquivo duplicaria a política, a concorrência e os `needs` das publicações (research R9);
+  - **Angular 22.3.0**, a `latest` do npm na data do plano, com Node 26 LTS (research R1). O ponto sai da lista
+    de pontos em aberto do `AGENTS.md`.
+- **Ajustes feitos durante a implementação:**
+  - o aviso do orçamento do bundle inicial subiu de 300 kB para 350 kB, e o erro ficou em 500 kB: o Angular 22
+    com router, forms e http já parte de cerca de 310 kB;
+  - o CSS crítico em linha do build (`inlineCritical`) foi desligado, porque a CSP restrita a `'self'` bloqueia
+    estilo e script em linha;
+  - o front sobe no teste de fumaça e no ponta a ponta com `-p` e `host.docker.internal:host-gateway`, e não com
+    `--network host`, para o mesmo script rodar no runner e no Docker Desktop.
+- **Briefing:** não foi alterado. Ele é o registro do planejamento, e a fonte da verdade é a spec 006.
+
 ## 2026-11-26 — Política do workflow: `yq | grep -q` deixava passar `docker build` e `docker push`
 
 - **Origem:** casos negativos do `check-workflows.sh` na etapa 6 do Marco 6 (spec 006, T057). Um `docker build`

@@ -20,7 +20,7 @@ wrapper baixa o Maven, e o banco é um H2 em memória.
 | Rodar também os testes do que vem desligado (opcional) | `./mvnw -Pextras verify` | `.\mvnw.cmd -Pextras verify` |
 
 O `./mvnw verify` roda os **testes de integração de todo o modo padrão**: H2, a carga do CSV com todas as
-regras, os dois endpoints, o Swagger e o que vem ligado sem configuração (ETag, sondas, métricas e log em
+regras, os endpoints de negócio, o Swagger e o que vem ligado sem configuração (ETag, sondas, métricas e log em
 texto). Num clone limpo, com as dependências do Maven já baixadas, ele leva cerca de 1 minuto (63 s medidos, com a compilação). Os testes do que
 vem desligado por padrão (Kafka, autenticação ligada e log em JSON) e a cobertura mínima de 90% rodam com
 `./mvnw -Pextras verify`, também sem Docker, em cerca de 4 a 9 minutos. O pipeline roda os dois em todo push (seção 5).
@@ -69,6 +69,18 @@ curl -s https://awards-2564509384.southamerica-east1.run.app/api/producers/inter
 - **A primeira chamada pode levar alguns segundos.** O serviço fica com zero instâncias quando ninguém o
   usa, e a primeira chamada espera a aplicação subir e carregar o CSV. As seguintes respondem na hora.
 - É uma demonstração: uma instância só, sem autenticação e sem garantia de disponibilidade.
+
+**E o front, também publicado.** O painel e a lista de filmes, em Angular, rodam num segundo serviço do Cloud
+Run, que repassa as chamadas de `/api` a essa mesma API (Marco 6,
+[seção 3](#marco-6-front-end-em-angular-opcional)):
+
+- Painel: <https://awards-web-2564509384.southamerica-east1.run.app>, com os anos com mais de um vencedor, os
+  três estúdios com mais vitórias, os produtores com o maior e o menor intervalo e a busca dos vencedores de um
+  ano.
+- Lista de filmes, já filtrada pelos vencedores de 1990:
+  <https://awards-web-2564509384.southamerica-east1.run.app/filmes?ano=1990&vencedor=sim>.
+- **A primeira abertura pode levar alguns segundos**: os dois serviços ficam com zero instâncias quando ninguém
+  os usa, e o painel mostra "Carregando…" enquanto eles sobem.
 
 ---
 
@@ -421,22 +433,82 @@ tem papéis só no serviço, no registro e na conta de execução, e não pode m
 de execução não tem papel nenhum. A decisão completa está no
 [ADR 0027](docs/adr/0027-publicacao-no-cloud-run.md).
 
+### Marco 6: front-end em Angular (opcional)
+
+O front fica em [`frontend/`](frontend/), com build, testes e imagem próprios. Ele está publicado em
+<https://awards-web-2564509384.southamerica-east1.run.app>. O `./mvnw` não lê o `frontend/` nem precisa de Node
+(constituição 2.1.0, Princípio II).
+
+**As duas telas.**
+- **Painel** (`/`): quatro painéis independentes, cada um com "Carregando…", mensagem de vazio e erro com "Tentar
+  de novo":
+  - os anos com mais de um vencedor;
+  - os três estúdios com mais vitórias;
+  - os produtores com o maior e o menor intervalo, com todos os empatados que `GET /api/producers/intervals`
+    devolve;
+  - os vencedores de um ano buscado, pela listagem existente (`year` e `winner=true`).
+- **Filmes** (`/filmes`): a lista paginada, 10 por página, com filtro por ano e por vencedor. A URL guarda o
+  filtro e a página (`/filmes?ano=1990&vencedor=sim&pagina=2`), então recarregar ou compartilhar o link mostra a
+  mesma página.
+- No celular, os painéis ficam empilhados e as linhas viram cartões; no desktop, ficam em grade e em tabela. Tudo
+  funciona só pelo teclado, com o foco visível.
+
+**Agregações novas na API.** Os dois painéis de totais usam endpoints novos, descritos no contrato 1.3.0 e
+comprovados por ITs, sem mudar os existentes ([seção 4](#agregações-do-painel)).
+
+**Rodar o front localmente**, com Node 26 ([`frontend/.nvmrc`](frontend/.nvmrc)), contra a API do
+`./mvnw spring-boot:run`:
+
+```bash
+./mvnw spring-boot:run          # num terminal: a API em http://localhost:8080
+cd frontend && npm ci && npm start   # noutro: o front em http://localhost:4200, com /api repassado à API
+```
+
+**Testes do front** ([`frontend/README.md`](frontend/README.md)):
+- **unitários**, com o Vitest: componentes, serviços, validação, estados dos painéis, filtros da URL e paginação,
+  com cobertura mínima de 80% das linhas (`npm test -- --watch=false --coverage`);
+- **ponta a ponta**, com o Playwright, contra a API real e a imagem do front com o repasse de `/api`, sem
+  nenhuma resposta simulada (o lint proíbe `page.route`), numa largura de desktop e numa de celular.
+
+Os dois rodam no pipeline, nos jobs `frontend` e `web` ([seção 5](#pipeline)), como pede a emenda 2.1.0 da
+constituição (Princípio VI).
+
+**Imagem e publicação.**
+- [`frontend/Dockerfile`](frontend/Dockerfile) é multi-stage: o Node 26 constrói o Angular, e o nginx sem root
+  serve os arquivos.
+- O nginx devolve o `index.html` nas rotas internas e repassa `/api` ao serviço da API, cuja origem vem de
+  `API_URL`. O navegador fala com uma única origem, então a API não precisa de CORS.
+- Ele aplica CSP e cabeçalhos de segurança.
+- O log de acesso sai em JSON (`LOG_FORMAT=json`, definido na imagem).
+- O job `deploy-web` publica a imagem testada no serviço `awards-web` só depois de a API ser publicada e
+  conferida. O fluxo é o mesmo do Marco 5: mesma identidade federada, sem chaves, revisão sem tráfego até o
+  [`verify-web.sh`](.github/scripts/verify-web.sh) aprovar, e 0 a 1 instância.
+- O `setup.sh` cria o serviço e a conta de execução do front, sem nenhum papel
+  ([evidências](specs/006-frontend-angular/evidencias/)).
+- A decisão está no [ADR 0028](docs/adr/0028-front-end-angular-com-nginx.md).
+
+**O que fica de fora.** O front não entra no `compose.yaml`, não tem login (com a autenticação ligada na API, os
+painéis mostram o erro) e não usa SSR.
+
 ## 4. Endpoints
 
-O contrato completo (versão 1.2.1, com ETag e a autenticação opcional) está em
-[`specs/005-deploy-cloud-run/contracts/openapi.yaml`](specs/005-deploy-cloud-run/contracts/openapi.yaml), publicado
+O contrato completo (versão 1.3.0, com ETag e a autenticação opcional) está em
+[`specs/006-frontend-angular/contracts/openapi.yaml`](specs/006-frontend-angular/contracts/openapi.yaml), publicado
 em <http://localhost:8080/openapi.yaml> e navegável no Swagger UI, em
-<http://localhost:8080/swagger-ui.html>. Os dos Marcos 1 a 3 ficam em
+<http://localhost:8080/swagger-ui.html>. Os dos Marcos 1 a 5 ficam em
 [`specs/001-producer-intervals-api/contracts/openapi.yaml`](specs/001-producer-intervals-api/contracts/openapi.yaml),
-[`specs/002-operacao/contracts/openapi.yaml`](specs/002-operacao/contracts/openapi.yaml) e
-[`specs/003-modo-docker/contracts/openapi.yaml`](specs/003-modo-docker/contracts/openapi.yaml) (1.2.0), como
-registro. A 1.2.1 muda só textos: a descrição geral em duas frases e a autenticação descrita como opcional
-(spec 005, FR-027).
+[`specs/002-operacao/contracts/openapi.yaml`](specs/002-operacao/contracts/openapi.yaml),
+[`specs/003-modo-docker/contracts/openapi.yaml`](specs/003-modo-docker/contracts/openapi.yaml) (1.2.0) e
+[`specs/005-deploy-cloud-run/contracts/openapi.yaml`](specs/005-deploy-cloud-run/contracts/openapi.yaml) (1.2.1),
+como registro. A 1.3.0 só acrescenta as duas agregações do painel (spec 006, FR-004): os endpoints existentes não
+mudam.
 
 | Método e caminho | O que faz |
 | --- | --- |
 | `GET /api/producers/intervals` | Produtores com o menor e o maior intervalo entre vitórias consecutivas |
 | `GET /api/movies` | Lista paginada de filmes, com filtros |
+| `GET /api/aggregations/years-with-multiple-winners` | Anos com mais de um vencedor ([agregações](#agregações-do-painel)) |
+| `GET /api/aggregations/studios-with-win-count` | Estúdios com a quantidade de filmes vencedores |
 | `GET /swagger-ui.html` | Documentação interativa |
 | `GET /openapi.yaml` | Contrato OpenAPI 3.1 |
 | `GET /actuator/health/liveness`, `GET /actuator/health/readiness`, `GET /actuator/health` | Saúde da aplicação ([endpoints operacionais](#endpoints-operacionais)) |
@@ -487,9 +559,32 @@ curl -s "http://localhost:8080/api/movies?page=-1&size=500"
 {"detail":"Parâmetro inválido na consulta","instance":"/api/movies","status":400,"title":"Bad Request","invalidParams":[{"name":"page","reason":"deve ser um inteiro maior ou igual a 0"},{"name":"size","reason":"deve ser um inteiro de 1 a 100"}]}
 ```
 
+### Agregações do painel
+
+Duas agregações de leitura, criadas para o front do Marco 6 (spec 006, FR-001 a FR-003). Não têm parâmetros e
+seguem o padrão dos endpoints de negócio: ETag e 304, 401 com a autenticação ligada, e listas vazias com 200
+quando não há dados.
+
+```bash
+curl -s http://localhost:8080/api/aggregations/years-with-multiple-winners
+# {"years":[{"year":1986,"winnerCount":2},{"year":1990,"winnerCount":2},{"year":2015,"winnerCount":2}]}
+
+curl -s http://localhost:8080/api/aggregations/studios-with-win-count
+# {"studios":[{"name":"Columbia Pictures","winCount":7},{"name":"Paramount Pictures","winCount":6},{"name":"Warner Bros.","winCount":5},...]}
+```
+
+- **Anos:** só os anos com dois ou mais vencedores, em ordem crescente.
+- **Estúdios:** cada estúdio com a quantidade de filmes vencedores em que aparece. A ordem é pela quantidade
+  decrescente e depois pelo nome.
+  - O campo de estúdios é separado por vírgula, sem espaços nas pontas, e partes vazias saem.
+  - Um estúdio repetido no mesmo filme conta uma vez.
+  - Os nomes ficam como no arquivo, sem normalizar a grafia.
+  - O arquivo fornecido não usa ` and ` entre estúdios, então ele não separa estúdios, ao contrário dos
+    produtores.
+
 ### ETag e 304
 
-As respostas 200 dos dois endpoints trazem um `ETag` forte, derivado do conteúdo: o mesmo corpo tem
+As respostas 200 dos endpoints de negócio trazem um `ETag` forte, derivado do conteúdo: o mesmo corpo tem
 sempre o mesmo ETag, inclusive entre execuções com o mesmo arquivo. O corpo da resposta 200 não muda.
 
 ```bash
@@ -643,13 +738,16 @@ da [constituição](.specify/memory/constitution.md) proíbe testes unitários e
 ### Pipeline
 
 O [GitHub Actions](.github/workflows/ci.yml) roda em todo push e pull request, sem segredos. Toda action é
-fixada por hash de commit. A única publicação é a do job `deploy`, só em push na `main` (Marco 5). O contrato
-completo está em [`specs/002-operacao/contracts/ci-pipeline.md`](specs/002-operacao/contracts/ci-pipeline.md)
-e, para a publicação, em [`specs/005-deploy-cloud-run/contracts/ci-deploy.md`](specs/005-deploy-cloud-run/contracts/ci-deploy.md).
+fixada por hash de commit. As únicas publicações são as dos jobs `deploy` (API, Marco 5) e `deploy-web` (front,
+Marco 6), só em push na `main`. O contrato completo está em
+[`specs/002-operacao/contracts/ci-pipeline.md`](specs/002-operacao/contracts/ci-pipeline.md), e o das
+publicações, em [`specs/005-deploy-cloud-run/contracts/ci-deploy.md`](specs/005-deploy-cloud-run/contracts/ci-deploy.md)
+e [`specs/006-frontend-angular/contracts/ci-frontend.md`](specs/006-frontend-angular/contracts/ci-frontend.md).
+Os checks obrigatórios da `main` são 12: os 10 do Marco 4, mais `frontend` e `web`.
 
 | Job | O que faz | Reprova quando |
 | --- | --- | --- |
-| `workflow-policy` | Confere a política do workflow, do Dependabot e do compose, e que os testes dos Marcos 1 e 2 não mudaram desde a `v0.2.0` | Action sem hash de commit, permissão além de `contents: read` (exceto `security-events: write` no `codeql` e `id-token: write` no `deploy`), uso de `secrets.`, publicação de imagem fora do `deploy`, job `deploy` sem os 10 checks em `needs`, com outra condição, com cancelamento ou com build, Dependabot incompleto, imagem do compose ou de service container sem digest, senha de banco no workflow, ou um IT da `v0.2.0` alterado sem exceção registrada |
+| `workflow-policy` | Confere a política do workflow, do Dependabot e do compose, e que os ITs dos marcos anteriores não mudaram desde a `v0.2.0`, a `v0.3.0` e a `v0.5.0` | Action sem hash de commit, permissão além de `contents: read` (exceto `security-events: write` no `codeql` e `id-token: write` no `deploy` e no `deploy-web`), uso de `secrets.`, publicação de imagem fora do `deploy` e do `deploy-web`, job de publicação sem os 12 checks em `needs` (o `deploy-web` também sem o `deploy`), com outra condição, com cancelamento ou com build, Dependabot incompleto (inclusive o npm e o docker do `frontend/`), imagem do compose ou de service container sem digest, senha de banco no workflow, ou um IT de uma dessas tags alterado sem exceção registrada |
 | `build` | `./mvnw -Pextras verify` (enunciado, extras e log em JSON), cobertura no resumo e relatórios como artefato | Qualquer teste falha, ou a cobertura de linhas fica abaixo de 90% |
 | `postgres` | `./mvnw -Ppostgres-it verify` contra um PostgreSQL 18 (service container, collation `C`, sem credencial) | Qualquer `*PostgresIT` falha |
 | `compose` | [`compose-test.sh`](.github/scripts/compose-test.sh): sobe o compose e confere a referência, o Prometheus, o dashboard, as regras do SLO carregadas sem alerta disparando, um vencedor novo pelo Kafka em até 5 s, o tópico de erros, a persistência depois de `down`, a queda real do banco e o token | Qualquer passo falha, ou a subida até o dashboard passa de 3 min |
@@ -657,13 +755,16 @@ e, para a publicação, em [`specs/005-deploy-cloud-run/contracts/ci-deploy.md`]
 | `dependencies` | Trivy nas dependências de runtime que o Maven copia (inventário efetivo, com as transitivas), com relatório completo e as versões de `lz4-java` e `snappy-java` no resumo | Vulnerabilidade `HIGH` ou `CRITICAL` **com versão corrigida**, ou `lz4-java` e `snappy-java` fora do inventário |
 | `alert-rules` | `promtool check rules`, `check config` e `test rules` das regras do SLO, com a imagem do Prometheus do compose | Regra inválida ou teste de regra falhando |
 | `load` | [`load-test.sh`](.github/scripts/load-test.sh): gera o CSV de 100 mil filmes duas vezes e compara os SHA-256, mede a carga direta e a carga por Kafka e roda o k6 | Hashes diferentes, linha rejeitada, readiness fora do prazo, ou p99 e taxa de erro acima dos limites |
-| `dockerfile-lint` | hadolint | Aviso ou erro |
+| `frontend` | No `frontend/`, com Node 26: `npm ci`, lint (angular-eslint), testes unitários com cobertura no resumo, build de produção e `npm audit` ([Marco 6](#marco-6-front-end-em-angular-opcional)) | Erro de lint, teste falhando, cobertura de linhas abaixo de 80%, orçamento de tamanho estourado, ou vulnerabilidade alta ou crítica numa dependência de execução |
+| `web` | Imagem do front (no Docker e em tar OCI, do mesmo build), digest, a API pelo JAR, [`web-smoke-test.sh`](.github/scripts/web-smoke-test.sh) (10 passos, inclusive o log em JSON), Playwright nos projetos `desktop` e `celular` contra a API real, e Trivy. Em push na `main`, guarda o tar para o `deploy-web` | Imagem que não sobe, repasse ou rota interna quebrados, cabeçalho ou log fora do contrato, cenário de ponta a ponta falhando, ou vulnerabilidade `HIGH` ou `CRITICAL` com correção |
+| `dockerfile-lint` | hadolint no `Dockerfile` e no `frontend/Dockerfile` | Aviso ou erro |
 | `image` | Contexto de build, imagem (no Docker e em tar OCI, do mesmo build), digest, teste de fumaça (13 passos) e Trivy na imagem. Em push na `main`, guarda o tar para o `deploy` | Contexto fora do `.dockerignore`, tar com mais de um manifesto ou fora de `linux/amd64`, imagem do Docker diferente da do tar, imagem que não sobe ou não responde o resultado de referência, ou vulnerabilidade `HIGH` ou `CRITICAL` com correção na imagem |
 | `deploy` | Só em push na `main`, depois dos 10 checks: envia a imagem testada ao Artifact Registry pelo digest, implanta sem tráfego, confere pela URL da revisão, passa o tráfego e confere a URL pública ([Marco 5](#marco-5-publicação-no-cloud-run-opcional)). Não é check obrigatório, porque só roda depois do merge | Digest diferente do testado, falha de identidade ou de permissão, revisão que não sobe, ou conferência reprovada (readiness, resultado de referência, Swagger ou métricas abertas) |
+| `deploy-web` | Só em push na `main`, depois dos 12 checks e do `deploy`: envia a imagem do front testada pelo digest, implanta no `awards-web` sem tráfego, confere pela URL da revisão com o [`verify-web.sh`](.github/scripts/verify-web.sh), passa o tráfego e confere a URL pública ([Marco 6](#marco-6-front-end-em-angular-opcional)). Não é check obrigatório | Digest diferente do testado, falha de identidade ou de permissão, ou conferência reprovada (página, rota interna, repasse de `/api` com o resultado de referência e as agregações) |
 
 Achados médios e baixos, e vulnerabilidades sem correção, aparecem no relatório sem reprovar. O
-[Dependabot](.github/dependabot.yml) abre PRs semanais para Maven, GitHub Actions, a imagem base e as
-imagens do compose.
+[Dependabot](.github/dependabot.yml) abre PRs semanais para Maven, GitHub Actions, as imagens base, as
+imagens do compose e as dependências do npm do front.
 
 ---
 
@@ -765,6 +866,24 @@ em [`specs/005-deploy-cloud-run/spec.md`](specs/005-deploy-cloud-run/spec.md).
 | README, ADR 0027, runbook e decisões | FR-023 a FR-025 | Revisão do PR, por [`specs/005-deploy-cloud-run/checklists/revisao.md`](specs/005-deploy-cloud-run/checklists/revisao.md) |
 | Contrato 1.2.1: descrição em duas frases, autenticação opcional e nenhum `<` ou `>` nos textos | FR-027 | `ContractTextIT`, `ApiDocsSecurityIT` (versão) e `ApiDocsIT` (publicado idêntico ao da spec 005) |
 
+### Requisitos do Marco 6 (front-end em Angular)
+
+Também fora do enunciado. As agregações da API são comprovadas por IT. O front é comprovado pelos testes
+unitários e pelo teste de ponta a ponta no pipeline, como a emenda 2.1.0 da constituição define (Princípio VI). A
+spec está em [`specs/006-frontend-angular/spec.md`](specs/006-frontend-angular/spec.md).
+
+| Extra | Requisitos | Como é comprovado |
+| --- | --- | --- |
+| Agregações de anos com mais de um vencedor e de vitórias por estúdio, com ETag, autenticação opcional e listas vazias | FR-001 a FR-003 | `AggregationsReferenceIT`, `YearsWithMultipleWinnersIT`, `StudiosWinCountIT`, `AggregationsEmptyIT` e `AggregationsEtagIT` (`./mvnw verify`), `AggregationsAuthIT` (`-Pextras`) e `AggregationsPostgresIT` (`postgres-it`) |
+| Contrato 1.3.0, sem mudar os endpoints existentes | FR-004 a FR-006 | `AggregationsContractIT`, `ApiDocsIT`, `ApiDocsSecurityIT` e `ContractTextIT`; `check-unchanged-tests.sh` contra a `v0.2.0`, a `v0.3.0` e a `v0.5.0` |
+| Painel com os quatro painéis e os estados de carregando, vazio e erro | FR-007 a FR-009, SC-002 | Testes unitários (job `frontend`) e `e2e/dashboard.spec.ts` (job `web`) |
+| Lista paginada com filtros na URL | FR-010 a FR-014 | Testes unitários (job `frontend`) e `e2e/movies.spec.ts` (job `web`) |
+| Responsivo, acessível, em português e com chamadas por caminho relativo | FR-015 a FR-018, SC-004 | `e2e/layout.spec.ts` nos projetos `desktop` e `celular`; usabilidade (SC-003) pelo checklist de revisão |
+| Projeto em `frontend/`, fora do `./mvnw`, com testes e cobertura mínima de 80% | FR-019 a FR-023, SC-005, SC-006 | Jobs `build` (sem Node), `frontend` e `web` |
+| Imagem nginx sem root, com repasse de `/api`, rotas internas e log de acesso em JSON | FR-025, FR-026, FR-026a | Job `web` ([`web-smoke-test.sh`](.github/scripts/web-smoke-test.sh), 10 passos) e `dockerfile-lint` |
+| Publicação no `awards-web`, sem segredos, com 0 a 1 instância e revisão conferida antes do tráfego | FR-027 a FR-030, SC-001, SC-007 | Job `deploy-web` na `main`, `workflow-policy` com os casos negativos ([evidência](specs/006-frontend-angular/evidencias/politica-workflow.txt)) e as duas execuções do `setup.sh` ([evidência](specs/006-frontend-angular/evidencias/setup-execucoes.txt)) |
+| Emenda 2.1.0, README, ADR 0028, runbook e decisões | FR-024, FR-031 a FR-034 | Revisão do PR, por [`specs/006-frontend-angular/checklists/revisao.md`](specs/006-frontend-angular/checklists/revisao.md) |
+
 ---
 
 ## 7. Regras de negócio
@@ -845,7 +964,8 @@ A coluna de estúdios é opcional. Ao final, o log traz o resumo de linhas lidas
 | `security` | Cadeia sem estado do Spring Security (`SecurityConfiguration`), filtro do token (`TokenAuthenticationFilter`) e 401 em Problem Details (`ProblemAuthenticationEntryPoint`) |
 | `movie` | Entidade `Movie`, consulta paginada com filtros (`MovieRepository`, `MovieQueryService`) e `GET /api/movies` |
 | `producer` | Entidade `Producer`, cálculo dos intervalos (`ProducerIntervalService`) e `GET /api/producers/intervals` |
-| `web` | Erros em Problem Details (`ApiExceptionHandler`) e ETag nos dois endpoints de negócio (`ContentEtagFilter`, registrado pelo `EtagConfiguration`) |
+| `aggregation` | Agregações do painel (Marco 6): anos com mais de um vencedor e vitórias por estúdio (`AggregationService`, `StudioNameParser`) e `GET /api/aggregations/...` |
+| `web` | Erros em Problem Details (`ApiExceptionHandler`) e ETag nos endpoints de negócio (`ContentEtagFilter`, registrado pelo `EtagConfiguration`) |
 
 Saúde, métricas e o formato do log são só configuração, no `application.yml` e na variável
 `LOGGING_STRUCTURED_FORMAT_CONSOLE`, sem código próprio.
@@ -1055,12 +1175,13 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 ├── observability/               # Prometheus (com as regras do SLO em rules/) e provisionamento e dashboard do Grafana
 ├── load/intervals.js            # roteiro do k6, com os limites do SLO (Marco 4)
 ├── tools/csv-generator/         # gerador de CSV grande e determinístico, só com o JDK (Marco 4)
-├── deploy/gcp/                  # configuração idempotente do GCP (setup.sh) e retenção do registro (Marco 5)
+├── deploy/gcp/                  # configuração idempotente do GCP (setup.sh) e retenção do registro (Marcos 5 e 6)
+├── frontend/                    # front em Angular 22.3 (Marco 6): src/, e2e/ (Playwright), nginx/, Dockerfile e README próprio
 ├── .github/
-│   ├── workflows/ci.yml         # pipeline de CI e publicação no Cloud Run (job deploy)
+│   ├── workflows/ci.yml         # pipeline de CI e publicação no Cloud Run (jobs deploy e deploy-web)
 │   ├── scripts/                 # política do workflow, contexto da imagem, fumaça, compose, conferência da publicação e ITs inalterados
 │   ├── unchanged-tests-exceptions.txt # ITs da v0.2.0 que podem mudar, cada um com a decisão que autoriza
-│   └── dependabot.yml           # atualizações de Maven, Actions, imagem base e imagens do compose
+│   └── dependabot.yml           # atualizações de Maven, Actions, imagens base, imagens do compose e npm do front
 ├── .gitattributes               # fim de linha LF no repositório
 ├── .gitignore
 ├── .claude/                     # configuração do Claude Code: hook de prompts e skills do Spec Kit
@@ -1081,12 +1202,15 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 │   └── contracts/               # OpenAPI 1.2.0 (registro), eventos do Kafka, compose e pipeline
 ├── specs/004-acabamento-operacional/ # Marco 4: spec, plano, research, contratos e tarefas
 ├── specs/005-deploy-cloud-run/  # Marco 5: spec, plano, research, contratos, tarefas e evidências do GCP
-│   └── contracts/               # OpenAPI 1.2.1 (fonte única), publicação, script do GCP e política do workflow
+│   └── contracts/               # OpenAPI 1.2.1 (registro), publicação, script do GCP e política do workflow
+├── specs/006-frontend-angular/  # Marco 6: spec, plano, research, contratos, tarefas e evidências
+│   └── contracts/               # OpenAPI 1.3.0 (fonte única), interface, imagem do front e pipeline
 ├── src/main/java/com/outsera/awards/
 │   ├── AwardsApplication.java   # classe principal
 │   ├── ingestion/               # leitura, validação e carga do CSV; kafka/: ingestão por Kafka (perfil kafka)
 │   ├── movie/                   # filmes e GET /api/movies
 │   ├── producer/                # produtores e GET /api/producers/intervals
+│   ├── aggregation/             # agregações do painel (Marco 6)
 │   ├── security/                # autenticação por token (Spring Security)
 │   └── web/                     # Problem Details e ETag
 ├── src/main/resources/
@@ -1102,11 +1226,12 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 │   ├── adversario/  ingestion/  intervals/  movies/  docs/  web/  support/   # modo padrão (lista em src/test/default-mode-its.txt)
 │   ├── etag/  health/  metrics/  logging/   # Marco 2; o JsonLogFormatIT só no perfil extras
 │   ├── isolation/  kafka/  security/        # Marco 3; kafka/ e a autenticação ligada no perfil extras
+│   ├── aggregations/                        # Marco 6; o AggregationsAuthIT só no perfil extras
 │   ├── postgres/                            # Marco 3, só no perfil postgres-it
 │   └── SmokeIT.java
 ├── src/test/resources/scenarios/  # um CSV por cenário de teste
 ├── docs/slo.md                  # objetivos do SLO, orçamento e alertas (Marco 4)
-├── docs/runbook.md              # o que fazer quando cada alerta dispara (Marco 4) e quando a publicação falha (Marco 5)
+├── docs/runbook.md              # o que fazer quando cada alerta dispara (Marco 4) e quando a publicação falha (Marcos 5 e 6)
 ├── docs/adr/                    # decisões de arquitetura (ADRs), com índice
 └── docs/ai/                     # evidência do uso de IA (ver docs/ai/README.md)
 ```

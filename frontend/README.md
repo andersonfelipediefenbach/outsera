@@ -1,59 +1,42 @@
-# Frontend
+# Front-end (Marco 6)
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.3.0.
+Painel e lista de filmes do Golden Raspberry Awards, em Angular 22.3, publicados em
+<https://awards-web-2564509384.southamerica-east1.run.app>. A visão geral, os requisitos e a publicação estão no
+[README do repositório](../README.md#marco-6-front-end-em-angular-opcional), e a spec, em
+[`specs/006-frontend-angular/`](../specs/006-frontend-angular/spec.md).
 
-## Development server
+## Pré-requisitos
 
-To start a local development server, run:
+- Node 26 LTS (`.nvmrc`). O `./mvnw` da API não depende deste diretório.
+- Para rodar contra dados reais, a API no ar: `./mvnw spring-boot:run` na raiz do repositório.
 
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Comandos
 
 ```bash
-ng generate component component-name
+npm ci                                   # dependências, pelo package-lock.json
+npm start                                # http://localhost:4200, com /api repassado a http://localhost:8080
+npm run lint                             # angular-eslint, inclusive o ponta a ponta
+npm test -- --watch=false --coverage     # testes unitários (Vitest); reprova abaixo de 80% das linhas
+npm run build                            # build de produção em dist/frontend/browser
+npm run e2e                              # Playwright contra E2E_BASE_URL (padrão http://127.0.0.1:8081)
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+O `npm run e2e` precisa da API e da imagem do front no ar, como o job `web` do pipeline faz:
 
 ```bash
-ng generate --help
+# na raiz do repositório
+./mvnw -DskipTests package && java -jar target/awards-*.jar &
+docker build -t awards-web:local frontend
+docker run --rm -d -p 127.0.0.1:8081:8080 --add-host host.docker.internal:host-gateway \
+  -e API_URL=http://host.docker.internal:8080 awards-web:local
+cd frontend && npx playwright install chromium && npm run e2e
 ```
 
-## Building
+## Estrutura
 
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- `src/app/api/`: chamadas à API, por caminho relativo, e a tradução do filtro da URL para a API.
+- `src/app/dashboard/`: o painel e os quatro painéis.
+- `src/app/movies/`: a lista de filmes e o filtro na URL.
+- `src/app/shared/`: estado dos painéis (carregando, vazio, erro), paginação e validação do ano.
+- `e2e/`: cenários do Playwright (desktop e celular), sem respostas simuladas.
+- `nginx/` e `Dockerfile`: a imagem de execução, com o repasse de `/api`, os cabeçalhos e o log de acesso em JSON.

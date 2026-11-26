@@ -412,24 +412,24 @@ aprovando o workflow e reprovando os casos negativos. A publicação real vem co
 
 **Teste independente**: revisão no PR, com os itens novos em `checklists/revisao.md`.
 
-- [ ] T059 [P] [US6] `README.md`: URL pública do front em "Avalie em 2 minutos", com o aviso da partida a frio dos
+- [X] T059 [P] [US6] `README.md`: URL pública do front em "Avalie em 2 minutos", com o aviso da partida a frio dos
   dois serviços; seção do Marco 6 entre os extras (as duas telas, as agregações com exemplo de resposta, como rodar o
   front com `npm start` contra o `./mvnw spring-boot:run`, os testes do front, a imagem e a publicação, e o que
   fica de fora: compose, login no front, SSR); os requisitos do Marco 6 na seção de requisitos, com a comprovação
   de cada um (FR-035) (FR-032).
-- [ ] T060 [P] [US6] `frontend/README.md` curto: pré-requisitos (Node 26), `npm ci`, `npm start`, `npm run lint`,
+- [X] T060 [P] [US6] `frontend/README.md` curto: pré-requisitos (Node 26), `npm ci`, `npm start`, `npm run lint`,
   `npm test`, `npm run build`, `npm run e2e` (com a API e a imagem no ar) e o link para a seção do README.
-- [ ] T061 [P] [US6] `docs/adr/0028-front-end-angular-com-nginx.md` (contexto, decisão, consequências), no formato
+- [X] T061 [P] [US6] `docs/adr/0028-front-end-angular-com-nginx.md` (contexto, decisão, consequências), no formato
   dos ADRs existentes: Angular em pasta própria e fora do `./mvnw`; nginx com repasse de `/api` e mesma origem, sem
   CORS; segundo serviço do Cloud Run com 0 a 1 instância; testes unitários e de ponta a ponta; log de acesso em
   JSON pela variável `LOG_FORMAT` da imagem e o limite do `error_log` do nginx, que fica em texto (FR-026a e
   FR-033). Atualizar o índice em `docs/adr/README.md`.
-- [ ] T062 [P] [US6] `docs/runbook.md`: voltar o tráfego do `awards-web` para a revisão anterior; o que fazer quando
+- [X] T062 [P] [US6] `docs/runbook.md`: voltar o tráfego do `awards-web` para a revisão anterior; o que fazer quando
   o front sobe mas o `/api` dá 502 ou 504 (conferir o `API_URL` da revisão e o `awards`).
-- [ ] T063 [P] [US6] `docs/ai/decisoes.md`: uma entrada por desvio do briefing (FR-034): publicação no Cloud Run em
+- [X] T063 [P] [US6] `docs/ai/decisoes.md`: uma entrada por desvio do briefing (FR-034): publicação no Cloud Run em
   vez de hospedagem estática; mesma origem em vez de CORS por variável; front fora do compose (FR-031); jobs do front
   no mesmo workflow em vez de pipeline próprio (research R9); e a versão do Angular (research R1).
-- [ ] T064 [US6] Criar `specs/006-frontend-angular/checklists/revisao.md`, no formato do
+- [X] T064 [US6] Criar `specs/006-frontend-angular/checklists/revisao.md`, no formato do
   `specs/005-deploy-cloud-run/checklists/revisao.md`, com um item por requisito de documentação e de governança
   (FR-024, FR-031 a FR-034) dizendo o que o revisor confere, e o item de **usabilidade (SC-003)** com os
   critérios objetivos da spec, conferidos na URL do front ou no `npm start`, sem ferramenta nova:
@@ -439,7 +439,7 @@ aprovando o workflow e reprovando os casos negativos. A publicação real vem co
   - contraste no inspetor de cores do navegador: pelo menos 4,5:1 nos textos e 3:1 nos controles e no contorno
     de foco;
   - vencedores de 1990 em até 3 interações (digitar o ano, buscar, ler), no Painel e em Filmes.
-- [ ] T065 [US6] Commit da etapa 7: "Marco 6, etapa 7: README, ADR 0028, runbook e decisões".
+- [X] T065 [US6] Commit da etapa 7: "Marco 6, etapa 7: README, ADR 0028, runbook e decisões".
 
 ---
 
