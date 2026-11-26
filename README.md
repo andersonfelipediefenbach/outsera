@@ -57,6 +57,19 @@ curl -s "http://localhost:8080/api/movies?year=1990&winner=true"
 
 Documentação interativa: <http://localhost:8080/swagger-ui.html>.
 
+**Ou sem instalar nada: a demonstração publicada.** A mesma API, no modo padrão e com o arquivo
+fornecido, roda no Google Cloud Run. Ela é publicada pelo pipeline a cada merge na `main` (Marco 5,
+[seção 3](#marco-5-publicação-no-cloud-run-opcional)).
+
+```bash
+curl -s https://awards-2564509384.southamerica-east1.run.app/api/producers/intervals
+```
+
+- Swagger UI: <https://awards-2564509384.southamerica-east1.run.app/swagger-ui.html>.
+- **A primeira chamada pode levar alguns segundos.** O serviço fica com zero instâncias quando ninguém o
+  usa, e a primeira chamada espera a aplicação subir e carregar o CSV. As seguintes respondem na hora.
+- É uma demonstração: uma instância só, sem autenticação e sem garantia de disponibilidade.
+
 ---
 
 ## 3. Como executar
@@ -359,6 +372,55 @@ Antes disso, com os 100 mil filmes, o p99 dos intervalos era de 927 ms.
 | ADRs 0020 a 0025 das decisões do Marco 4 | FR-037 (etapa 6) | adiado; as decisões estão em [`docs/ai/decisoes.md`](docs/ai/decisoes.md) |
 | Várias instâncias da aplicação | ADR 0026 | o cache dos intervalos precisa passar a um contador no banco ou a um evento compartilhado |
 
+### Marco 5: publicação no Cloud Run (opcional)
+
+A API está publicada em <https://awards-2564509384.southamerica-east1.run.app>. Nada muda no modo padrão
+local nem no `./mvnw verify` (spec 005, FR-022).
+
+**O que é publicado.**
+- Só o modo padrão: H2 em memória, a carga do `movielist.csv` e a autenticação desligada. Kafka,
+  PostgreSQL, Prometheus, Grafana e a autenticação ligada ficam no compose local.
+- A imagem é **a mesma** que o pipeline testou (teste de fumaça e Trivy), identificada pelo digest e
+  publicada no Artifact Registry do projeto, sem rebuild.
+- As métricas ficam fechadas na URL pública: `/actuator/prometheus` responde 404. A publicação liga só o
+  `health`, que os probes usam.
+
+**Como a publicação acontece.** O job `deploy` roda só em push na `main` deste repositório, depois dos 10
+checks obrigatórios:
+
+1. Baixa a imagem testada do job `image` e confere o digest.
+2. Entra no GCP por **Workload Identity Federation**, sem chave nenhuma no GitHub ou no repositório. O
+   provedor de identidade só aceita tokens deste repositório e do dono, pelos IDs numéricos, e da branch
+   `main`.
+3. Envia a imagem ao registro com o digest preservado.
+4. Implanta uma revisão nova **sem tráfego** e a confere pela URL própria dela: readiness, resultado de
+   referência, Swagger e métricas fechadas, com o [`verify-deployment.sh`](.github/scripts/verify-deployment.sh).
+5. Só então passa o tráfego para ela e confere a URL pública de novo. Uma revisão reprovada nunca recebe
+   tráfego.
+
+O resumo do job traz a URL, o digest, a revisão e o tempo de cada chamada. Se algo falhar depois da troca, o
+[runbook](docs/runbook.md#publicação-no-cloud-run) mostra como voltar à revisão anterior.
+
+**Uma instância por revisão (0 a 1).** O mínimo de zero instâncias mantém o custo em zero com o serviço
+ocioso, e por isso a primeira chamada passa pela partida a frio. O máximo de uma mantém válido o cache dos
+intervalos do [ADR 0026](docs/adr/0026-intervalos-guardados-entre-leituras.md). Na troca de revisão, a antiga
+e a nova podem ter uma instância cada por alguns instantes. No modo padrão isso não importa: cada instância
+tem o próprio H2 e não grava nada depois da carga.
+
+**Configuração do GCP.** Tudo o que existe no projeto vem do [`deploy/gcp/setup.sh`](deploy/gcp/setup.sh):
+- as APIs;
+- o registro de imagens, com retenção de 30 dias que mantém as 10 imagens mais recentes;
+- as contas de publicação e de execução;
+- o pool e o provedor de identidade;
+- o serviço;
+- os vínculos de IAM.
+
+O script é idempotente: a segunda execução seguida não muda nada (saídas em
+[`specs/005-deploy-cloud-run/evidencias/`](specs/005-deploy-cloud-run/evidencias/)). A conta de publicação
+tem papéis só no serviço, no registro e na conta de execução, e não pode mudar quem invoca o serviço. A conta
+de execução não tem papel nenhum. A decisão completa está no
+[ADR 0027](docs/adr/0027-publicacao-no-cloud-run.md).
+
 ## 4. Endpoints
 
 O contrato completo (versão 1.2.0, com ETag e a autenticação opcional) está em
@@ -577,13 +639,14 @@ da [constituição](.specify/memory/constitution.md) proíbe testes unitários e
 
 ### Pipeline
 
-O [GitHub Actions](.github/workflows/ci.yml) roda em todo push e pull request, sem segredos e sem
-publicar a imagem. Toda action é fixada por hash de commit. O contrato completo está em
-[`specs/002-operacao/contracts/ci-pipeline.md`](specs/002-operacao/contracts/ci-pipeline.md).
+O [GitHub Actions](.github/workflows/ci.yml) roda em todo push e pull request, sem segredos. Toda action é
+fixada por hash de commit. A única publicação é a do job `deploy`, só em push na `main` (Marco 5). O contrato
+completo está em [`specs/002-operacao/contracts/ci-pipeline.md`](specs/002-operacao/contracts/ci-pipeline.md)
+e, para a publicação, em [`specs/005-deploy-cloud-run/contracts/ci-deploy.md`](specs/005-deploy-cloud-run/contracts/ci-deploy.md).
 
 | Job | O que faz | Reprova quando |
 | --- | --- | --- |
-| `workflow-policy` | Confere a política do workflow, do Dependabot e do compose, e que os testes dos Marcos 1 e 2 não mudaram desde a `v0.2.0` | Action sem hash de commit, permissão além de `contents: read` (exceto `security-events: write` no `codeql`), uso de `secrets.`, publicação de imagem, Dependabot incompleto, imagem do compose ou de service container sem digest, senha de banco no workflow, ou um IT da `v0.2.0` alterado sem exceção registrada |
+| `workflow-policy` | Confere a política do workflow, do Dependabot e do compose, e que os testes dos Marcos 1 e 2 não mudaram desde a `v0.2.0` | Action sem hash de commit, permissão além de `contents: read` (exceto `security-events: write` no `codeql` e `id-token: write` no `deploy`), uso de `secrets.`, publicação de imagem fora do `deploy`, job `deploy` sem os 10 checks em `needs`, com outra condição, com cancelamento ou com build, Dependabot incompleto, imagem do compose ou de service container sem digest, senha de banco no workflow, ou um IT da `v0.2.0` alterado sem exceção registrada |
 | `build` | `./mvnw -Pextras verify` (enunciado, extras e log em JSON), cobertura no resumo e relatórios como artefato | Qualquer teste falha, ou a cobertura de linhas fica abaixo de 90% |
 | `postgres` | `./mvnw -Ppostgres-it verify` contra um PostgreSQL 18 (service container, collation `C`, sem credencial) | Qualquer `*PostgresIT` falha |
 | `compose` | [`compose-test.sh`](.github/scripts/compose-test.sh): sobe o compose e confere a referência, o Prometheus, o dashboard, as regras do SLO carregadas sem alerta disparando, um vencedor novo pelo Kafka em até 5 s, o tópico de erros, a persistência depois de `down`, a queda real do banco e o token | Qualquer passo falha, ou a subida até o dashboard passa de 3 min |
@@ -592,7 +655,8 @@ publicar a imagem. Toda action é fixada por hash de commit. O contrato completo
 | `alert-rules` | `promtool check rules`, `check config` e `test rules` das regras do SLO, com a imagem do Prometheus do compose | Regra inválida ou teste de regra falhando |
 | `load` | [`load-test.sh`](.github/scripts/load-test.sh): gera o CSV de 100 mil filmes duas vezes e compara os SHA-256, mede a carga direta e a carga por Kafka e roda o k6 | Hashes diferentes, linha rejeitada, readiness fora do prazo, ou p99 e taxa de erro acima dos limites |
 | `dockerfile-lint` | hadolint | Aviso ou erro |
-| `image` | Contexto de build, imagem, teste de fumaça (13 passos) e Trivy na imagem | Contexto fora do `.dockerignore`, imagem que não sobe ou não responde o resultado de referência, ou vulnerabilidade `HIGH` ou `CRITICAL` com correção na imagem |
+| `image` | Contexto de build, imagem (no Docker e em tar OCI, do mesmo build), digest, teste de fumaça (13 passos) e Trivy na imagem. Em push na `main`, guarda o tar para o `deploy` | Contexto fora do `.dockerignore`, tar com mais de um manifesto ou fora de `linux/amd64`, imagem do Docker diferente da do tar, imagem que não sobe ou não responde o resultado de referência, ou vulnerabilidade `HIGH` ou `CRITICAL` com correção na imagem |
+| `deploy` | Só em push na `main`, depois dos 10 checks: envia a imagem testada ao Artifact Registry pelo digest, implanta sem tráfego, confere pela URL da revisão, passa o tráfego e confere a URL pública ([Marco 5](#marco-5-publicação-no-cloud-run-opcional)). Não é check obrigatório, porque só roda depois do merge | Digest diferente do testado, falha de identidade ou de permissão, revisão que não sobe, ou conferência reprovada (readiness, resultado de referência, Swagger ou métricas abertas) |
 
 Achados médios e baixos, e vulnerabilidades sem correção, aparecem no relatório sem reprovar. O
 [Dependabot](.github/dependabot.yml) abre PRs semanais para Maven, GitHub Actions, a imagem base e as
@@ -680,6 +744,22 @@ Os `@DisplayName` dos testes novos começam por `S004`.
 | Gerador de CSV e carga inicial medida | FR-014 a FR-019, SC-005, SC-006 | Job `load` (dois SHA-256 iguais ao do Windows, cargas sem linha rejeitada) |
 | Inventário efetivo no job de dependências | FR-032, FR-033, SC-010 | Job `dependencies` e o registro da causa em `docs/ai/decisoes.md` |
 | Testador adversário na ingestão por Kafka | FR-035 | `KafkaAdversarialEventsIT` e os ITs `KafkaCase*` (job `build`), `KafkaCase29RestartReappliesCsvPostgresIT` (job `postgres`) |
+
+### Requisitos do Marco 5 (publicação no Cloud Run)
+
+Também fora do enunciado. O marco não muda o comportamento da aplicação, então não tem IT novo. Cada requisito
+é comprovado pela execução do pipeline, pelas execuções do script ou pela revisão (Princípio VI). A spec está
+em [`specs/005-deploy-cloud-run/spec.md`](specs/005-deploy-cloud-run/spec.md).
+
+| Extra | Requisitos | Como é comprovado |
+| --- | --- | --- |
+| Serviço no modo padrão, com 0 a 1 instância por revisão, probes e métricas fechadas | FR-001 a FR-007, FR-004a, SC-001, SC-006 | Job `deploy` na `main` (as duas conferências do `verify-deployment.sh`, com o 404 de `/actuator/prometheus` e os tempos de cada chamada) e a leitura do serviço depois do merge |
+| A mesma imagem testada, pelo digest, sem rebuild | FR-002, FR-010 | Jobs `image` (digest e identidade da imagem) e `deploy` (digest do artefato e do registro) |
+| Publicação só em push na `main`, depois dos checks, serializada e sem chaves | FR-008, FR-009, FR-011 a FR-013, SC-002, SC-003 | Job `workflow-policy` (regras 3, 4, 5, 9 e 10), com os casos negativos conferidos antes do push ([evidência](specs/005-deploy-cloud-run/evidencias/politica-workflow.txt)), o job `deploy` pulado nos PRs e a condição do provedor de identidade conferida no GCP ([evidência](specs/005-deploy-cloud-run/evidencias/setup-conferencias.txt)) |
+| Revisão sem tráfego até ser conferida | FR-014 a FR-016, FR-015a | Job `deploy`: a conferência pela URL da revisão antes da troca de tráfego e o resumo da execução |
+| Configuração do GCP idempotente, com permissões mínimas | FR-017 a FR-021, SC-004 | As duas execuções do `deploy/gcp/setup.sh` (a segunda com zero mudanças) em [`evidencias/`](specs/005-deploy-cloud-run/evidencias/) e a revisão do script no PR |
+| Modo padrão sem mudança | FR-022, SC-007 | Jobs `build` e `workflow-policy` (`check-unchanged-tests.sh`) |
+| README, ADR 0027, runbook e decisões | FR-023 a FR-025 | Revisão do PR, por [`specs/005-deploy-cloud-run/checklists/revisao.md`](specs/005-deploy-cloud-run/checklists/revisao.md) |
 
 ---
 
@@ -882,6 +962,16 @@ Do Marco 3:
 - **Testes com PostgreSQL num perfil Maven dedicado**, obrigatório no pipeline (constituição 1.7.0;
   ADR 0019).
 
+Do Marco 5 (ADR 0027):
+
+- **Cloud Run com 0 a 1 instância por revisão,** só no modo padrão e com as métricas fechadas na URL
+  pública.
+- **Publicação a cada merge na `main`, pela mesma imagem testada,** identificada pelo digest e sem rebuild.
+- **Identidade federada sem chaves,** restrita ao repositório e à `main` pelos IDs numéricos, com papéis só
+  no serviço, no registro e na conta de execução.
+- **Revisão sem tráfego até ser conferida pela URL própria,** para que uma revisão ruim nunca chegue à URL
+  pública.
+
 ---
 
 ## 10. Uso de IA
@@ -917,6 +1007,7 @@ PR, merge e tags são feitos só pelo responsável, nunca por um agente.
 | 5 e 6 | Listagem, Swagger UI e fechamento, num único PR |
 | Marco 2 | Um único bolt, com seis etapas e um commit por etapa: ETag, observabilidade, Dockerfile, pipeline e Dependabot, ADRs e README ([spec 002](specs/002-operacao/spec.md)) |
 | Marco 3 | Um único bolt, com cinco etapas e um commit por etapa: PostgreSQL e perfil `docker`, Kafka, autenticação, compose com observabilidade, e ADRs com o README ([spec 003](specs/003-modo-docker/spec.md)) |
+| Marco 5 | Um único bolt, com quatro etapas e um commit por etapa: configuração do GCP pelo script, política do workflow e imagem como artefato, job `deploy` e documentação ([spec 005](specs/005-deploy-cloud-run/spec.md)) |
 
 **Papéis:**
 
@@ -960,9 +1051,10 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 ├── observability/               # Prometheus (com as regras do SLO em rules/) e provisionamento e dashboard do Grafana
 ├── load/intervals.js            # roteiro do k6, com os limites do SLO (Marco 4)
 ├── tools/csv-generator/         # gerador de CSV grande e determinístico, só com o JDK (Marco 4)
+├── deploy/gcp/                  # configuração idempotente do GCP (setup.sh) e retenção do registro (Marco 5)
 ├── .github/
-│   ├── workflows/ci.yml         # pipeline de CI
-│   ├── scripts/                 # política do workflow, contexto da imagem, fumaça, compose e ITs inalterados
+│   ├── workflows/ci.yml         # pipeline de CI e publicação no Cloud Run (job deploy)
+│   ├── scripts/                 # política do workflow, contexto da imagem, fumaça, compose, conferência da publicação e ITs inalterados
 │   ├── unchanged-tests-exceptions.txt # ITs da v0.2.0 que podem mudar, cada um com a decisão que autoriza
 │   └── dependabot.yml           # atualizações de Maven, Actions, imagem base e imagens do compose
 ├── .gitattributes               # fim de linha LF no repositório
@@ -984,6 +1076,7 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 ├── specs/003-modo-docker/       # Marco 3: spec, plano, research, contratos e tarefas
 │   └── contracts/               # OpenAPI 1.2.0 (fonte única), eventos do Kafka, compose e pipeline
 ├── specs/004-acabamento-operacional/ # Marco 4: spec, plano, research, contratos e tarefas
+├── specs/005-deploy-cloud-run/  # Marco 5: spec, plano, research, contratos, tarefas e evidências do GCP
 ├── src/main/java/com/outsera/awards/
 │   ├── AwardsApplication.java   # classe principal
 │   ├── ingestion/               # leitura, validação e carga do CSV; kafka/: ingestão por Kafka (perfil kafka)
@@ -1008,7 +1101,7 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 │   └── SmokeIT.java
 ├── src/test/resources/scenarios/  # um CSV por cenário de teste
 ├── docs/slo.md                  # objetivos do SLO, orçamento e alertas (Marco 4)
-├── docs/runbook.md              # o que fazer quando cada alerta dispara (Marco 4)
+├── docs/runbook.md              # o que fazer quando cada alerta dispara (Marco 4) e quando a publicação falha (Marco 5)
 ├── docs/adr/                    # decisões de arquitetura (ADRs), com índice
 └── docs/ai/                     # evidência do uso de IA (ver docs/ai/README.md)
 ```

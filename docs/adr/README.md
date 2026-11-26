@@ -31,8 +31,12 @@ aceito, rejeitado e por quê.
 | [0018](0018-compose-com-observabilidade.md) | Compose com PostgreSQL, Kafka nativo, Prometheus e Grafana | Aceito | 2026-11-24 |
 | [0019](0019-testes-com-postgresql-em-perfil-dedicado.md) | Testes que dependem do PostgreSQL num perfil Maven dedicado | Aceito | 2026-11-24 |
 | [0026](0026-intervalos-guardados-entre-leituras.md) | Intervalos guardados entre as leituras, invalidados a cada gravação (uma instância) | Aceito | 2026-11-26 |
+| [0027](0027-publicacao-no-cloud-run.md) | Publicação no Cloud Run, com uma instância por revisão e identidade federada sem chaves | Aceito | 2026-11-26 |
+
+Os números 0020 a 0025 estão reservados para as decisões adiadas do Marco 4 (spec 004, FR-037).
 
 A comprovação destes registros é a revisão do pull request, pela seção "Revisão dos ADRs" do checklist de
 cada spec: [`specs/002-operacao/checklists/requirements.md`](../../specs/002-operacao/checklists/requirements.md)
-para os ADRs 0001 a 0012 e [`specs/003-modo-docker/checklists/requirements.md`](../../specs/003-modo-docker/checklists/requirements.md)
-para os ADRs 0013 a 0019 e a atualização do 0004 (Princípio VI).
+para os ADRs 0001 a 0012, [`specs/003-modo-docker/checklists/requirements.md`](../../specs/003-modo-docker/checklists/requirements.md)
+para os ADRs 0013 a 0019 e a atualização do 0004, e [`specs/005-deploy-cloud-run/checklists/revisao.md`](../../specs/005-deploy-cloud-run/checklists/revisao.md)
+para o ADR 0027 (Princípio VI).

@@ -1,0 +1,24 @@
+# T022: flags do gcloud 594.0.1 usados pelo job deploy (gcloud run deploy --help e update-traffic --help), 2026-11-26
+Google Cloud SDK 594.0.1
+          --cpu=CPU --depends-on=[CONTAINER,...] --gpu=GPU
+          --liveness-probe=[KEY=VALUE,...] --memory=MEMORY --port=PORT
+          --startup-probe=[KEY=VALUE,...]
+     --[no-]cpu-boost
+     --max-instances=MAX_INSTANCES
+     --min-instances=MIN_INSTANCES
+     --service-account=SERVICE_ACCOUNT
+     --tag=TAG
+     --no-traffic
+     --cpu=CPU
+     --liveness-probe=[KEY=VALUE,...]
+     --memory=MEMORY
+     --port=PORT
+     --startup-probe=[KEY=VALUE,...]
+       --set-env-vars=[KEY=VALUE,...]
+          --to-revisions=myservice-s5sxn=10,myservice-cp9kw=90
+          --to-revisions=myservice-s5sxn=20
+          --to-revisions=myservice-cp9kw=100
+    --to-revisions by the string "LATEST". For example, to set 10% of traffic
+          --to-revisions=LATEST=10
+         --remove-tags=[TAG,...]
+       --to-revisions=[REVISION-NAME=PERCENTAGE,...]

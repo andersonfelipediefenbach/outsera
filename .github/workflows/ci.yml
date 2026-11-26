@@ -1,6 +1,7 @@
 # Pipeline de CI (spec 002, US6 e FR-028 a FR-029; research R9 a R14; contracts/ci-pipeline.md).
-# Toda action é fixada por hash de commit (FR-028b). Nenhum segredo é usado, e nenhuma imagem é
-# publicada. A política é verificada pelo job workflow-policy (.github/scripts/check-workflows.sh).
+# Toda action é fixada por hash de commit (FR-028b). Nenhum segredo é usado. A única publicação é a do job
+# deploy, só em push na main, com a imagem testada no job image e identidade federada sem chaves (spec 005;
+# contracts/ci-deploy.md). A política é verificada pelo job workflow-policy (.github/scripts/check-workflows.sh).
 name: CI
 
 on:
@@ -10,9 +11,11 @@ on:
 permissions:
   contents: read
 
+# Fora da main, uma execução nova cancela a anterior do mesmo ref. Na main, nada é cancelado, para não
+# interromper uma publicação no meio (spec 005, FR-011; research R7).
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   workflow-policy:
@@ -229,22 +232,69 @@ jobs:
     needs: dockerfile-lint
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      # Digest do manifesto da imagem testada, que o job deploy publica sem rebuild (spec 005, FR-002).
+      digest: ${{ steps.digest.outputs.digest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Contexto de build contra a lista de permissão do .dockerignore
         run: .github/scripts/check-docker-context.sh
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - name: Build da imagem (sem publicação)
+      # Um único build com duas saídas: a awards:ci no Docker (teste de fumaça e Trivy) e o mesmo resultado em
+      # layout OCI, que segue como artefato para o job deploy. Sem atestados, o tar tem um único manifesto
+      # linux/amd64 (spec 005, research R1). Nada é publicado aqui.
+      - name: Build da imagem (sem publicação; Docker e tar OCI do mesmo build)
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
-          push: false
-          load: true
-          tags: awards:ci
+          provenance: false
+          sbom: false
+          outputs: |
+            type=docker,name=awards:ci
+            type=oci,dest=${{ runner.temp }}/awards-oci.tar
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Digest do manifesto e identidade da imagem testada
+        id: digest
+        env:
+          OCI_TAR: ${{ runner.temp }}/awards-oci.tar
+        run: |
+          set -euo pipefail
+          layout="$RUNNER_TEMP/awards-oci"
+          mkdir -p "$layout" && tar -xf "$OCI_TAR" -C "$layout"
+          count="$(jq '.manifests | length' "$layout/index.json")"
+          media="$(jq -r '.manifests[0].mediaType' "$layout/index.json")"
+          if [[ "$count" != "1" || "$media" != "application/vnd.oci.image.manifest.v1+json" ]]; then
+            echo "::error::o tar OCI deveria ter um único manifesto de imagem (encontrado: $count, $media)"
+            exit 1
+          fi
+          digest="$(jq -r '.manifests[0].digest' "$layout/index.json")"
+          config="$(jq -r '.config.digest' "$layout/blobs/sha256/${digest#sha256:}")"
+          platform="$(jq -r '.architecture + "/" + .os' "$layout/blobs/sha256/${config#sha256:}")"
+          if [[ "$platform" != "amd64/linux" ]]; then
+            echo "::error::a imagem deveria ser linux/amd64 (encontrado: $platform)"
+            exit 1
+          fi
+          # Armazenamento clássico do Docker: o Id é o digest da configuração; com o do containerd, o do manifesto.
+          id="$(docker image inspect awards:ci --format '{{.Id}}')"
+          if [[ "$id" != "$config" && "$id" != "$digest" ]]; then
+            echo "::error::a awards:ci ($id) não é a imagem do tar OCI (configuração $config, manifesto $digest)"
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          { echo "### Imagem testada"; echo; echo "- manifesto: \`$digest\`"; echo "- configuração: \`$config\`"; echo "- awards:ci: \`$id\`"; } >> "$GITHUB_STEP_SUMMARY"
       - name: Teste de fumaça (13 passos; menos de 2 minutos até o resultado de referência)
         run: .github/scripts/smoke-test.sh awards:ci
+      - name: Imagem testada como artefato para o job deploy (só em push na main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: awards-oci
+          path: ${{ runner.temp }}/awards-oci.tar
+          retention-days: 1
+          # As camadas já vêm comprimidas no tar OCI.
+          compression-level: 0
+          if-no-files-found: error
       - name: Relatório da imagem (todas as severidades, sem reprovar)
         if: always()
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -336,3 +386,142 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Teste do compose (passos 0 a 8, 4b e 7b)
         run: .github/scripts/compose-test.sh
+
+  deploy:
+    # Publicação no Cloud Run (spec 005, FR-001 a FR-016; research R1 a R7 e R10; contracts/ci-deploy.md). Só
+    # em push na main deste repositório, depois dos 10 checks obrigatórios. A imagem é a do job image, pelo
+    # digest, sem rebuild. A identidade é federada (OIDC e Workload Identity Federation), sem chaves e sem
+    # secrets: os valores abaixo são identificadores públicos, impressos pelo deploy/gcp/setup.sh. A revisão
+    # nova sobe sem tráfego, é conferida pela URL própria e só então recebe o tráfego (clarificação de
+    # 2026-11-26). A lista de needs acompanha os checks obrigatórios da main (regra 9 do check-workflows.sh).
+    name: Publicação no Cloud Run e conferência da URL
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'andersonfelipediefenbach/outsera'
+    needs: [workflow-policy, build, postgres, codeql, dependencies, dockerfile-lint, image, alert-rules, load, compose]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: deploy-cloud-run
+      cancel-in-progress: false
+    environment:
+      name: cloud-run
+      url: https://awards-2564509384.southamerica-east1.run.app
+    env:
+      GCP_PROJECT_ID: outsera-awards
+      GCP_PROJECT_NUMBER: '2564509384'
+      GCP_REGION: southamerica-east1
+      GCP_WIF_PROVIDER: projects/2564509384/locations/global/workloadIdentityPools/github/providers/github-actions
+      GCP_DEPLOY_SA: github-deployer@outsera-awards.iam.gserviceaccount.com
+      GCP_RUNTIME_SA: awards-runtime@outsera-awards.iam.gserviceaccount.com
+      GCP_REGISTRY: southamerica-east1-docker.pkg.dev/outsera-awards/awards
+      GCP_SERVICE: awards
+      SERVICE_URL: https://awards-2564509384.southamerica-east1.run.app
+      IMAGE_DIGEST: ${{ needs.image.outputs.digest }}
+    steps:
+      - name: Início da publicação
+        run: echo "DEPLOY_START=$(date +%s)" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: awards-oci
+          path: ${{ runner.temp }}/oci
+      - name: O artefato é a imagem testada no job image
+        run: |
+          set -euo pipefail
+          if [[ ! "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::digest do job image ausente ou inválido: '$IMAGE_DIGEST'"
+            exit 1
+          fi
+          layout="$RUNNER_TEMP/oci-layout"
+          mkdir -p "$layout" && tar -xf "$RUNNER_TEMP/oci/awards-oci.tar" -C "$layout"
+          found="$(jq -r '.manifests[0].digest' "$layout/index.json")"
+          if [[ "$found" != "$IMAGE_DIGEST" ]]; then
+            echo "::error::o artefato tem o manifesto $found, e o job image testou $IMAGE_DIGEST"
+            exit 1
+          fi
+          echo "Artefato confere com a imagem testada: $IMAGE_DIGEST"
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_DEPLOY_SA }}
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          version: '594.0.1'
+      - name: Envio da imagem testada ao Artifact Registry, com o digest preservado
+        run: |
+          set -euo pipefail
+          if ! command -v skopeo >/dev/null 2>&1; then
+            echo "::error::o skopeo não está no runner (research R1)"
+            exit 1
+          fi
+          # O token de acesso vai por stdin e nunca é impresso.
+          gcloud auth print-access-token | skopeo login -u oauth2accesstoken --password-stdin "$GCP_REGION-docker.pkg.dev"
+          ref="docker://$GCP_REGISTRY/awards:$GITHUB_SHA"
+          skopeo copy --preserve-digests "oci-archive:$RUNNER_TEMP/oci/awards-oci.tar" "$ref"
+          pushed="$(skopeo inspect --format '{{.Digest}}' "$ref")"
+          if [[ "$pushed" != "$IMAGE_DIGEST" ]]; then
+            echo "::error::o registro tem $pushed, e a imagem testada é $IMAGE_DIGEST"
+            exit 1
+          fi
+          echo "Imagem no registro: $GCP_REGISTRY/awards@$pushed"
+      - name: Implantação sem tráfego, com tag própria
+        id: deploy
+        run: |
+          set -euo pipefail
+          tag="c-${GITHUB_SHA::7}"
+          # Só o modo padrão (FR-001): nenhum perfil, nenhum token. A única variável nova fecha as métricas na
+          # URL pública e mantém os probes (FR-004a). 0 a 1 instância por revisão (FR-003).
+          gcloud run deploy "$GCP_SERVICE" --quiet --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
+            --image="$GCP_REGISTRY/awards@$IMAGE_DIGEST" \
+            --service-account="$GCP_RUNTIME_SA" \
+            --min-instances=0 --max-instances=1 --cpu=1 --memory=1Gi --cpu-boost --port=8080 \
+            --set-env-vars=MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health \
+            --startup-probe=httpGet.path=/actuator/health/readiness,httpGet.port=8080,periodSeconds=2,failureThreshold=60,timeoutSeconds=1 \
+            --liveness-probe=httpGet.path=/actuator/health/liveness,httpGet.port=8080,periodSeconds=30,timeoutSeconds=3 \
+            --no-traffic --tag="$tag"
+          gcloud run services describe "$GCP_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > "$RUNNER_TEMP/service.json"
+          revision="$(jq -r '.status.latestCreatedRevisionName' "$RUNNER_TEMP/service.json")"
+          tag_url="$(jq -r --arg t "$tag" '.status.traffic[]? | select(.tag == $t) | .url' "$RUNNER_TEMP/service.json")"
+          if [[ -z "$revision" || -z "$tag_url" ]]; then
+            echo "::error::revisão ($revision) ou URL da tag $tag ($tag_url) não encontradas"
+            exit 1
+          fi
+          { echo "tag=$tag"; echo "revision=$revision"; echo "tag_url=$tag_url"; } >> "$GITHUB_OUTPUT"
+          echo "Revisão $revision, sem tráfego, em $tag_url"
+      - name: Conferência pela URL da revisão, antes do tráfego
+        env:
+          TAG_URL: ${{ steps.deploy.outputs.tag_url }}
+        run: .github/scripts/verify-deployment.sh --expect-no-metrics "$TAG_URL"
+      - name: Tráfego para a revisão conferida
+        env:
+          TAG: ${{ steps.deploy.outputs.tag }}
+          REVISION: ${{ steps.deploy.outputs.revision }}
+        run: |
+          set -euo pipefail
+          # As tags das revisões anteriores saem, para os endereços antigos não continuarem acessíveis.
+          old_tags="$(jq -r --arg t "$TAG" '[.status.traffic[]? | select(.tag != null and .tag != $t) | .tag] | unique | join(",")' "$RUNNER_TEMP/service.json")"
+          args=(--to-revisions="$REVISION=100")
+          if [[ -n "$old_tags" ]]; then args+=(--remove-tags="$old_tags"); fi
+          gcloud run services update-traffic "$GCP_SERVICE" --quiet --project="$GCP_PROJECT_ID" --region="$GCP_REGION" "${args[@]}"
+      - name: Conferência pela URL pública
+        run: .github/scripts/verify-deployment.sh --expect-no-metrics "$SERVICE_URL"
+      - name: Resumo da publicação
+        if: always()
+        env:
+          REVISION: ${{ steps.deploy.outputs.revision }}
+          TAG_URL: ${{ steps.deploy.outputs.tag_url }}
+        run: |
+          {
+            echo "### Publicação no Cloud Run"
+            echo
+            echo "| Item | Valor |"
+            echo "| --- | --- |"
+            echo "| URL pública | $SERVICE_URL |"
+            echo "| Imagem | \`$GCP_REGISTRY/awards@$IMAGE_DIGEST\` |"
+            echo "| Revisão | ${REVISION:-não criada} |"
+            echo "| URL da revisão | ${TAG_URL:-não criada} |"
+            echo "| Resultado do job | ${{ job.status }} |"
+            echo "| Duração | $(( $(date +%s) - ${DEPLOY_START:-$(date +%s)} )) s |"
+          } >> "$GITHUB_STEP_SUMMARY"

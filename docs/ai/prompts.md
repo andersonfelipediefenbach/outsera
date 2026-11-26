@@ -2835,3 +2835,85 @@ Your claude.ai usage limit has reset. Continue the task you were working on when
 ```text
 export docs/ai/sessoes/13-marco-4-acabamento-operacional.md
 ```
+
+## 2026-11-26 14:37:37 -03:00
+
+- Sessao: `673a0a37-7d72-488d-8a3d-ed87641cc041`
+
+```text
+
+
+<pasted_content id="4633">
+/speckit-specify Marco 5: deploy no Google Cloud Run, num único bolt. Projeto GCP outsera-awards, região southamerica-east1. Só o modo padrão (H2, carga do CSV), com a mesma imagem do pipeline, publicada no Artifact Registry. max-instances=1 e min-instances=0, o que mantém válido o cache em memória do ADR 0026 e limita o custo. Autenticação desligada, como no modo padrão. Deploy automático a cada merge na main, autenticado por OIDC com Workload Identity Federation, restrito a este repositório e à branch main, sem chaves no GitHub. Toda a configuração do GCP (APIs, Artifact Registry, conta de serviço com permissões mínimas, pool e provedor de identidade) fica num script versionado e idempotente, rodado pelo Claude Code com o gcloud depois do meu login. O pipeline confere a URL publicada depois do deploy (readiness e resultado de referência). O README ganha a URL pública e a seção do Marco 5. Nada muda no ./mvnw verify do modo padrão.
+</pasted_content id="4633">
+
+```
+
+## 2026-11-26 14:42:22 -03:00
+
+- Sessao: `673a0a37-7d72-488d-8a3d-ed87641cc041`
+
+```text
+opcao 1
+```
+
+## 2026-11-26 14:43:53 -03:00
+
+- Sessao: `673a0a37-7d72-488d-8a3d-ed87641cc041`
+
+```text
+
+
+<pasted_content id="4633">
+/speckit-plan Siga a constituição e as decisões dos marcos anteriores. Actions fixadas por hash de commit (google-github-actions/auth, setup-gcloud e deploy-cloudrun, se usadas, com as referências aninhadas conferidas). A imagem publicada é a mesma do job image, identificada pelo digest, sem rebuild no job de deploy. O script de configuração do GCP é bash, idempotente (rodar duas vezes não muda nada nem falha), com set -euo pipefail e saída OK/FALHA por passo, como os scripts anteriores. Nenhum segredo no repositório nem nos secrets do GitHub: só identificadores públicos (número do projeto, nome do pool e do provedor, e-mail da conta de serviço), que podem ficar como variáveis do repositório ou no próprio workflow. O job de deploy roda só em push na main e depende de todos os checks obrigatórios. Divida o bolt em etapas, cada uma terminando com o ./mvnw verify verde.
+</pasted_content id="4633">
+
+```
+
+## 2026-11-26 15:13:49 -03:00
+
+- Sessao: `b2a10d15-2b68-416e-a546-0a1731d29bd6`
+
+```text
+ source ~/.bashrc
+```
+
+## 2026-11-26 15:16:51 -03:00
+
+- Sessao: `673a0a37-7d72-488d-8a3d-ed87641cc041`
+
+```text
+/speckit-tasks Cada etapa termina com o ./mvnw verify verde e um commit. Comprovações locais só quando forem rápidas; o que o pipeline comprova não precisa ser repetido na máquina. Marque como pedido ao Anderson só o que depende de mim: o push, o merge e configurações no GitHub. A execução do setup.sh com o gcloud é sua, já com o meu login. Pare só nesses pontos ou se algo falhar.
+```
+
+## 2026-11-26 15:22:04 -03:00
+
+- Sessao: `673a0a37-7d72-488d-8a3d-ed87641cc041`
+
+```text
+/speckit-analyze
+```
+
+## 2026-11-26 15:29:22 -03:00
+
+- Sessao: `673a0a37-7d72-488d-8a3d-ed87641cc041`
+
+```text
+Não precisa me mostrar as propostas: aplique todos os achados como você recomendou (C1, I1, I2, U1, C2, C3, G1, A1, A2 e A3), com uma exceção. No S1, não exponha as métricas no Cloud Run: o deploy define MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health, que mantém só o que as sondas usam. Registre a decisão no ADR 0027 e confira na T038 que /actuator/prometheus responde 404 na URL pública. Depois faça o commit da spec e comece o /speckit-implement pela etapa 1.
+```
+
+## 2026-11-26 15:50:38 -03:00
+
+- Sessao: `673a0a37-7d72-488d-8a3d-ed87641cc041`
+
+```text
+Siga direto pelas etapas 2, 3 e 4, sem parar entre elas. Pare só na T035 (push e PR) ou se algo falhar. Localmente, rode só o ./mvnw verify padrão em cada etapa; o -Pextras e o resto ficam para o pipeline.
+```
+
+## 2026-11-26 16:18:10 -03:00
+
+- Sessao: `673a0a37-7d72-488d-8a3d-ed87641cc041`
+
+```text
+Antes do push, rode os casos negativos da política (T018 e T026) e o check-workflows.sh no HEAD num contêiner com o yq, como no Marco 3 (alpine com yq v4). Cada caso negativo precisa reprovar, e o HEAD precisa passar. São segundos, e é a proteção que impede outro job de obter a identidade do GCP. Registre o resultado no decisoes.md, corrigindo a entrada que diz que ficaram sem prova, e faça o commit. Depois me avise.
+```
