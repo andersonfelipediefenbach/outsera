@@ -42,6 +42,8 @@ test.describe('Layout e teclado (spec 006, US3)', () => {
     await expect(page.locator('tbody tr').first()).toBeVisible();
     await tabUntil(page, (el) => el.label === 'Ano');
     await page.keyboard.type('1990');
+    // O botão só habilita depois da validação do campo: o Tab espera por isso, como uma pessoa esperaria.
+    await expect(page.getByRole('button', { name: 'Buscar' })).toBeEnabled();
     await page.keyboard.press('Tab');
     await expect(page.getByRole('button', { name: 'Buscar' })).toBeFocused();
     await page.keyboard.press('Enter');

@@ -222,6 +222,8 @@ test.describe('testador adversário: teclado e largura', () => {
     }
     await expect(field).toBeFocused();
     await page.keyboard.type('1990');
+    // O botão só habilita depois da validação do campo: o Tab espera por isso, como uma pessoa esperaria.
+    await expect(winners.getByRole('button', { name: 'Buscar' })).toBeEnabled();
     await page.keyboard.press('Tab');
     await expect(winners.getByRole('button', { name: 'Buscar' })).toBeFocused();
     await page.keyboard.press('Enter');

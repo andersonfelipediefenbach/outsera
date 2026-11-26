@@ -3,6 +3,19 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-26 — PR #16: corrida no teste de teclado do ponta a ponta (US3-3 e caso 25)
+
+- **Origem:** run do PR 45909553455, commit e4d10ee. O run do push do mesmo commit passou inteiro. O cenário US3-3
+  do `e2e/layout.spec.ts` falhou no projeto `celular` nas duas tentativas: depois de digitar "1990", o Tab não
+  levou o foco a "Buscar".
+- **Diagnóstico:** é corrida do teste, e não defeito do front. O botão fica desabilitado até a validação marcar o
+  campo como válido, como a FR-008 pede. A atualização da tela sem zone.js é agendada, e num runner mais lento o Tab
+  chegava antes de o botão se habilitar, então o foco pulava para o controle seguinte. O caso 25 do testador
+  adversário tinha a mesma sequência.
+- **Decisão:** os dois cenários esperam o botão habilitado (`toBeEnabled`) antes do Tab, como uma pessoa esperaria.
+  O código do front não muda. Comprovação local: os cenários de teclado, repetidos 5 vezes nos dois projetos, com 50
+  aprovados.
+
 ## 2026-11-26 — PR #16: imagem do front sobre a `nginx:1.31-alpine-slim` oficial, sem root
 
 - **Origem:** no commit 72f2eba, o teste de fumaça e o ponta a ponta do job `web` passaram, mas a porta do Trivy
