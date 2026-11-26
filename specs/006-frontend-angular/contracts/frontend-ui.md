@@ -31,6 +31,9 @@ Quatro painéis, cada um com um `h2` e o seu próprio estado (carregando, dados,
 - Erro em qualquer painel: "Não foi possível carregar os dados." e o botão "Tentar de novo", que repete só a
   chamada daquele painel.
 - Carregando: "Carregando…" com `aria-live="polite"`.
+- A busca mais recente vence: uma busca nova cancela a pendente, e só a resposta dela aparece (FR-008a).
+- Os dados do CSV (títulos, estúdios e produtores), em todas as telas, aparecem sempre como texto, com `<` e `>`
+  visíveis, sem virar elementos da página (FR-017a).
 
 ## Lista de filmes (`/filmes`)
 
@@ -38,9 +41,14 @@ Quatro painéis, cada um com um `h2` e o seu próprio estado (carregando, dados,
 
 | Parâmetro | Valores válidos | Inválido ou ausente |
 | --- | --- | --- |
-| `ano` | inteiro não negativo | sem filtro de ano |
-| `vencedor` | `sim`, `nao` | todos |
-| `pagina` | inteiro ≥ 1 | 1 |
+| `ano` | só dígitos (até 9), depois de remover os espaços das pontas; um espaço interno é inválido | sem filtro de ano |
+| `vencedor` | `sim`, `nao` (exatamente) | todos |
+| `pagina` | só dígitos, de 1 até 2^53 − 1 (inteiro seguro) | 1 |
+
+- Num parâmetro repetido, vale a primeira ocorrência. Parâmetros desconhecidos (inclusive `page`, `size`,
+  `year` e `winner`) são ignorados: a consulta à API é montada só com os valores validados (spec 006, FR-013).
+- Uma página válida cujo índice passa do máximo da API (2147483647) consulta esse máximo, que está sempre além da
+  última página: a tela mostra "Nenhum filme encontrado." e o link de volta.
 
 Mudar o ano ou o vencedor grava a URL com `pagina` removida (volta à 1). Mudar a página grava só `pagina`. A
 URL é a fonte do estado: abrir, recarregar ou voltar no navegador refaz a consulta.

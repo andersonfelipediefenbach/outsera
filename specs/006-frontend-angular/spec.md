@@ -15,6 +15,18 @@
 - P: O front entra também no `compose.yaml` do Marco 3, como pede o briefing? → R: Não (opção B). O front
   fica só na publicação no `awards-web` e no desenvolvimento local do `frontend/`; o desvio do briefing é
   registrado em `docs/ai/decisoes.md`. FR-031 e FR-034.
+- (testador adversário, 2026-11-26) Oito lacunas apontadas nos 27 casos do testador adversário do front,
+  decididas pelo responsável antes do código:
+  - caso 14: os dados do CSV são sempre exibidos como texto, nunca interpretados como HTML (FR-017a);
+  - caso 24: a busca mais recente sempre vence, e a anterior é cancelada (FR-008a);
+  - caso 08: o exemplo dos casos de borda passa a `pagina=999`; parâmetros desconhecidos são ignorados, e a
+    consulta à API é montada só com os valores validados, sem repassar a URL (FR-013);
+  - caso 18: o desempate dos estúdios é em ordem Unicode, sem colação de idioma, como no Marco 1, e o front não
+    reordena (FR-002);
+  - caso 05: espaços nas pontas são removidos, e um espaço interno torna o ano inválido (FR-008);
+  - caso 07: num parâmetro repetido, a primeira ocorrência vence (FR-013);
+  - caso 03: uma página que não cabe num inteiro seguro é inválida, pela regra existente (FR-013);
+  - caso 13: só documentar, nas premissas, o limite de 100 vencedores por ano.
 
 ## Cenários de uso e testes *(obrigatória)*
 
@@ -194,8 +206,9 @@ telas, as agregações novas, como rodar o front localmente, como são os testes
 - **Menos de três estúdios vencedores:** o painel mostra os que houver; sem nenhum, informa que não há dados.
 - **Empates nos intervalos:** o painel mostra todos os empatados, como a API devolve (Princípio III).
 - **Produtor com nome longo ou muitos estúdios:** o texto quebra linha, sem estourar a largura no celular.
-- **Página além da última na URL** (por exemplo, `page=999`): a lista mostra "nenhum filme encontrado" e
-  permite voltar à primeira página.
+- **Página além da última na URL** (por exemplo, `pagina=999`): a lista mostra "nenhum filme encontrado" e
+  permite voltar à primeira página, com os mesmos filtros. Um `page=999` na URL do front é um parâmetro
+  desconhecido e é ignorado (FR-013).
 - **Parâmetro inválido na URL da lista** (ano com letras, vencedor diferente de sim/não): o front ignora o
   parâmetro inválido e mostra o filtro vazio, sem chamar a API com ele.
 - **Autenticação ligada na API:** fora do escopo do front; sem token, os painéis mostram a mensagem de erro do painel,
@@ -215,7 +228,8 @@ telas, as agregações novas, como rodar o front localmente, como são os testes
   quantidade de vencedores, só para anos com dois ou mais, em ordem crescente de ano.
 - **FR-002**: A API MUST ter uma agregação das **vitórias por estúdio**: cada item traz o nome do estúdio e a
   quantidade de filmes vencedores em que ele aparece, só para estúdios com pelo menos uma vitória, ordenados
-  pela quantidade decrescente e depois pelo nome. O campo de estúdios é separado por vírgula, com espaços nas
+  pela quantidade decrescente e depois pelo nome, em ordem Unicode (`String.compareTo`, sem colação de idioma,
+  como os nomes dos produtores no Marco 1); o front não reordena (FR-007). O campo de estúdios é separado por vírgula, com espaços nas
   pontas removidos; nomes vazios são descartados, e um estúdio repetido no mesmo filme conta uma vez. Os nomes
   são comparados exatamente como escritos, sem normalizar a grafia, como os produtores.
 - **FR-003**: As duas agregações MUST devolver as listas vazias, com status 200, quando não houver dados, e
@@ -240,8 +254,11 @@ telas, as agregações novas, como rodar o front localmente, como são os testes
     anterior e seguinte, com **todos** os itens de `max` e de `min` devolvidos por `GET /api/producers/intervals`;
   - vencedores de um ano buscado (ano, título, estúdios e produtores), pela FR-006.
 - **FR-008**: A busca por ano MUST aceitar só um número inteiro não negativo; um valor inválido MUST NOT gerar
-  chamada à API e MUST mostrar a mensagem de validação. Um ano sem vencedor MUST mostrar a mensagem de lista
-  vazia.
+  chamada à API e MUST mostrar a mensagem de validação. Espaços nas pontas são removidos antes da validação, e
+  um espaço interno torna o ano inválido (vale também para a lista e para a URL, FR-011 e FR-013). Um ano sem
+  vencedor MUST mostrar a mensagem de lista vazia.
+- **FR-008a**: A busca mais recente MUST sempre vencer: uma busca nova cancela a anterior ainda pendente, e a
+  resposta de uma busca anterior nunca substitui a da atual.
 - **FR-009**: Cada painel MUST ter estado de carregamento, de vazio e de erro próprios, com opção de tentar de
   novo; a falha de um painel MUST NOT impedir os outros de aparecer.
 
@@ -254,7 +271,11 @@ telas, as agregações novas, como rodar o front localmente, como são os testes
 - **FR-012**: A lista MUST ter navegação para a primeira, a anterior, a próxima e a última página e mostrar a
   página atual e o total de páginas; os botões sem destino ficam desabilitados.
 - **FR-013**: Os filtros e a página MUST ficar na URL da tela; abrir essa URL MUST reproduzir a mesma consulta.
-  Parâmetros inválidos na URL MUST ser ignorados.
+  Parâmetros inválidos na URL MUST ser ignorados, e também os desconhecidos: a consulta à API MUST ser montada
+  só com os valores validados de ano, vencedor e página, sem repassar a URL do navegador. Num parâmetro
+  repetido, a primeira ocorrência vence. Uma página que não cabe num inteiro seguro (acima de 2^53 − 1) é
+  inválida, pela regra existente, e vira a página 1. Uma página válida cujo índice passa do máximo da API
+  (2147483647) consulta esse máximo, que fica sempre além da última página, e a tela mostra o vazio da FR-014.
 - **FR-014**: Sem resultado, a lista MUST mostrar "nenhum filme encontrado", e o erro da API MUST aparecer com
   opção de tentar de novo.
 
@@ -265,6 +286,9 @@ telas, as agregações novas, como rodar o front localmente, como são os testes
 - **FR-016**: As telas MUST ser navegáveis só pelo teclado, com foco visível, rótulos nos campos e tabelas com
   cabeçalho, e o menu MUST indicar a tela atual.
 - **FR-017**: Os textos da interface MUST estar em português.
+- **FR-017a**: Os dados vindos do CSV (títulos, estúdios e produtores) MUST ser exibidos sempre como texto, e
+  nunca interpretados como HTML: uma marcação ou um `script` no arquivo aparece com os `<` e `>` visíveis, sem
+  criar elementos na página.
 - **FR-018**: O front MUST chamar a API por caminho relativo (`/api/...`), sem URL fixa no código: o servidor
   do front repassa as chamadas ao serviço da API, e o navegador fala com uma única origem. A API MUST NOT
   precisar de CORS para o front funcionar.
@@ -349,7 +373,10 @@ telas, as agregações novas, como rodar o front localmente, como são os testes
     conferência da URL pública depois do merge; os dois comandos Maven verdes sem Node;
   - FR-024 e FR-031 a FR-034: revisão no PR, com item no checklist da spec;
   - SC-003: revisão no PR, com o item de usabilidade do checklist de revisão (`checklists/revisao.md`), com
-    critérios objetivos, e não por uma ferramenta nova.
+    critérios objetivos, e não por uma ferramenta nova;
+  - os 27 casos do testador adversário: ITs da API em `aggregations/adversario/`, testes unitários em
+    `frontend/src/app/adversario.spec.ts` e cenários do Playwright em `frontend/e2e/adversario.spec.ts`, cada um
+    com o número do caso (FR-008, FR-008a, FR-013 e FR-017a inclusive).
 
 ### Entidades principais
 
@@ -393,7 +420,10 @@ telas, as agregações novas, como rodar o front localmente, como são os testes
 - O serviço `awards` continua aceitando chamadas anônimas; o nginx do `awards-web` o chama pela URL pública,
   sem identidade do GCP.
 - O tamanho de página do front (10) é escolha de apresentação; a listagem da API não muda (padrão 20, máximo
-  100). O painel do ano busca até 100 vencedores, mais do que qualquer ano tem.
+  100). O painel do ano busca até 100 vencedores, numa única chamada, mais do que qualquer ano do arquivo
+  fornecido tem. **Limite documentado:** se um ano tiver mais de 100 vencedores, o painel mostra os 100
+  primeiros, na ordem da listagem (ano e título), sem outra consulta e sem aviso (caso 13 do testador
+  adversário).
 - O campo de estúdios do arquivo fornecido não usa ` and ` como separador; por isso a FR-002 separa só por
   vírgula, ao contrário dos produtores.
 - A versão exata do Angular, a ferramenta de testes unitários e a de ponta a ponta são escolhidas no plano

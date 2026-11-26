@@ -6,6 +6,11 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 /** Monta um componente com o HttpClient de teste e devolve o fixture e o controlador das chamadas. */
 export async function setup<T>(component: Type<T>): Promise<{ fixture: ComponentFixture<T>; http: HttpTestingController }> {
   TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+  return mount(component);
+}
+
+/** Monta mais um componente no mesmo TestBed, já configurado pelo `setup`. */
+export async function mount<T>(component: Type<T>): Promise<{ fixture: ComponentFixture<T>; http: HttpTestingController }> {
   const fixture = TestBed.createComponent(component);
   fixture.detectChanges();
   await fixture.whenStable();

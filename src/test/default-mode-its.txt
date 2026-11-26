@@ -83,3 +83,14 @@ com/outsera/awards/aggregations/StudiosWinCountIT.java
 com/outsera/awards/aggregations/AggregationsEmptyIT.java
 com/outsera/awards/aggregations/AggregationsEtagIT.java
 com/outsera/awards/aggregations/AggregationsContractIT.java
+
+# Marco 6, testador adversário do front e das agregações (spec 006)
+com/outsera/awards/aggregations/adversario/FrontCase14HtmlLiteralIT.java
+com/outsera/awards/aggregations/adversario/FrontCase15UnicodeIT.java
+com/outsera/awards/aggregations/adversario/FrontCase16TiedYearsIT.java
+com/outsera/awards/aggregations/adversario/FrontCase17ThirdStudioTieIT.java
+com/outsera/awards/aggregations/adversario/FrontCase18AccentAndCaseOrderIT.java
+com/outsera/awards/aggregations/adversario/FrontCase19aEmptyAggregationsIT.java
+com/outsera/awards/aggregations/adversario/FrontCase19bTwoStudiosIT.java
+com/outsera/awards/aggregations/adversario/FrontCase20IntervalTiesIT.java
+com/outsera/awards/aggregations/adversario/FrontCase27AggregationsEtagIT.java

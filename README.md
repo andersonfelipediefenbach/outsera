@@ -883,6 +883,7 @@ spec está em [`specs/006-frontend-angular/spec.md`](specs/006-frontend-angular/
 | Imagem nginx sem root, com repasse de `/api`, rotas internas e log de acesso em JSON | FR-025, FR-026, FR-026a | Job `web` ([`web-smoke-test.sh`](.github/scripts/web-smoke-test.sh), 10 passos) e `dockerfile-lint` |
 | Publicação no `awards-web`, sem segredos, com 0 a 1 instância e revisão conferida antes do tráfego | FR-027 a FR-030, SC-001, SC-007 | Job `deploy-web` na `main`, `workflow-policy` com os casos negativos ([evidência](specs/006-frontend-angular/evidencias/politica-workflow.txt)) e as duas execuções do `setup.sh` ([evidência](specs/006-frontend-angular/evidencias/setup-execucoes.txt)) |
 | Emenda 2.1.0, README, ADR 0028, runbook e decisões | FR-024, FR-031 a FR-034 | Revisão do PR, por [`specs/006-frontend-angular/checklists/revisao.md`](specs/006-frontend-angular/checklists/revisao.md) |
+| Os 27 casos do testador adversário do front e das agregações (texto literal, busca mais recente, URL com valores inválidos, repetidos ou desconhecidos, páginas enormes, Unicode, empates, rede e teclado) | FR-008, FR-008a, FR-013, FR-017a | ITs em `aggregations/adversario/` (`./mvnw verify`), `frontend/src/app/adversario.spec.ts` (job `frontend`) e `frontend/e2e/adversario.spec.ts` (job `web`); registro em [`docs/ai/decisoes.md`](docs/ai/decisoes.md) |
 
 ---
 

@@ -447,7 +447,7 @@ aprovando o workflow e reprovando os casos negativos. A publicação real vem co
 
 **Objetivo**: o pipeline do PR verde e, depois do merge, a publicação da API e do front conferida.
 
-- [ ] T066 Rodada final antes do push: `./mvnw verify`, `./mvnw -Pextras verify` e os três comandos do front, todos
+- [X] T066 Rodada final antes do push: `./mvnw verify`, `./mvnw -Pextras verify` e os três comandos do front, todos
   verdes; informar o resultado real de cada um. Conferir `git status` limpo (a não ser pelo `docs/ai/prompts.md`).
 - [ ] T067 **[Anderson]** Push do branch `marco/6-frontend` e abertura do PR. O implementador para aqui e pede.
 - [ ] T068 **[Anderson]** Incluir `frontend` e `web` nos checks obrigatórios da proteção da `main` (de 10 para 12),
@@ -516,3 +516,22 @@ T034 producer-intervals-panel T035 winners-by-year-panel
   6) e a documentação (etapa 7), cada um com o seu commit e os testes da etapa verdes.
 - **Um extra só entra completo:** o PR só é aberto com as sete etapas prontas. O Marco 6 só é dado como entregue
   depois da comprovação na `main` (T071).
+
+---
+
+## Fase 10: Testador adversário do front e das agregações
+
+**Objetivo**: os 27 casos do testador adversário (Codex, fora do repositório) viram testes permanentes, com as
+8 lacunas decididas pelo responsável aplicadas na spec antes dos testes.
+
+- [X] T073 Aplicar as decisões dos casos 03, 05, 07, 08, 13, 14, 18 e 24 na spec (FR-002, FR-008, FR-008a, FR-013,
+  FR-017a, casos de borda, premissas e esclarecimentos) e no `contracts/frontend-ui.md`.
+- [X] T074 [P] ITs da API em `src/test/java/com/outsera/awards/aggregations/adversario/` (casos 14 a 20 e 27), com
+  os CSVs em `src/test/resources/scenarios/adversario-front/` e a seção no `src/test/default-mode-its.txt`.
+- [X] T075 [P] Testes unitários em `frontend/src/app/adversario.spec.ts` (casos 01, 03 a 08 e 10 a 24).
+- [X] T076 [P] Ponta a ponta em `frontend/e2e/adversario.spec.ts` (casos 01 a 09, 11, 12, 25 e 26), com a segunda
+  API e o segundo front do caso 26 no job `web` do `.github/workflows/ci.yml`.
+- [X] T077 Rodar os testes novos antes de corrigir: só o caso 03 falhou. Corrigir só ele
+  (`frontend/src/app/movies/movie-filter.ts` e `frontend/src/app/api/awards-api.ts`) e rodar de novo.
+- [X] T078 Registrar os 27 casos, com o resultado de cada um, em `docs/ai/decisoes.md`, e a linha do README nos
+  requisitos do Marco 6.

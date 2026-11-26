@@ -3,6 +3,85 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-26 — Testador adversário: front-end e agregações (Marco 6)
+
+O Anderson acionou o Codex como testador adversário do Marco 6. O Codex escreveu 27 casos a partir da spec 006,
+do contrato da interface, do OpenAPI 1.3.0, do data-model da spec 001 e do enunciado, sem ler o código de
+produção. Os casos ficaram fora do repositório, como no Marco 4.
+
+**Lacunas da spec (8) e decisões do responsável, aplicadas na spec antes dos testes:**
+
+| Caso | Decisão | Onde |
+| --- | --- | --- |
+| 14 | Dados do CSV são sempre exibidos como texto, nunca interpretados como HTML | FR-017a |
+| 24 | A busca mais recente sempre vence; a anterior é cancelada | FR-008a |
+| 08 | O exemplo dos casos de borda passa a `pagina=999`; parâmetros desconhecidos são ignorados, e a consulta à API usa só os valores validados | FR-013, casos de borda |
+| 18 | Desempate dos estúdios em ordem Unicode (`String.compareTo`), sem colação de idioma, como no Marco 1; o front não reordena | FR-002 |
+| 05 | Espaços nas pontas são removidos; um espaço interno torna o ano inválido | FR-008 |
+| 07 | Num parâmetro repetido, a primeira ocorrência vence | FR-013 |
+| 03 | Uma página que não cabe num inteiro seguro é inválida, pela regra existente | FR-013 |
+| 13 | Só documentar, nas premissas, o limite de 100 vencedores por ano | Premissas |
+
+**Como os casos viraram testes permanentes** (agrupados como no Marco 4: uma classe ou um arquivo para o que
+divide o mesmo contexto; contexto próprio só quando o caso exige um CSV próprio):
+
+- **API (ITs, `./mvnw verify`):** `src/test/java/com/outsera/awards/aggregations/adversario/`, com a base
+  `FrontAdversarialCaseIT`. São uma classe por CSV (casos 14, 15, 16, 17, 18, 19a, 19b e 20) e o
+  `FrontCase27AggregationsEtagIT`, com o arquivo fornecido. Os CSVs foram copiados dos casos sem alteração para
+  `src/test/resources/scenarios/adversario-front/`, e o do caso 26 foi gerado pela descrição do caso. Os
+  `@DisplayName` começam por `S006 adversário caso NN`.
+- **Front, unitários (job `frontend`):** `frontend/src/app/adversario.spec.ts`, um `describe` por caso. Ficam
+  aqui a leitura da URL (01, 03 a 08) e os casos que pedem dados especiais ou controle da rede (10 a 24). O
+  `HttpTestingController` entrega as respostas no formato do contrato, e a parte da API desses casos fica nos ITs.
+- **Front, ponta a ponta (job `web`):** `frontend/e2e/adversario.spec.ts`, contra a aplicação real. Cobre a URL e
+  o histórico (01 a 09), o Dashboard (11 e 12), o teclado (25) e a largura com palavras de 480 letras (26). As
+  requisições a `/api/movies` são só observadas (`page.on('request')`), nunca simuladas. O caso 26 usa uma segunda
+  API, com o CSV do caso, e um segundo front, que o job `web` sobe.
+
+**Resultado antes de qualquer correção:**
+
+| Caso | Testes | Resultado |
+| --- | --- | --- |
+| 01 página inválida | unitário e e2e | passou |
+| 02 página além da última e retorno | e2e | passou |
+| 03 páginas enormes | unitário e e2e | **falhou**: a página tinha limite de 9 dígitos, e `pagina=2147483649` virava a página 1 em vez do vazio |
+| 04 ano inválido com vencedor válido | unitário e e2e | passou |
+| 05 ano vazio, em branco ou com espaços | unitário e e2e | passou (o `trim` já existia; agora está na spec) |
+| 06 vencedor ambíguo | unitário e e2e | passou |
+| 07 parâmetros repetidos | unitário e e2e | passou (o `ParamMap.get` do Angular já usa a primeira ocorrência) |
+| 08 parâmetros desconhecidos | unitário e e2e | passou |
+| 09 histórico e volta à página 1 | e2e | passou |
+| 10 ano só com indicados | unitário | passou |
+| 11 busca por 0 e 10000 | unitário e e2e | passou |
+| 12 texto, negativo e campo limpo | unitário e e2e | passou |
+| 13 mais de 100 vencedores | unitário | passou (limite documentado: o painel mostra os 100 da única chamada) |
+| 14 HTML literal | IT e unitário | passou (a interpolação do Angular já escapa) |
+| 15 Unicode sem normalização | IT e unitário | passou |
+| 16 anos empatados | IT e unitário | passou |
+| 17 empate no terceiro estúdio | IT e unitário | passou |
+| 18 acentos e caixa | IT e unitário | passou (ordem da API: Alfa, Zeta, alfa, Álamo) |
+| 19 agregações vazias e dois estúdios | IT e unitário | passou |
+| 20 empates nos intervalos | IT e unitário | passou |
+| 21 painel lento | unitário | passou |
+| 22 falha parcial e repetição | unitário | passou |
+| 23 API indisponível | unitário | passou |
+| 24 buscas fora de ordem | unitário | passou (o `Loader` já cancela a assinatura anterior, como um `switchMap`) |
+| 25 só teclado | e2e | passou |
+| 26 largura de 360 px | e2e | passou |
+| 27 ETag das agregações | IT | passou |
+
+**Correção (só o caso 03):** a página da URL passa a aceitar só dígitos, de 1 até o maior inteiro seguro
+(`Number.isSafeInteger`). Acima disso, ela é inválida e vira a página 1, como o responsável decidiu. Uma página
+válida cujo índice passa do máximo da API (2147483647, o limite do `page` no contrato) consulta esse máximo. Ele
+fica sempre além da última página, então a tela mostra "Nenhum filme encontrado." e o link de volta, que é o
+resultado esperado do caso. Sem isso, o índice 2147483648 daria 400 na API. A spec registra a regra na FR-013, e
+a escolha do máximo da API foi do implementador.
+
+**Ajustes nos próprios testes**, antes de valerem como prova, sem mudar o código:
+- três testes unitários chamavam o `setup` duas vezes no mesmo TestBed, e ganharam o `mount`;
+- o caso 26 exigia "Próxima" dentro da altura da tela. Com textos tão longos, a página rola na vertical, e o caso
+  pede que os controles caibam na largura. A conferência passou a ser a posição horizontal do botão.
+
 ## 2026-11-26 — Marco 6: desvios do briefing no front-end
 
 - **Origem:** spec 006 (Marco 6), FR-031 e FR-034. O briefing ("Front-end") previa hospedagem estática, CORS por

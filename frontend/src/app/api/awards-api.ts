@@ -59,6 +59,9 @@ export interface MovieFilter {
 /** Itens por página da lista (spec 006, FR-010). */
 export const PAGE_SIZE = 10;
 
+/** Maior índice de página que a API aceita (OpenAPI 1.3.0, `page`), sempre além da última página. */
+export const MAX_API_PAGE = 2147483647;
+
 /** Máximo da listagem da API, usado na busca de vencedores de um ano (FR-006). */
 export const MAX_PAGE_SIZE = 100;
 
@@ -90,7 +93,9 @@ export class AwardsApi {
 
   /** Página da lista, traduzindo o filtro do front para a API (data-model, "Tradução entre a URL do front e a API"). */
   movies(filter: MovieFilter): Observable<MoviePage> {
-    let params = new HttpParams().set('page', filter.pagina - 1).set('size', PAGE_SIZE);
+    // Uma página válida acima do máximo da API consulta esse máximo, que fica além da última (FR-013).
+    const index = Math.min(filter.pagina - 1, MAX_API_PAGE);
+    let params = new HttpParams().set('page', index).set('size', PAGE_SIZE);
     if (filter.ano !== undefined) {
       params = params.set('year', filter.ano);
     }
