@@ -1,0 +1,101 @@
+--- passo 0: ferramentas, conta, projeto, faturamento e IDs do repositório
+    conta ativa: ok
+    projeto outsera-awards ACTIVE, número 2564509384
+    faturamento ligado
+    andersonfelipediefenbach/outsera: repository_id 1462943252, repository_owner_id 31636415
+==> passo 0: OK (já existia) - ferramentas, conta, projeto, faturamento e IDs do repositório
+--- passo 1: APIs ativadas
+Operation "operations/acf.p2-2564509384-46b28cfc-4c77-431a-a8ca-8af4b4a75be6" finished successfully.
+    criado: API run.googleapis.com ativada
+    criado: API artifactregistry.googleapis.com ativada
+Operation "operations/acat.p2-2564509384-3919926f-490a-4884-9355-acd936811b83" finished successfully.
+    criado: API iam.googleapis.com ativada
+    criado: API iamcredentials.googleapis.com ativada
+Operation "operations/acat.p2-2564509384-8186b22a-45e0-492f-a2a3-e8d0e71d4b43" finished successfully.
+    criado: API sts.googleapis.com ativada
+==> passo 1: OK (criado) - APIs ativadas
+--- passo 2: repositório de imagens awards e política de limpeza
+Create request issued for: [awards]
+Waiting for operation [projects/outsera-awards/locations/southamerica-east1/operations/569ab1b8-9c5c-40e0-939b-01c63ee3b39d] to complete...
+......................................................................................................................................................done.
+Created repository [awards].
+    criado: repositório awards em southamerica-east1
+Listing items under project outsera-awards, location southamerica-east1, repository awards.
+
+Dry run is disabled.
+Encryption: Google-managed key
+Repository Size: 0.000MB
+Updated repository [awards].
+Dry run is disabled.
+Listing items under project outsera-awards, location southamerica-east1, repository awards.
+
+Dry run is disabled.
+    ajustado: política de limpeza (30 dias; mantém as 10 mais recentes)
+==> passo 2: OK (criado, ajustado) - repositório de imagens awards e política de limpeza
+--- passo 3: conta de execução awards-runtime
+Created service account [awards-runtime].
+Service account email: awards-runtime@outsera-awards.iam.gserviceaccount.com
+    criado: conta de serviço awards-runtime@outsera-awards.iam.gserviceaccount.com
+==> passo 3: OK (criado) - conta de execução awards-runtime
+--- passo 4: conta de publicação github-deployer, sem chaves
+Created service account [github-deployer].
+Service account email: github-deployer@outsera-awards.iam.gserviceaccount.com
+    criado: conta de serviço github-deployer@outsera-awards.iam.gserviceaccount.com
+    github-deployer@outsera-awards.iam.gserviceaccount.com sem chaves gerenciadas pelo usuário
+==> passo 4: OK (criado) - conta de publicação github-deployer, sem chaves
+--- passo 5: pool de identidade github
+Created workload identity pool [github].
+    criado: pool github
+==> passo 5: OK (criado) - pool de identidade github
+--- passo 6: provedor OIDC github-actions (repositório e main)
+Created workload identity pool provider [github-actions].
+    criado: provedor github-actions
+==> passo 6: OK (criado) - provedor OIDC github-actions (repositório e main)
+--- passo 7: serviço awards no Cloud Run
+Deploying container to Cloud Run service [awards] in project [outsera-awards] region [southamerica-east1]
+Deploying new service...
+Creating Revision..............................................................................................................................done
+Routing traffic.....done
+Done.
+Service [awards] revision [awards-00001-f9r] has been deployed and is serving 100 percent of traffic.
+Service URL: https://awards-2564509384.southamerica-east1.run.app
+Proxy locally with: gcloud run services proxy awards --region southamerica-east1 --project outsera-awards
+    criado: serviço awards com a imagem de exemplo
+==> passo 7: OK (criado) - serviço awards no Cloud Run
+--- passo 8: vínculos de IAM com permissões mínimas
+Updated IAM policy for serviceAccount [github-deployer@outsera-awards.iam.gserviceaccount.com].
+    criado: roles/iam.workloadIdentityUser para principalSet://iam.googleapis.com/projects/2564509384/locations/global/workloadIdentityPools/github/attribute.repository_id/1462943252 em conta github-deployer
+Updated IAM policy for repository [awards].
+    criado: roles/artifactregistry.writer para serviceAccount:github-deployer@outsera-awards.iam.gserviceaccount.com em repositório awards
+Updated IAM policy for service [awards].
+    criado: roles/run.developer para serviceAccount:github-deployer@outsera-awards.iam.gserviceaccount.com em serviço awards
+Updated IAM policy for serviceAccount [awards-runtime@outsera-awards.iam.gserviceaccount.com].
+    criado: roles/iam.serviceAccountUser para serviceAccount:github-deployer@outsera-awards.iam.gserviceaccount.com em conta awards-runtime
+Updated IAM policy for service [awards].
+    criado: roles/run.invoker para allUsers em serviço awards
+==> passo 8: OK (criado) - vínculos de IAM com permissões mínimas
+--- passo 9: identificadores públicos
+
+GCP_PROJECT_ID=outsera-awards
+GCP_PROJECT_NUMBER=2564509384
+GCP_REGION=southamerica-east1
+GCP_WIF_PROVIDER=projects/2564509384/locations/global/workloadIdentityPools/github/providers/github-actions
+GCP_DEPLOY_SA=github-deployer@outsera-awards.iam.gserviceaccount.com
+GCP_RUNTIME_SA=awards-runtime@outsera-awards.iam.gserviceaccount.com
+GCP_REGISTRY=southamerica-east1-docker.pkg.dev/outsera-awards/awards
+GCP_SERVICE=awards
+URL=https://awards-ijx5jl3k2q-rj.a.run.app
+==> passo 9: OK (já existia) - identificadores públicos
+
+Resumo:
+  passo 0: OK (já existia) - ferramentas, conta, projeto, faturamento e IDs do repositório
+  passo 1: OK (criado) - APIs ativadas
+  passo 2: OK (criado, ajustado) - repositório de imagens awards e política de limpeza
+  passo 3: OK (criado) - conta de execução awards-runtime
+  passo 4: OK (criado) - conta de publicação github-deployer, sem chaves
+  passo 5: OK (criado) - pool de identidade github
+  passo 6: OK (criado) - provedor OIDC github-actions (repositório e main)
+  passo 7: OK (criado) - serviço awards no Cloud Run
+  passo 8: OK (criado) - vínculos de IAM com permissões mínimas
+  passo 9: OK (já existia) - identificadores públicos
+  10 OK, 0 FALHA, 17 mudança(s)

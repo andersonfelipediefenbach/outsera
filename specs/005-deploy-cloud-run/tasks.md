@@ -35,7 +35,7 @@ feito (conta ativa e projeto `outsera-awards`).
 
 **Purpose**: estrutura dos arquivos novos
 
-- [ ] T001 Criar `deploy/gcp/cleanup-policy.json` com a política de limpeza da research R9 (FR-021): uma regra
+- [X] T001 Criar `deploy/gcp/cleanup-policy.json` com a política de limpeza da research R9 (FR-021): uma regra
   `DELETE` com `tagState: ANY` e `olderThan: 30d`, e uma regra `KEEP` com `mostRecentVersions.keepCount: 10`,
   que prevalece sobre a de apagar, no formato aceito por
   `gcloud artifacts repositories set-cleanup-policies --policy=<arquivo>`. Confirmar que o
@@ -51,7 +51,7 @@ com a URL pública conhecida.
 **Independent Test**: duas execuções seguidas de `deploy/gcp/setup.sh`. A segunda termina com código 0, todos os
 passos em `OK (já existia)` e zero mudanças (SC-004).
 
-- [ ] T002 [US4] Criar `deploy/gcp/setup.sh` (executável, `#!/usr/bin/env bash`, `set -euo pipefail`), conforme
+- [X] T002 [US4] Criar `deploy/gcp/setup.sh` (executável, `#!/usr/bin/env bash`, `set -euo pipefail`), conforme
   [`contracts/setup-script.md`](contracts/setup-script.md):
   - constantes no topo: `PROJECT_ID=outsera-awards`, `REGION=southamerica-east1`,
     `GITHUB_REPO=andersonfelipediefenbach/outsera`, `REPOSITORY=awards`, `SERVICE=awards`, `POOL=github`,
@@ -67,7 +67,7 @@ passos em `OK (já existia)` e zero mudanças (SC-004).
     sai o `PROJECT_NUMBER`; `gcloud billing projects describe` com `billingEnabled=True`; `repository_id` e
     `owner.id` lidos de `https://api.github.com/repos/$GITHUB_REPO` com `curl` e extraídos sem `jq` (por
     exemplo, com `sed`), validados como números. Qualquer falha termina com código 1 antes do passo 1.
-- [ ] T003 [US4] Em `deploy/gcp/setup.sh`, passos 1 a 4 (research R9):
+- [X] T003 [US4] Em `deploy/gcp/setup.sh`, passos 1 a 4 (research R9):
   - passo 1: ativar `run`, `artifactregistry`, `iam`, `iamcredentials` e `sts` (`.googleapis.com`) só se
     faltarem na lista de `gcloud services list --enabled`;
   - passo 2: criar o repositório Docker `awards` em `southamerica-east1`, se não existir, e aplicar
@@ -76,7 +76,7 @@ passos em `OK (já existia)` e zero mudanças (SC-004).
   - passo 4: criar a conta `github-deployer` (nome de exibição "Publicação pelo GitHub Actions"), se não
     existir, e dar `FALHA` se `gcloud iam service-accounts keys list --managed-by=user` listar alguma chave
     (SC-003).
-- [ ] T004 [US4] Em `deploy/gcp/setup.sh`, passos 5 e 6 (research R3):
+- [X] T004 [US4] Em `deploy/gcp/setup.sh`, passos 5 e 6 (research R3):
   - pool `github` (global): criar se não existir e restaurar (`undelete`) se estiver `DELETED`;
   - provedor OIDC `github-actions`: emissor `https://token.actions.githubusercontent.com`, mapeamento
     `google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_id=assertion.repository_id,attribute.repository_owner_id=assertion.repository_owner_id,attribute.ref=assertion.ref`
@@ -84,12 +84,12 @@ passos em `OK (já existia)` e zero mudanças (SC-004).
     `assertion.repository_id == '<id>' && assertion.repository_owner_id == '<id do dono>' && assertion.ref == 'refs/heads/main'`;
   - criar se não existir, restaurar se `DELETED` e atualizar (`OK (ajustado)`) se o mapeamento ou a condição
     divergirem.
-- [ ] T005 [US4] Em `deploy/gcp/setup.sh`, passo 7 (research R4 e R5): se o serviço `awards` não existir, criar
+- [X] T005 [US4] Em `deploy/gcp/setup.sh`, passo 7 (research R4 e R5): se o serviço `awards` não existir, criar
   com
   `gcloud run deploy awards --image=$PLACEHOLDER_IMAGE --region=$REGION --service-account=awards-runtime@… --min-instances=0 --max-instances=1 --cpu=1 --memory=1Gi --no-allow-unauthenticated`.
   Se existir, não implantar nada: só conferir que a conta de execução é a `awards-runtime` e dar `FALHA` se não
   for. O acesso público vem no passo 8.
-- [ ] T006 [US4] Em `deploy/gcp/setup.sh`, passo 8: os vínculos de IAM da tabela de
+- [X] T006 [US4] Em `deploy/gcp/setup.sh`, passo 8: os vínculos de IAM da tabela de
   [`data-model.md`](data-model.md), cada um com um comentário com o motivo (FR-018). Antes de cada
   `add-iam-policy-binding`, ler a política com `get-iam-policy --flatten=bindings[].members` e só adicionar o
   que falta:
@@ -99,25 +99,25 @@ passos em `OK (já existia)` e zero mudanças (SC-004).
   - `github-deployer` com `roles/run.developer` no serviço `awards`;
   - `github-deployer` com `roles/iam.serviceAccountUser` na conta `awards-runtime`;
   - `allUsers` com `roles/run.invoker` no serviço `awards`.
-- [ ] T007 [US4] Em `deploy/gcp/setup.sh`, passo 9 e resumo:
+- [X] T007 [US4] Em `deploy/gcp/setup.sh`, passo 9 e resumo:
   - imprimir as linhas `GCP_PROJECT_ID`, `GCP_PROJECT_NUMBER`, `GCP_REGION`, `GCP_WIF_PROVIDER`,
     `GCP_DEPLOY_SA`, `GCP_RUNTIME_SA`, `GCP_REGISTRY`, `GCP_SERVICE` e `URL`, a URL lida de
     `gcloud run services describe --format='value(status.url)'`;
   - depois, a contagem por resultado e o número de mudanças;
   - código 0 sem `FALHA`, 1 com alguma.
-- [ ] T008 [US4] Rodar `source ~/.bashrc && deploy/gcp/setup.sh` pela primeira vez e gravar a saída em
+- [X] T008 [US4] Rodar `source ~/.bashrc && deploy/gcp/setup.sh` pela primeira vez e gravar a saída em
   `specs/005-deploy-cloud-run/evidencias/setup-execucao-1.txt`. Conferir que a saída não tem e-mail pessoal nem
   token. Se algum passo der `FALHA`, corrigir o script e rodar de novo; parar e informar se a falha não for do
   script (permissão, faturamento ou cota).
-- [ ] T009 [US4] Rodar o script pela segunda vez e gravar a saída em
+- [X] T009 [US4] Rodar o script pela segunda vez e gravar a saída em
   `specs/005-deploy-cloud-run/evidencias/setup-execucao-2.txt`. Esperado: código 0, só `OK (já existia)` e
   zero mudanças (SC-004). Se não, corrigir a idempotência e repetir T008 e T009.
-- [ ] T010 [US4] Conferências rápidas (quickstart, passo 1), com o resultado anexado a
+- [X] T010 [US4] Conferências rápidas (quickstart, passo 1), com o resultado anexado a
   `specs/005-deploy-cloud-run/evidencias/setup-conferencias.txt`:
   - `gcloud iam service-accounts keys list --managed-by=user` da `github-deployer`, com a lista vazia;
   - a `attributeCondition` do provedor;
   - `curl -s -o /dev/null -w '%{http_code}' <URL>`, com 200 da página de exemplo e acesso anônimo.
-- [ ] T011 [US4] Rodar `./mvnw verify` e `./mvnw -Pextras verify`, informar o resultado real e fazer o commit
+- [X] T011 [US4] Rodar `./mvnw verify` e `./mvnw -Pextras verify`, informar o resultado real e fazer o commit
   "Marco 5, etapa 1: configuração idempotente do GCP" com `deploy/gcp/` e `specs/005-deploy-cloud-run/evidencias/`.
 
 **Checkpoint**: o GCP está configurado, e a URL do serviço e os identificadores públicos são conhecidos.

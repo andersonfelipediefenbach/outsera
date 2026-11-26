@@ -1,0 +1,12 @@
+[
+  {
+    "name": "apaga-com-mais-de-30-dias",
+    "action": { "type": "Delete" },
+    "condition": { "tagState": "any", "olderThan": "30d" }
+  },
+  {
+    "name": "mantem-as-10-mais-recentes",
+    "action": { "type": "Keep" },
+    "mostRecentVersions": { "keepCount": 10 }
+  }
+]

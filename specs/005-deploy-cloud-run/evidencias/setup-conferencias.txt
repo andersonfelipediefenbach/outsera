@@ -1,0 +1,17 @@
+# Conferências da etapa 1 (T010), 2026-11-26T18:38Z
+# A execução 1 rodou antes de o passo 9 passar a imprimir a URL determinística; a execução 2 já tem a versão final do script.
+
+## Chaves gerenciadas pelo usuário da github-deployer (esperado: nenhuma linha)
+(fim da lista)
+
+## Condição do provedor github-actions
+assertion.repository_id == '1462943252' && assertion.repository_owner_id == '31636415' && assertion.ref == 'refs/heads/main'
+
+## Acesso anônimo à URL pública (imagem de exemplo)
+https://awards-2564509384.southamerica-east1.run.app -> HTTP 200
+
+## Papéis da conta de execução no projeto (esperado: nenhum)
+(fim da lista)
+
+## Papéis da github-deployer no projeto (esperado: nenhum; os papéis ficam no serviço, no repositório e na conta de execução)
+(fim da lista)
