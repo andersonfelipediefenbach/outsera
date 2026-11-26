@@ -1,14 +1,10 @@
 openapi: 3.1.0
 info:
   title: Golden Raspberry Awards API
-  version: 1.2.0
+  version: 1.2.1
   description: >
     Intervalos entre prêmios consecutivos de produtores na categoria Pior Filme e listagem dos filmes
-    indicados e vencedores. Os dados vêm do arquivo CSV carregado na inicialização. As respostas 200
-    trazem ETag, e uma requisição com If-None-Match igual ao ETag atual recebe 304 sem corpo. A
-    autenticação é opcional e fica desligada por padrão. Com a variável de ambiente API_TOKEN definida,
-    os dois endpoints exigem o cabeçalho Authorization: Bearer <token>; sem ele, ou com outro valor, a
-    resposta é 401 em Problem Details.
+    indicados e vencedores. Os dados vêm do arquivo CSV carregado na inicialização.
 paths:
   /api/producers/intervals:
     get:
@@ -124,7 +120,7 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
-      description: Token definido em API_TOKEN. Sem a variável, a autenticação fica desligada.
+      description: Opcional. Exigido só quando a variável API_TOKEN está definida.
   parameters:
     IfNoneMatch:
       name: If-None-Match

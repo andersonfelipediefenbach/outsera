@@ -10,9 +10,9 @@ import org.junit.jupiter.api.Test;
 import org.yaml.snakeyaml.Yaml;
 
 /**
- * O contrato publicado é o 1.2.0, com a autenticação opcional e a resposta 401 nos dois endpoints de
- * negócio (spec 003, FR-026; contracts/openapi-1.2.0.md). O {@code ApiDocsIT} continua conferindo que o
- * contrato publicado é idêntico ao da spec.
+ * O contrato publicado é o 1.2.1 (spec 005, FR-027), com a autenticação opcional e a resposta 401 nos
+ * dois endpoints de negócio (spec 003, FR-026; contracts/openapi-1.2.0.md). O {@code ApiDocsIT} continua
+ * conferindo que o contrato publicado é idêntico ao da spec.
  */
 class ApiDocsSecurityIT extends ScenarioIT {
 
@@ -24,11 +24,11 @@ class ApiDocsSecurityIT extends ScenarioIT {
     }
 
     @Test
-    @DisplayName("S003 FR-026 contrato 1.2.0 com bearerAuth opcional e 401 nos endpoints de negócio")
+    @DisplayName("S003 FR-026 contrato 1.2.1 com bearerAuth opcional e 401 nos endpoints de negócio")
     @SuppressWarnings("unchecked")
     void contractDocumentsTheAuthentication() {
         Map<String, Object> root = contract();
-        assertThat((Map<String, Object>) root.get("info")).containsEntry("version", "1.2.0");
+        assertThat((Map<String, Object>) root.get("info")).containsEntry("version", "1.2.1");
         Map<String, Object> schemes = (Map<String, Object>) ((Map<String, Object>) root.get("components"))
                 .get("securitySchemes");
         assertThat((Map<String, Object>) schemes.get("bearerAuth"))

@@ -72,3 +72,6 @@ com/outsera/awards/security/AuthDisabledByDefaultIT.java
 com/outsera/awards/security/CacheHeadersIT.java
 com/outsera/awards/security/NoGeneratedPasswordIT.java
 com/outsera/awards/isolation/DefaultModeIsolationIT.java
+
+# Marco 5, no modo padrão (spec 005, FR-027)
+com/outsera/awards/docs/ContractTextIT.java

@@ -4,7 +4,15 @@
 
 **Created**: 2026-11-26
 
-**Status**: Draft
+**Status**: Implemented (2026-11-26). A publicação foi comprovada na `main` pela
+[execução 45885778155](https://github.com/andersonfelipediefenbach/outsera/actions/runs/45885778155) do merge do
+PR #14 (commit `4aeb67e`):
+- os 10 checks ficaram verdes, e o job `deploy` passou nos 13 passos em 111 s;
+- a revisão `awards-00002-had` roda a imagem
+  `sha256:2a6e248b0586b07f756920c4da2e14b245d07e4dd41655c5eb743a54f2bb2bf6` com 100% do tráfego.
+
+A conferência depois do merge está em [`evidencias/publicacao-main.txt`](evidencias/publicacao-main.txt). O
+ajuste do contrato para a versão 1.2.1 (FR-027) entrou depois, no fechamento do marco.
 
 **Input**: User description: "Marco 5: deploy no Google Cloud Run, num único bolt. Projeto GCP outsera-awards, região southamerica-east1. Só o modo padrão (H2, carga do CSV), com a mesma imagem do pipeline, publicada no Artifact Registry. max-instances=1 e min-instances=0, o que mantém válido o cache em memória do ADR 0026 e limita o custo. Autenticação desligada, como no modo padrão. Deploy automático a cada merge na main, autenticado por OIDC com Workload Identity Federation, restrito a este repositório e à branch main, sem chaves no GitHub. Toda a configuração do GCP (APIs, Artifact Registry, conta de serviço com permissões mínimas, pool e provedor de identidade) fica num script versionado e idempotente, rodado pelo Claude Code com o gcloud depois do meu login. O pipeline confere a URL publicada depois do deploy (readiness e resultado de referência). O README ganha a URL pública e a seção do Marco 5. Nada muda no ./mvnw verify do modo padrão."
 
@@ -20,6 +28,11 @@
   → A: Não. A publicação define `MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health`, que mantém só o que os
   probes usam; `/actuator/prometheus` responde 404 na URL pública. Decisão registrada no ADR 0027. FR-004 e
   FR-004a.
+- Q: (fechamento, 2026-11-26) Com o Swagger UI público, o contrato muda? → A: Sim, para a versão 1.2.1,
+  pedida pelo responsável. A descrição fica em duas frases, a autenticação fica declarada como opcional e
+  nenhum texto usa `<` ou `>` sem escape. O `Bearer <token>` sumia na renderização. O `ApiDocsSecurityIT`,
+  protegido pela `v0.3.0`, muda só no número da versão, com exceção registrada (opção do responsável).
+  FR-022 e FR-027.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -277,8 +290,12 @@ por revisão.
 
 **Modo padrão e documentação**
 
-- **FR-022**: Nada MUST mudar no `./mvnw verify` do modo padrão nem no `./mvnw -Pextras verify`: nenhum IT
-  novo, removido ou alterado, e nenhuma configuração nova exigida para subir a aplicação localmente.
+- **FR-022**: A publicação MUST NOT mudar nada no `./mvnw verify` do modo padrão nem no
+  `./mvnw -Pextras verify`: nenhum IT novo, removido ou alterado por causa dela, e nenhuma configuração nova
+  exigida para subir a aplicação localmente. A única mudança nos ITs do marco é a do contrato 1.2.1 (FR-027):
+  - um IT novo, o `ContractTextIT`;
+  - a constante do contrato da spec no `ApiDocsIT`, que já tinha exceção;
+  - o número da versão no `ApiDocsSecurityIT`, com exceção nova registrada em `docs/ai/decisoes.md`.
 - **FR-023**: O README MUST trazer a URL pública (intervalos e Swagger UI) em "Avalie em 2 minutos", com o
   aviso da partida a frio, e a seção do Marco 5 entre os extras (o que é publicado, como, o limite de uma
   instância e o que fica de fora), além dos requisitos do Marco 5 na seção de requisitos.
@@ -286,6 +303,20 @@ por revisão.
   ADR curto em `docs/adr/`, e o runbook MUST ganhar o procedimento de voltar o tráfego para a revisão anterior.
 - **FR-025**: A mudança em relação ao briefing (publicação a cada merge na `main`, e não por tag de versão)
   MUST ser registrada em `docs/ai/decisoes.md`.
+
+**Contrato publicado (fechamento do marco)**
+
+- **FR-027**: O contrato OpenAPI MUST passar à versão **1.2.1**, com o arquivo-fonte em
+  `specs/005-deploy-cloud-run/contracts/openapi.yaml` e a cópia publicada em `/openapi.yaml` idêntica a ele.
+  Os contratos das specs 001 a 003 ficam como registro. Os paths, os parâmetros, as respostas e os esquemas
+  não mudam (Princípio III), e mudam só três textos:
+  - o `info.description` fica com duas frases: o que a API faz e que os dados vêm do CSV carregado na
+    inicialização. O ETag, o 304 e a autenticação ficam no README;
+  - a autenticação fica declarada como opcional: o `security` de cada operação tem a alternativa vazia
+    (`{}`) além do `bearerAuth`, e a descrição do `bearerAuth` é exatamente "Opcional. Exigido só quando a
+    variável API_TOKEN está definida.";
+  - nenhuma `description` nem `summary` do contrato contém `<` ou `>`, que o Swagger UI interpreta como HTML
+    e some na renderização.
 
 **Comprovação (Princípio VI)**
 
@@ -295,10 +326,16 @@ por revisão.
     a restrição da federação é comprovada pela condição do provedor, conferida no GCP depois do script, e
     pelo job de publicação pulado no pull request;
   - FR-017 a FR-021: duas execuções do script, com a saída da segunda registrada, e revisão do script no PR;
-  - FR-022: os dois comandos Maven verdes, sem alteração nos ITs (`check-unchanged-tests.sh`);
-  - FR-023 a FR-025: revisão no PR, com item no checklist da spec.
+  - FR-022: os dois comandos Maven verdes, sem alteração nos ITs fora das exceções registradas
+    (`check-unchanged-tests.sh`);
+  - FR-023 a FR-025: revisão no PR, com item no checklist da spec;
+  - FR-027: o `ApiDocsIT`, com o contrato publicado idêntico ao da spec 005, o `ApiDocsSecurityIT`, com a
+    versão 1.2.1, e o IT novo `ContractTextIT`, com a descrição do `bearerAuth`, as duas frases do
+    `info.description` e nenhum `<` ou `>` nos textos. Os três estão no `./mvnw verify`, e a URL pública é
+    conferida depois do merge.
 
-  Este marco não tem comportamento novo da aplicação, então não pede IT novo.
+  A publicação (FR-001 a FR-021) não tem comportamento novo da aplicação, então não pede IT novo. O IT novo é
+  o do contrato (FR-027).
 
 ### Key Entities
 

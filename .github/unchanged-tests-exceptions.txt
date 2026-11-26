@@ -2,3 +2,4 @@
 # docs/ai/decisoes.md que autoriza a mudança (spec 003, research R14).
 # Formato: <caminho> <título da entrada, exatamente como no decisoes.md>
 src/test/java/com/outsera/awards/docs/ApiDocsIT.java Exceção do `ApiDocsIT` à regra dos testes sem alteração
+src/test/java/com/outsera/awards/docs/ApiDocsSecurityIT.java Contrato 1.2.1 e exceção do `ApiDocsSecurityIT` à regra dos testes sem alteração
