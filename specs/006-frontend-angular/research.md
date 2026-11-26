@@ -148,8 +148,9 @@ requisitos são da [spec](spec.md).
 
 - **Decisão:** `frontend/Dockerfile` multi-stage:
   1. `node:26-alpine` (por digest) roda `npm ci` e `ng build` (configuração de produção);
-  2. `nginxinc/nginx-unprivileged:1.29-alpine` (por digest), que já roda como usuário não root (UID 101),
-     recebe o `dist/` e um template `default.conf.template`. O `envsubst` do entrypoint oficial gera a
+  2. `nginx:1.31-alpine-slim` (oficial, por digest), ajustada numa camada para rodar como o usuário `nginx`
+     (UID 101), como a `nginxinc/nginx-unprivileged` faz por dentro. A unprivileged foi a escolha inicial, mas não
+     é reconstruída desde 19/10/2026 e reprovou a porta do Trivy no PR #16. A imagem recebe o `dist/` e um template `default.conf.template`. O `envsubst` do entrypoint oficial gera a
      configuração na subida a partir de `PORT` (padrão 8080), `API_URL` e `LOG_FORMAT` (`json`, definido no
      `Dockerfile`), restrito a essas três variáveis (`NGINX_ENVSUBST_FILTER`).
 - **Log de acesso em JSON (FR-026a):** `log_format json escape=json` e `access_log /dev/stdout ${LOG_FORMAT}`,
@@ -171,8 +172,8 @@ requisitos são da [spec](spec.md).
 - **Alternativas recusadas:**
   - Servir o Angular pelo Spring Boot (dentro do JAR): poria o Node no `./mvnw` e misturaria os builds
     (FR-020; decisão de planejamento "front em pasta própria").
-  - Imagem distroless com Caddy ou servidor em Node: o pedido é nginx; a imagem `unprivileged` resolve o não
-    root sem ajustes.
+  - Imagem distroless com Caddy ou servidor em Node: o pedido é nginx.
+  - `apk upgrade` sobre a unprivileged: tornaria o build não reproduzível (decisão do responsável no PR #16).
   - CORS na API em vez do repasse: duas origens, preflight e configuração por variável a mais; o repasse
     mantém a mesma origem (FR-018; desvio do briefing registrado, FR-034).
 

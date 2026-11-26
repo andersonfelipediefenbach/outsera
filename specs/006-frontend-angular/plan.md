@@ -31,7 +31,7 @@ publicado num segundo serviço do Cloud Run.
 
 **Dependências principais**: na API, nenhuma nova. No front: `@angular/*` 22.3.0, `@angular/build` (Vitest),
 `vitest` 5 com `@vitest/coverage-v8`, `jsdom`, `@playwright/test` 1.65 e `angular-eslint`. Na imagem:
-`node:26-alpine` (build) e `nginxinc/nginx-unprivileged:1.29-alpine` (execução), as duas por digest. No
+`node:26-alpine` (build) e `nginx:1.31-alpine-slim` (execução, ajustada para rodar sem root), as duas por digest. No
 pipeline, `actions/setup-node` por hash.
 
 **Armazenamento**: sem mudança (H2 no modo padrão, PostgreSQL no modo Docker). Nenhuma migração Flyway nova.

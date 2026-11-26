@@ -22,8 +22,10 @@ Marco 5 já publica a API no Cloud Run, com identidade federada e sem segredos.
 - **Uma única origem para o navegador.** O front chama a API por caminho relativo (`/api/...`). Na publicação, o
   nginx repassa `/api` ao serviço `awards`, pela variável `API_URL`. No desenvolvimento, o `ng serve` faz o mesmo
   com o `proxy.conf.json`. A API não ganha CORS.
-- **Imagem multi-stage:** o Node 26 constrói o Angular, e o `nginx-unprivileged` executa (UID 101), com as duas
-  imagens fixadas por digest. O nginx:
+- **Imagem multi-stage:** o Node 26 constrói o Angular, e a imagem oficial `nginx:1.31-alpine-slim` executa como o
+  usuário `nginx` (UID 101), ajustada numa camada sem instalar pacotes, com as duas imagens fixadas por digest. A
+  `nginxinc/nginx-unprivileged`, a escolha inicial, não é reconstruída desde 19/10/2026 e reprovou a porta do Trivy
+  no PR #16. O nginx:
   - devolve o `index.html` nas rotas internas;
   - aplica a CSP restrita a `'self'` e os cabeçalhos de segurança;
   - tem `/healthz` para o probe;

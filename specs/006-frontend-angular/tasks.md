@@ -302,7 +302,7 @@ filtros e a paginação.
 
 - [X] T045 [P] [US5] Criar `frontend/Dockerfile` e `frontend/.dockerignore` conforme contracts/web-image.md
   ("Construção"): `node:26-alpine@sha256:<digest>` com `npm ci` e `npm run build`;
-  `nginxinc/nginx-unprivileged:1.29-alpine@sha256:<digest>` com o `dist/frontend/browser` em
+  `nginxinc/nginx-unprivileged:1.29-alpine@sha256:<digest>` (trocada depois pela `nginx:1.31-alpine-slim` oficial, ajustada para rodar sem root; PR #16) com o `dist/frontend/browser` em
   `/usr/share/nginx/html`; `NGINX_ENVSUBST_FILTER` restrito a `PORT`, `API_URL` e `LOG_FORMAT`; `ENV PORT=8080`
   e `ENV LOG_FORMAT=json` (log de acesso em JSON no container, FR-026a); `EXPOSE 8080`;
   sem `USER root` na etapa final. Os digests vêm de `docker buildx imagetools inspect` ou da API do Docker Hub,

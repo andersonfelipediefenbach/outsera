@@ -3,6 +3,32 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-26 — PR #16: imagem do front sobre a `nginx:1.31-alpine-slim` oficial, sem root
+
+- **Origem:** no commit 72f2eba, o teste de fumaça e o ponta a ponta do job `web` passaram, mas a porta do Trivy
+  (alta e crítica, só com correção) reprovou a imagem do front. Eram 57 achados em pacotes do Alpine 3.23.4 da base
+  `nginxinc/nginx-unprivileged:1.29-alpine` (musl, pcre2, zlib, tiff, curl e outros), nenhum do nosso código.
+- **Diagnóstico**, com o Trivy 0.70.0, a mesma versão do pipeline:
+  - a `nginxinc/nginx-unprivileged` não é reconstruída desde 19/10/2026, e todas as variantes reprovam:
+    `1.30-alpine` (20 achados), `1.31-alpine` (14), `1.30-alpine-slim` (9) e `1.31-alpine-slim` (3, em musl,
+    musl-utils e zlib);
+  - a imagem oficial `nginx:1.31-alpine-slim`, reconstruída em 24/11, sai com zero achados. Ela tem o `envsubst` e
+    os mesmos scripts de entrada (inclusive o `15-local-resolvers.envsh`), mas roda como root.
+- **Alternativa rejeitada pelo responsável:** `apk upgrade` sobre a unprivileged. O build deixaria de ser
+  reproduzível.
+- **Decisão (responsável):** a base passa a ser a `nginx:1.31-alpine-slim` oficial, por digest. Uma camada como
+  root, sem instalar nem atualizar pacotes, faz o que a unprivileged faz por dentro: tira a diretiva `user`, põe o
+  `pid` e os temporários em `/tmp` e passa a `conf.d` (gerada pelo `envsubst`) e o cache ao usuário `nginx`. A etapa
+  final termina com `USER 101`, e a própria camada confere o `nginx.conf` resultante.
+- **Comprovação local:** hadolint aprovado; a porta do Trivy 0.70.0 aprovada (código 0); o `web-smoke-test.sh` passa
+  nos 10 passos, inclusive o UID diferente de 0 e o log em JSON; o Playwright passa com 101 cenários e 3 pulados
+  (os mesmos de antes).
+- **Job `image` do run de push 45907435497 (sem correção, por decisão do responsável):** não foi disputa de cache.
+  Foi o mesmo 429 do Maven Central, no download do Maven pelo wrapper. O commit a2cbcbd mudou o Dockerfile, então
+  a camada das dependências não existia no cache, e os dois runs simultâneos do mesmo commit (push e PR) baixaram
+  tudo do Central. O do PR conseguiu e gravou o cache. O escopo único do cache é o certo: com escopos separados, os
+  dois runs perderiam o cache sempre. Com a camada no cache, os builds seguintes não chamam o Central.
+
 ## 2026-11-26 — PR #16: o repasse do front no pipeline usa o IP do host, e não `host.docker.internal`
 
 - **Origem:** job `web` vermelho nos dois runs do commit 830401c. O passo 9 ("Teste de fumaça da imagem do front")

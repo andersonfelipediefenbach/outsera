@@ -5,8 +5,11 @@ Comprovado pelo `web-smoke-test.sh` e pelo Playwright no job `web`, e pelo `veri
 
 ## Construção
 
-- Multi-stage: `node:26-alpine@sha256:…` (`npm ci` e `ng build`) → `nginxinc/nginx-unprivileged:1.29-alpine@sha256:…`.
-- Usuário de execução não root (UID 101 da imagem base); nenhum `USER root` na etapa final.
+- Multi-stage: `node:26-alpine@sha256:…` (`npm ci` e `ng build`) → `nginx:1.31-alpine-slim@sha256:…` (a imagem oficial; a `nginxinc/nginx-unprivileged` não é reconstruída desde
+  19/10/2026, e todas as variantes dela reprovavam a porta do Trivy no PR #16).
+- Usuário de execução não root: uma única camada como root ajusta o `nginx.conf` (sem a diretiva `user`, o `pid`
+  e os temporários em `/tmp`) e passa a `conf.d` e o cache ao usuário `nginx`, sem instalar nem atualizar
+  pacotes; a etapa final termina com `USER 101`.
 - Contexto: `frontend/`, com `.dockerignore` em lista de permissão (`src/`, `public/`, `package*.json`,
   `angular.json`, `tsconfig*.json`, `nginx/`). `node_modules`, `e2e/` e `dist/` ficam fora.
 - Sem segredos e sem variáveis de build com URL: o bundle é o mesmo em qualquer ambiente (FR-018).
