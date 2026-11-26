@@ -273,23 +273,23 @@ responsivo e acessível.
 **Teste independente**: os três comandos do front verdes, com os testes unitários da lista cobrindo a URL, os
 filtros e a paginação.
 
-- [ ] T040 [P] [US2] Criar `frontend/src/app/movies/movie-filter.ts`: leitura dos parâmetros `ano`, `vencedor` e
+- [X] T040 [P] [US2] Criar `frontend/src/app/movies/movie-filter.ts`: leitura dos parâmetros `ano`, `vencedor` e
   `pagina` da URL conforme contracts/frontend-ui.md ("`ano`: inteiro não negativo"; "`vencedor`: `sim`, `nao`";
   "`pagina`: inteiro ≥ 1"; inválido ou ausente → sem filtro, todos, 1) e a escrita de volta (filtro novo remove
   `pagina`). Testes com valores válidos, inválidos (`ano=abc`, `ano=-1`, `vencedor=talvez`, `pagina=0`,
   `pagina=x`) e ausentes.
-- [ ] T041 [P] [US2] Criar `frontend/src/app/shared/paginator/`: "Primeira", "Anterior", "Próxima" e "Última", com
+- [X] T041 [P] [US2] Criar `frontend/src/app/shared/paginator/`: "Primeira", "Anterior", "Próxima" e "Última", com
   "Página {pagina} de {totalPaginas}"; "Primeira" e "Anterior" desabilitados na página 1, "Próxima" e "Última" na
   última (FR-012). Testes das bordas e do evento de página.
-- [ ] T042 [US2] Criar `frontend/src/app/movies/movie-list-page.ts` (substitui o provisório do T031): `h1` "Filmes";
+- [X] T042 [US2] Criar `frontend/src/app/movies/movie-list-page.ts` (substitui o provisório do T031): `h1` "Filmes";
   filtros "Ano" (validador do T030, aplicado com "Filtrar" ou Enter) e "Vencedor" (Todos, Sim, Não, aplicado ao
   mudar); a URL é a fonte do estado (`ActivatedRoute.queryParamMap` → `movies(filtro)`); tabela no desktop e cartões
   no celular com Ano, Título, Estúdios ("—" se nulo), Produtores e Vencedor ("Sim"/"Não"); resumo "{totalItens}
   filmes"; vazio "Nenhum filme encontrado." com o link "Voltar à primeira página" quando `pagina > 1`; erro com
   "Tentar de novo" (FR-010 a FR-014). Testes: URL com filtro gera a chamada certa; mudar filtro volta à página 1;
   ano inválido não chama a API; vazio com e sem o link; erro.
-- [ ] T043 [US2] Rodar os três comandos do front e informar o resultado real (cobertura ≥ 80%).
-- [ ] T044 [US2] Commit da etapa 4: "Marco 6, etapa 4: lista de filmes com filtros na URL".
+- [X] T043 [US2] Rodar os três comandos do front e informar o resultado real (cobertura ≥ 80%).
+- [X] T044 [US2] Commit da etapa 4: "Marco 6, etapa 4: lista de filmes com filtros na URL".
 
 ---
 
