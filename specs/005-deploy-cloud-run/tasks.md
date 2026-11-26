@@ -133,13 +133,13 @@ como tar OCI com o digest.
 [`contracts/workflow-policy.md`](contracts/workflow-policy.md). Os casos 3 a 5 dependem do job `deploy` e ficam
 na etapa 3. No PR, o `workflow-policy` e o `image` ficam verdes (comprovação do pipeline, depois do push).
 
-- [ ] T012 [P] [US2] Em `.github/scripts/check-workflows.sh`, regra 3: aceitar `id-token: write` só no job
+- [X] T012 [P] [US2] Em `.github/scripts/check-workflows.sh`, regra 3: aceitar `id-token: write` só no job
   `deploy`, mantendo `security-events: write` só no `codeql`. Atualizar o cabeçalho de comentários com a lista
   de regras.
-- [ ] T013 [US2] Em `.github/scripts/check-workflows.sh`, regra 5: além de `push: true` e `docker push` em
+- [X] T013 [US2] Em `.github/scripts/check-workflows.sh`, regra 5: além de `push: true` e `docker push` em
   qualquer job, reprovar qualquer passo `run` com `skopeo` fora do job `deploy`. A regra percorre os jobs
   (`.jobs | to_entries[]`) para saber o job de cada passo.
-- [ ] T014 [US2] Em `.github/scripts/check-workflows.sh`, regra 9 (só quando existe o job `deploy`):
+- [X] T014 [US2] Em `.github/scripts/check-workflows.sh`, regra 9 (só quando existe o job `deploy`):
   - o `if`, normalizado (sem `${{ }}`, sem espaços nas pontas e com espaços repetidos reduzidos a um), é
     `github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'andersonfelipediefenbach/outsera'`;
   - os `needs` contêm `workflow-policy`, `build`, `postgres`, `codeql`, `dependencies`, `dockerfile-lint`,
@@ -147,12 +147,12 @@ na etapa 3. No PR, o `workflow-policy` e o `image` ficam verdes (comprovação d
     obrigatórios da `main` e muda junto com eles (FR-008);
   - a `concurrency` é `group: deploy-cloud-run` com `cancel-in-progress: false`;
   - não há `docker/build-push-action` em `uses`, nem `docker build` ou `docker buildx build` em `run`.
-- [ ] T015 [US2] Em `.github/scripts/check-workflows.sh`, regra 10: reprovar se o `concurrency.cancel-in-progress`
+- [X] T015 [US2] Em `.github/scripts/check-workflows.sh`, regra 10: reprovar se o `concurrency.cancel-in-progress`
   do topo for o booleano `true`.
-- [ ] T016 [US2] Em `.github/workflows/ci.yml`, trocar o `cancel-in-progress: true` do topo por
+- [X] T016 [US2] Em `.github/workflows/ci.yml`, trocar o `cancel-in-progress: true` do topo por
   `cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}` e atualizar o comentário do cabeçalho (o
   workflow passa a publicar na `main`).
-- [ ] T017 [US2] Em `.github/workflows/ci.yml`, job `image` ([`contracts/ci-deploy.md`](contracts/ci-deploy.md)):
+- [X] T017 [US2] Em `.github/workflows/ci.yml`, job `image` ([`contracts/ci-deploy.md`](contracts/ci-deploy.md)):
   - no `docker/build-push-action`, trocar `load: true` e `tags` por
     `outputs: | type=docker,name=awards:ci` e `type=oci,dest=${{ runner.temp }}/awards-oci.tar`, e acrescentar
     `provenance: false` e `sbom: false`;
@@ -167,7 +167,17 @@ na etapa 3. No PR, o `workflow-policy` e o `image` ficam verdes (comprovação d
   - passo `actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2` com
     `name: awards-oci`, o tar, `retention-days: 1` e `if-no-files-found: error`, condicionado a
     `github.event_name == 'push' && github.ref == 'refs/heads/main'`.
-- [ ] T018 [US2] Conferência local rápida da política:
+  - *Feito com três ajustes:*
+    - o passo do digest roda logo depois do build, antes do teste de fumaça, porque o resultado é o mesmo e a
+      falha aparece mais cedo;
+    - o tar é extraído num diretório, em vez de ler cada arquivo com `tar -xOf`, para não depender do
+      prefixo `./`;
+    - o passo também confere que a plataforma é `linux/amd64`, e o artefato vai com `compression-level: 0`.
+- [ ] T018 [US2] **Não executada localmente, por decisão do responsável (2026-11-26):** localmente, cada
+  etapa roda só o `./mvnw verify` padrão, e o resto fica para o pipeline. O workflow real é conferido pelo job
+  `workflow-policy` no PR. Os casos negativos não têm execução no pipeline e ficam sem prova registrada; a
+  revisão do PR confere as regras 3, 5, 9 e 10 no script. Feito localmente: `bash -n` do script e a leitura
+  do `ci.yml` como YAML válido. Texto original da tarefa:
   - baixar o `yq` v4 (binário do Windows, versão fixada, SHA-256 conferido com o `checksums` do release) para o
     scratchpad e pô-lo no PATH só nesse comando;
   - rodar `.github/scripts/check-workflows.sh`, que precisa passar;
@@ -175,7 +185,7 @@ na etapa 3. No PR, o `workflow-policy` e o `image` ficam verdes (comprovação d
     `compose.yaml` e o `dependabot.yml` para um diretório temporário, aplicar o caso e rodar
     `check-workflows.sh <raiz temporária>`, que precisa reprovar com a mensagem da regra;
   - gravar a saída em `specs/005-deploy-cloud-run/evidencias/politica-etapa-2.txt`.
-- [ ] T019 [US2] Rodar `./mvnw verify` e `./mvnw -Pextras verify`, informar o resultado real e fazer o commit
+- [X] T019 [US2] Rodar `./mvnw verify` e `./mvnw -Pextras verify`, informar o resultado real e fazer o commit
   "Marco 5, etapa 2: política do workflow e imagem testada como artefato OCI".
 
 **Checkpoint**: a política está pronta para o job `deploy`, e a imagem testada sai do job `image` com o digest.

@@ -1,6 +1,7 @@
 # Pipeline de CI (spec 002, US6 e FR-028 a FR-029; research R9 a R14; contracts/ci-pipeline.md).
-# Toda action é fixada por hash de commit (FR-028b). Nenhum segredo é usado, e nenhuma imagem é
-# publicada. A política é verificada pelo job workflow-policy (.github/scripts/check-workflows.sh).
+# Toda action é fixada por hash de commit (FR-028b). Nenhum segredo é usado. A única publicação é a do job
+# deploy, só em push na main, com a imagem testada no job image e identidade federada sem chaves (spec 005;
+# contracts/ci-deploy.md). A política é verificada pelo job workflow-policy (.github/scripts/check-workflows.sh).
 name: CI
 
 on:
@@ -10,9 +11,11 @@ on:
 permissions:
   contents: read
 
+# Fora da main, uma execução nova cancela a anterior do mesmo ref. Na main, nada é cancelado, para não
+# interromper uma publicação no meio (spec 005, FR-011; research R7).
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   workflow-policy:
@@ -229,22 +232,69 @@ jobs:
     needs: dockerfile-lint
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      # Digest do manifesto da imagem testada, que o job deploy publica sem rebuild (spec 005, FR-002).
+      digest: ${{ steps.digest.outputs.digest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Contexto de build contra a lista de permissão do .dockerignore
         run: .github/scripts/check-docker-context.sh
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - name: Build da imagem (sem publicação)
+      # Um único build com duas saídas: a awards:ci no Docker (teste de fumaça e Trivy) e o mesmo resultado em
+      # layout OCI, que segue como artefato para o job deploy. Sem atestados, o tar tem um único manifesto
+      # linux/amd64 (spec 005, research R1). Nada é publicado aqui.
+      - name: Build da imagem (sem publicação; Docker e tar OCI do mesmo build)
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
-          push: false
-          load: true
-          tags: awards:ci
+          provenance: false
+          sbom: false
+          outputs: |
+            type=docker,name=awards:ci
+            type=oci,dest=${{ runner.temp }}/awards-oci.tar
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Digest do manifesto e identidade da imagem testada
+        id: digest
+        env:
+          OCI_TAR: ${{ runner.temp }}/awards-oci.tar
+        run: |
+          set -euo pipefail
+          layout="$RUNNER_TEMP/awards-oci"
+          mkdir -p "$layout" && tar -xf "$OCI_TAR" -C "$layout"
+          count="$(jq '.manifests | length' "$layout/index.json")"
+          media="$(jq -r '.manifests[0].mediaType' "$layout/index.json")"
+          if [[ "$count" != "1" || "$media" != "application/vnd.oci.image.manifest.v1+json" ]]; then
+            echo "::error::o tar OCI deveria ter um único manifesto de imagem (encontrado: $count, $media)"
+            exit 1
+          fi
+          digest="$(jq -r '.manifests[0].digest' "$layout/index.json")"
+          config="$(jq -r '.config.digest' "$layout/blobs/sha256/${digest#sha256:}")"
+          platform="$(jq -r '.architecture + "/" + .os' "$layout/blobs/sha256/${config#sha256:}")"
+          if [[ "$platform" != "amd64/linux" ]]; then
+            echo "::error::a imagem deveria ser linux/amd64 (encontrado: $platform)"
+            exit 1
+          fi
+          # Armazenamento clássico do Docker: o Id é o digest da configuração; com o do containerd, o do manifesto.
+          id="$(docker image inspect awards:ci --format '{{.Id}}')"
+          if [[ "$id" != "$config" && "$id" != "$digest" ]]; then
+            echo "::error::a awards:ci ($id) não é a imagem do tar OCI (configuração $config, manifesto $digest)"
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          { echo "### Imagem testada"; echo; echo "- manifesto: \`$digest\`"; echo "- configuração: \`$config\`"; echo "- awards:ci: \`$id\`"; } >> "$GITHUB_STEP_SUMMARY"
       - name: Teste de fumaça (13 passos; menos de 2 minutos até o resultado de referência)
         run: .github/scripts/smoke-test.sh awards:ci
+      - name: Imagem testada como artefato para o job deploy (só em push na main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: awards-oci
+          path: ${{ runner.temp }}/awards-oci.tar
+          retention-days: 1
+          # As camadas já vêm comprimidas no tar OCI.
+          compression-level: 0
+          if-no-files-found: error
       - name: Relatório da imagem (todas as severidades, sem reprovar)
         if: always()
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0

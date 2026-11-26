@@ -7,15 +7,22 @@
 # Verifica, em <raiz>/.github (padrão: a raiz do repositório):
 #   1. todo `uses:` está fixado por hash de commit de 40 caracteres;
 #   2. o `permissions` do topo de cada workflow é exatamente `contents: read`;
-#   3. nenhum job pede escrita, exceto `security-events: write` no job `codeql`;
+#   3. nenhum job pede escrita, exceto `security-events: write` no job `codeql` e `id-token: write` no job
+#      `deploy` (spec 005, FR-012);
 #   4. não há referência a `secrets.`;
-#   5. não há publicação de imagem (`push: true` no build-push-action ou `docker push`);
+#   5. não há publicação de imagem (`push: true` no build-push-action ou `docker push`), e o `skopeo`, que
+#      envia a imagem testada ao registro, só aparece no job `deploy` (spec 005, FR-012);
 #   6. o dependabot.yml tem version 2 e os ecossistemas maven, github-actions, docker e docker-compose,
 #      com directory "/" e schedule.interval (docker-compose: spec 003, FR-034);
 #   7. toda imagem do compose.yaml e dos service containers dos workflows está fixada por digest
 #      (@sha256: com 64 caracteres hexadecimais; spec 003, FR-034; research R17);
 #   8. nenhum service container de workflow declara POSTGRES_PASSWORD: o job postgres usa trust, e a
-#      credencial de demonstração só pode estar no compose (constituição 1.6.0; research R16).
+#      credencial de demonstração só pode estar no compose (constituição 1.6.0; research R16);
+#   9. se existe o job `deploy`: o `if` (normalizado) é o do contrato, os `needs` têm os checks
+#      obrigatórios da main, a concorrência é o grupo `deploy-cloud-run` sem cancelamento e não há build
+#      de imagem no job (spec 005, FR-008, FR-011 e FR-012; contracts/workflow-policy.md);
+#  10. o `concurrency.cancel-in-progress` do topo não é `true` fixo, para não cancelar uma publicação na
+#      main (spec 005, FR-011).
 #
 # É a verificação oficial do job `workflow-policy`. Precisa do yq (mikefarah/yq v4), que já vem nos
 # runners ubuntu-latest. Códigos de saída: 0 ok, 1 violação, 2 ferramenta ausente.
@@ -43,6 +50,17 @@ fi
 
 PINNED='^[^@[:space:]]+@[0-9a-f]{40}$'
 DIGEST='^[^@[:space:]]+@sha256:[0-9a-f]{64}$'
+
+# Regra 9 (spec 005; contracts/ci-deploy.md). A lista acompanha os checks obrigatórios da main (Marco 4,
+# T064): um check obrigatório novo entra aqui e nos `needs` do job deploy, no mesmo commit (FR-008).
+DEPLOY_IF="github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'andersonfelipediefenbach/outsera'"
+REQUIRED_CHECKS=(workflow-policy build postgres codeql dependencies dockerfile-lint image alert-rules load compose)
+
+# Normaliza uma expressão de `if`: sem ${{ }}, sem espaços nas pontas e com espaços repetidos reduzidos.
+normalize_if() {
+  printf '%s' "$1" | tr '\n' ' ' \
+    | sed -E 's/^[[:space:]]*\$\{\{[[:space:]]*//; s/[[:space:]]*\}\}[[:space:]]*$//; s/[[:space:]]+/ /g; s/^ //; s/ $//'
+}
 for wf in "${WORKFLOWS[@]}"; do
   name="${wf#"$ROOT"/}"
 
@@ -56,7 +74,7 @@ for wf in "${WORKFLOWS[@]}"; do
   top="$(yqr -o=json -I=0 '.permissions // null' "$wf")"
   [[ "$top" == '{"contents":"read"}' ]] || violation "$name" "permissions do topo deveria ser exatamente 'contents: read' (encontrado: $top)"
 
-  # 3. Escrita só em security-events, só no job codeql.
+  # 3. Escrita só em security-events, no job codeql, e em id-token, no job deploy.
   while IFS= read -r job; do
     [[ -z "$job" ]] && continue
     kind="$(yqr -r ".jobs.\"$job\".permissions | tag" "$wf")"
@@ -69,7 +87,10 @@ for wf in "${WORKFLOWS[@]}"; do
       if [[ "$job" == "codeql" && "$key" == "security-events" && "$value" == "write" ]]; then
         continue
       fi
-      violation "$name" "job $job pede '$key: $value' (só o job codeql pode ter security-events: write)"
+      if [[ "$job" == "deploy" && "$key" == "id-token" && "$value" == "write" ]]; then
+        continue
+      fi
+      violation "$name" "job $job pede '$key: $value' (só o job codeql pode ter security-events: write, e só o job deploy, id-token: write)"
     done < <(yqr -r ".jobs.\"$job\".permissions | to_entries[] | .key + \"=\" + .value" "$wf")
   done < <(yqr -r '.jobs | to_entries[] | select(.value.permissions != null) | .key' "$wf")
 
@@ -84,6 +105,36 @@ for wf in "${WORKFLOWS[@]}"; do
   fi
   if yqr -r '.. | select(tag == "!!map" and has("run")) | .run' "$wf" | grep -q 'docker push'; then
     violation "$name" "passo run com docker push"
+  fi
+  while IFS= read -r job; do
+    [[ -z "$job" ]] && continue
+    violation "$name" "job $job usa skopeo (o envio de imagem ao registro só pode estar no job deploy)"
+  done < <(yqr -r '.jobs | to_entries[] | select(.key != "deploy") | select([.value.steps[]?.run // "" | test("(^|[^[:alnum:]_-])skopeo([^[:alnum:]_-]|$)")] | any) | .key' "$wf")
+
+  # 9. Job deploy: condição, dependências, concorrência e nenhum build.
+  if [[ "$(yqr -r '.jobs | has("deploy")' "$wf")" == "true" ]]; then
+    deploy_if="$(normalize_if "$(yqr -r '.jobs.deploy.if // ""' "$wf")")"
+    [[ "$deploy_if" == "$DEPLOY_IF" ]] \
+      || violation "$name" "job deploy com if diferente do contrato (encontrado: '$deploy_if'; esperado: '$DEPLOY_IF')"
+    needs="$(yqr -r '[.jobs.deploy.needs] | flatten | .[] // ""' "$wf")"
+    for check in "${REQUIRED_CHECKS[@]}"; do
+      grep -qxF "$check" <<<"$needs" || violation "$name" "job deploy sem o check obrigatório '$check' em needs"
+    done
+    group="$(yqr -r '.jobs.deploy.concurrency.group // ""' "$wf")"
+    cancel="$(yqr -o=json '.jobs.deploy.concurrency."cancel-in-progress"' "$wf")"
+    [[ "$group" == "deploy-cloud-run" && "$cancel" == "false" ]] \
+      || violation "$name" "job deploy deveria ter concurrency.group 'deploy-cloud-run' e cancel-in-progress: false (encontrado: '$group', $cancel)"
+    if [[ -n "$(yqr -r '.jobs.deploy.steps[]?.uses // "" | select(test("^docker/build-push-action@"))' "$wf")" ]]; then
+      violation "$name" "job deploy com docker/build-push-action (a imagem publicada é a do job image, sem rebuild)"
+    fi
+    if yqr -r '.jobs.deploy.steps[]?.run // ""' "$wf" | grep -qE 'docker[[:space:]]+(buildx[[:space:]]+)?build'; then
+      violation "$name" "job deploy com docker build (a imagem publicada é a do job image, sem rebuild)"
+    fi
+  fi
+
+  # 10. A concorrência do topo não pode cancelar sempre (cancelaria uma publicação na main).
+  if [[ "$(yqr -o=json '.concurrency."cancel-in-progress"' "$wf")" == "true" ]]; then
+    violation "$name" "concurrency.cancel-in-progress do topo é true fixo (use uma expressão que não cancele na main)"
   fi
 
   # 7 e 8. Service containers: imagem por digest e sem POSTGRES_PASSWORD.
