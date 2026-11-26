@@ -7,8 +7,11 @@
 // - contract_errors conta a resposta fora do contrato: status diferente de 200 ou, nos intervalos, corpo
 //   sem exatamente as chaves min e max e itens com exatamente producer, interval, previousWin e
 //   followingWin (FR-012). Um 401 conta como erro, e não como latência boa (US2-5).
-// - Limites provisórios (R5), por variável de ambiente; vazios, valem os padrões abaixo. Os limites finais
-//   saem da medição no runner (T025 e T033 da spec 004). O k6 sai com 99 quando um limite falha.
+// - Limites amarrados ao objetivo do SLO (R5, FR-011a; T033 da spec 004; decisão do Anderson): p99 dos
+//   intervalos abaixo de 111,848 ms (o bucket do alerta de latência), p99 da listagem abaixo de 100 ms e erro
+//   abaixo de 1%. O job pega regressões reais, como a perda do cache dos intervalos, e não variações de
+//   milissegundos do runner. O p95 aparece no resumo, sem reprovar. Por variável de ambiente, para provar
+//   que um limite reprova o job. O k6 sai com 99 quando um limite falha.
 // - handleSummary grava /out/summary.json e /out/summary.md e imprime o resumo na saída.
 import http from 'k6/http';
 import { Rate } from 'k6/metrics';
@@ -21,11 +24,10 @@ function limit(name, fallback) {
   return value === undefined || value === '' ? fallback : Number(value);
 }
 
-const P95_INTERVALS = limit('K6_P95_INTERVALS_MS', 2000);
-const P99_INTERVALS = limit('K6_P99_INTERVALS_MS', 4000);
-const P95_MOVIES = limit('K6_P95_MOVIES_MS', 2000);
-const P99_MOVIES = limit('K6_P99_MOVIES_MS', 4000);
-const MAX_ERROR_RATE = limit('K6_MAX_ERROR_RATE', 0.05);
+// Medido no runner (3 execuções, docs/ai/decisoes.md): p99 de até 2,02 ms nos intervalos e 13,15 ms na listagem.
+const P99_INTERVALS = limit('K6_P99_INTERVALS_MS', 111.848);
+const P99_MOVIES = limit('K6_P99_MOVIES_MS', 100);
+const MAX_ERROR_RATE = limit('K6_MAX_ERROR_RATE', 0.01);
 
 const WARMUP = '15s';
 const DURATION = '2m';
@@ -74,8 +76,8 @@ export const options = {
     'http_req_failed{endpoint:movies,scenario:movies}': errorThreshold(),
     'contract_errors{endpoint:intervals,scenario:intervals}': errorThreshold(),
     'contract_errors{endpoint:movies,scenario:movies}': errorThreshold(),
-    'http_req_duration{endpoint:intervals,scenario:intervals}': [`p(95)<${P95_INTERVALS}`, `p(99)<${P99_INTERVALS}`],
-    'http_req_duration{endpoint:movies,scenario:movies}': [`p(95)<${P95_MOVIES}`, `p(99)<${P99_MOVIES}`],
+    'http_req_duration{endpoint:intervals,scenario:intervals}': [`p(99)<${P99_INTERVALS}`],
+    'http_req_duration{endpoint:movies,scenario:movies}': [`p(99)<${P99_MOVIES}`],
     // Só para o resumo ter a vazão por endpoint (submétricas existem quando um limite as cita).
     'http_reqs{endpoint:intervals,scenario:intervals}': ['count>0'],
     'http_reqs{endpoint:movies,scenario:movies}': ['count>0'],
@@ -152,8 +154,8 @@ export function handleSummary(data) {
         + ` | ${value(data, `http_req_failed${tag}`, 'rate')} | ${value(data, `contract_errors${tag}`, 'rate')} |`);
   }
   lines.push('');
-  lines.push(`Limites: p95 ${P95_INTERVALS} ms e p99 ${P99_INTERVALS} ms nos intervalos; p95 ${P95_MOVIES} ms e`
-      + ` p99 ${P99_MOVIES} ms na listagem; erro abaixo de ${MAX_ERROR_RATE}.`);
+  lines.push(`Limites: p99 abaixo de ${P99_INTERVALS} ms nos intervalos e de ${P99_MOVIES} ms na listagem; erro`
+      + ` abaixo de ${MAX_ERROR_RATE}.`);
   const failed = Object.entries(data.metrics)
     .filter(([, metric]) => metric.thresholds && Object.values(metric.thresholds).some((t) => !t.ok))
     .map(([name]) => name);

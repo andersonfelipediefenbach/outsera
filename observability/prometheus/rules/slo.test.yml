@@ -1,0 +1,146 @@
+# Testes das regras de alerta do SLO (spec 004, FR-004 a FR-006, FR-008, SC-002; research R2 e R3).
+#
+#   docker compose run --rm --no-deps --entrypoint promtool prometheus test rules /etc/prometheus/rules/slo.test.yml
+#
+# Séries sintéticas com os rótulos reais da aplicação (T026 da spec 004): application, error, exception,
+# method, outcome, status, uri e o bucket le="0.111848106". Cada alerta tem ao menos um cenário que dispara
+# e cenários que não disparam (dentro do objetivo, 4xx e 304, e sem tráfego). Os contadores crescem de
+# forma linear, então as razões são exatas e o valor nas descrições também.
+rule_files:
+  - slo.yml
+
+evaluation_interval: 1m
+
+tests:
+  # --- Disponibilidade -------------------------------------------------------------------------------
+  - name: 5xx em 10% das requisições por 1 h 10 min dispara a página e o aviso
+    interval: 1m
+    input_series:
+      - series: 'http_server_requests_seconds_count{job="app",instance="app:8080",application="awards",error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/producers/intervals"}'
+        values: '0+90x70'
+      - series: 'http_server_requests_seconds_count{job="app",instance="app:8080",application="awards",error="IllegalStateException",exception="IllegalStateException",method="GET",outcome="SERVER_ERROR",status="500",uri="/api/producers/intervals"}'
+        values: '0+10x70'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: AwardsIntervalsAvailabilityBudgetBurn
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              slo: intervals-availability
+            exp_annotations:
+              summary: Disponibilidade dos intervalos consumindo o orçamento 14,4× mais rápido que o permitido
+              description: Respostas 5xx em 10% das requisições aos intervalos na última hora e nos últimos 5 minutos. O objetivo é 99,5% de disponibilidade em 28 dias.
+              runbook_url: https://github.com/andersonfelipediefenbach/outsera/blob/main/docs/runbook.md#awardsintervalsavailabilitybudgetburn
+          - exp_labels:
+              severity: ticket
+              slo: intervals-availability
+            exp_annotations:
+              summary: Disponibilidade dos intervalos consumindo o orçamento 6× mais rápido que o permitido
+              description: Respostas 5xx em 10% das requisições aos intervalos nas últimas 6 horas e nos últimos 30 minutos. O objetivo é 99,5% de disponibilidade em 28 dias.
+              runbook_url: https://github.com/andersonfelipediefenbach/outsera/blob/main/docs/runbook.md#awardsintervalsavailabilitybudgetburn
+
+  - name: 5xx em 0,1% das requisições fica dentro do objetivo
+    interval: 1m
+    input_series:
+      - series: 'http_server_requests_seconds_count{job="app",instance="app:8080",application="awards",error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/producers/intervals"}'
+        values: '0+999x70'
+      - series: 'http_server_requests_seconds_count{job="app",instance="app:8080",application="awards",error="IllegalStateException",exception="IllegalStateException",method="GET",outcome="SERVER_ERROR",status="500",uri="/api/producers/intervals"}'
+        values: '0+1x70'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: AwardsIntervalsAvailabilityBudgetBurn
+        exp_alerts: []
+
+  - name: 401 e 304 em metade das requisições são respostas boas (FR-005)
+    interval: 1m
+    input_series:
+      - series: 'http_server_requests_seconds_count{job="app",instance="app:8080",application="awards",error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/producers/intervals"}'
+        values: '0+50x70'
+      - series: 'http_server_requests_seconds_count{job="app",instance="app:8080",application="awards",error="none",exception="none",method="GET",outcome="CLIENT_ERROR",status="401",uri="/api/producers/intervals"}'
+        values: '0+25x70'
+      - series: 'http_server_requests_seconds_count{job="app",instance="app:8080",application="awards",error="none",exception="none",method="GET",outcome="REDIRECTION",status="304",uri="/api/producers/intervals"}'
+        values: '0+25x70'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: AwardsIntervalsAvailabilityBudgetBurn
+        exp_alerts: []
+
+  # --- Latência --------------------------------------------------------------------------------------
+  - name: metade das requisições acima do bucket por 1 h 10 min dispara a página e o aviso
+    interval: 1m
+    input_series:
+      - series: 'http_server_requests_seconds_bucket{job="app",instance="app:8080",application="awards",error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/producers/intervals",le="0.111848106"}'
+        values: '0+50x70'
+      - series: 'http_server_requests_seconds_count{job="app",instance="app:8080",application="awards",error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/producers/intervals"}'
+        values: '0+100x70'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: AwardsIntervalsLatencyBudgetBurn
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              slo: intervals-latency
+            exp_annotations:
+              summary: Latência dos intervalos consumindo o orçamento 14,4× mais rápido que o permitido
+              description: 50% das requisições aos intervalos acima de 111,848 ms na última hora e nos últimos 5 minutos. O objetivo é 99% das requisições até 111,848 ms em 28 dias.
+              runbook_url: https://github.com/andersonfelipediefenbach/outsera/blob/main/docs/runbook.md#awardsintervalslatencybudgetburn
+          - exp_labels:
+              severity: ticket
+              slo: intervals-latency
+            exp_annotations:
+              summary: Latência dos intervalos consumindo o orçamento 6× mais rápido que o permitido
+              description: 50% das requisições aos intervalos acima de 111,848 ms nas últimas 6 horas e nos últimos 30 minutos. O objetivo é 99% das requisições até 111,848 ms em 28 dias.
+              runbook_url: https://github.com/andersonfelipediefenbach/outsera/blob/main/docs/runbook.md#awardsintervalslatencybudgetburn
+
+  - name: 0,5% das requisições acima do bucket fica dentro do objetivo
+    interval: 1m
+    input_series:
+      - series: 'http_server_requests_seconds_bucket{job="app",instance="app:8080",application="awards",error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/producers/intervals",le="0.111848106"}'
+        values: '0+995x70'
+      - series: 'http_server_requests_seconds_count{job="app",instance="app:8080",application="awards",error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/producers/intervals"}'
+        values: '0+1000x70'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: AwardsIntervalsLatencyBudgetBurn
+        exp_alerts: []
+
+  # --- Sem tráfego -----------------------------------------------------------------------------------
+  - name: contadores parados não disparam nenhum alerta de consumo
+    interval: 1m
+    input_series:
+      - series: 'http_server_requests_seconds_bucket{job="app",instance="app:8080",application="awards",error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/producers/intervals",le="0.111848106"}'
+        values: '100+0x70'
+      - series: 'http_server_requests_seconds_count{job="app",instance="app:8080",application="awards",error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/producers/intervals"}'
+        values: '100+0x70'
+      - series: 'http_server_requests_seconds_count{job="app",instance="app:8080",application="awards",error="IllegalStateException",exception="IllegalStateException",method="GET",outcome="SERVER_ERROR",status="500",uri="/api/producers/intervals"}'
+        values: '100+0x70'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: AwardsIntervalsAvailabilityBudgetBurn
+        exp_alerts: []
+      - eval_time: 70m
+        alertname: AwardsIntervalsLatencyBudgetBurn
+        exp_alerts: []
+
+  # --- Alvo fora da coleta (US1-5) -------------------------------------------------------------------
+  - name: up em 0 por 2 min dispara o AwardsAppDown, e up em 1 não
+    interval: 1m
+    input_series:
+      - series: 'up{job="app",instance="app:8080"}'
+        values: '1x5 0x5'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: AwardsAppDown
+        exp_alerts: []
+      - eval_time: 9m
+        alertname: AwardsAppDown
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              slo: intervals-availability
+              job: app
+              instance: app:8080
+            exp_annotations:
+              summary: Aplicação fora da coleta do Prometheus
+              description: O alvo app:8080 está sem coleta há mais de 1 minuto. Enquanto isso, as requisições contam como ruins para a disponibilidade.
+              runbook_url: https://github.com/andersonfelipediefenbach/outsera/blob/main/docs/runbook.md#awardsappdown

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Teste do ambiente completo do compose (spec 003, FR-015a, FR-028 a FR-035, SC-005 e SC-008; research
-# R20; contracts/ci-pipeline.md). Sobe o compose, confere a aplicação, o Prometheus, o Grafana, a ingestão
-# por Kafka, a persistência, a queda real do banco e o token, e derruba tudo no fim, sempre.
+# R20; contracts/ci-pipeline.md). Sobe o compose, confere a aplicação, o Prometheus, o Grafana, as regras
+# do SLO (spec 004, passo 4b), a ingestão por Kafka, a persistência, a queda real do banco e o token, e
+# derruba tudo no fim, sempre.
 #
 # Uso: .github/scripts/compose-test.sh   (na raiz do repositório, com o Docker e o Compose v2)
 #
@@ -101,6 +102,21 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
     "$elapsed" "$SETUP_LIMIT" >>"$GITHUB_STEP_SUMMARY"
 fi
 ((elapsed <= SETUP_LIMIT)) || fail "passos 1 a 4 em ${elapsed} s, acima de ${SETUP_LIMIT} s (SC-008)"
+
+step "4b. Regras do SLO carregadas e nenhum alerta do SLO disparando"
+# Spec 004, FR-009 e SC-003. As regras são avaliadas a cada 5 s; até a primeira avaliação, a saúde fica
+# "unknown". Todos os alertas do slo.yml têm o rótulo slo, então nenhum deles pode estar firing.
+rules_ok() {
+  local rules
+  rules="$(body "$PROMETHEUS/api/v1/rules")" || return 1
+  grep -qF '"name":"awards-slo-recording"' <<<"$rules" && grep -qF '"name":"awards-slo-alerts"' <<<"$rules" \
+    && ! grep -qE '"health":"(err|unknown)"' <<<"$rules" && ! grep -qE '"lastError":"[^"]' <<<"$rules"
+}
+wait_for "regras do SLO carregadas e avaliadas sem erro" 60 rules_ok
+alerts="$(body "$PROMETHEUS/api/v1/alerts")"
+if grep -qF '"state":"firing"' <<<"$alerts"; then
+  fail "alerta do SLO disparando com a aplicação pronta: $alerts"
+fi
 
 step "5. Vencedor novo pelo Kafka, em até 5 s (SC-005)"
 publish '1991|Compose Novo' '{"year":1991,"title":"Compose Novo","studios":null,"producers":"Joel Silver","winner":true}'

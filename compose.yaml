@@ -98,6 +98,8 @@ services:
         exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus
     volumes:
       - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      # Regras de alerta do SLO e os testes delas (spec 004, FR-004 e FR-008).
+      - ./observability/prometheus/rules:/etc/prometheus/rules:ro
     ports:
       - "9090:9090"
     depends_on:
@@ -149,9 +151,7 @@ services:
     environment:
       BASE_URL: http://app:8080
       API_TOKEN: ${API_TOKEN:-}
-      K6_P95_INTERVALS_MS: ${K6_P95_INTERVALS_MS:-}
       K6_P99_INTERVALS_MS: ${K6_P99_INTERVALS_MS:-}
-      K6_P95_MOVIES_MS: ${K6_P95_MOVIES_MS:-}
       K6_P99_MOVIES_MS: ${K6_P99_MOVIES_MS:-}
       K6_MAX_ERROR_RATE: ${K6_MAX_ERROR_RATE:-}
     volumes:

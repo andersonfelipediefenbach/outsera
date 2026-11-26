@@ -118,6 +118,19 @@ correções do testador adversário (R13).
   chegada (Princípio IV).
 - **Alternativas:** fixar os números antes da medição (o briefing proíbe); medir na máquina local (não é o
   ambiente do job).
+- **Resultado (T025, 2026-11-26): 3 execuções em vez de 5**, por decisão do responsável. Foram o push
+  45826809441 e as duas tentativas do PR 45826811997. Com o cache dos intervalos (ADR 0026), o maior p99
+  dos intervalos foi 2,02 ms, contra o objetivo de cerca de 112 ms do SLO, com folga de mais de 50×. O
+  objetivo do SLO fica comprovado com sobra, e mais execuções não mudariam essa conclusão. A dispersão, a
+  maior sobre a menor de cada percentil, ficou abaixo de 2× nas três: no pior caso, o p99 dos intervalos,
+  1,94×. Nenhuma condição de parada disparou.
+- **Limites finais, amarrados ao objetivo do SLO** (decisão do responsável, 2026-11-26, no lugar da folga de
+  2× sobre a pior medição): p99 dos intervalos abaixo de 111,848 ms (o bucket do alerta de latência), p99 da
+  listagem abaixo de 100 ms e erro abaixo de 1%. Com medianas abaixo de 1 ms, 2× a pior medição daria
+  limites de 3 e 5 ms, que só mediriam o ruído do runner. O job de carga existe para pegar regressões reais,
+  como a perda do cache dos intervalos (p99 de 927 ms com 100 mil filmes), e não variações de
+  milissegundos. O p95 fica no resumo, sem reprovar. O registro está em `docs/ai/decisoes.md`, na entrada
+  "Medição do teste de carga e folga dos limites do pipeline".
 
 ## R6. Gerador de CSV
 

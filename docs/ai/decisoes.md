@@ -3,6 +3,49 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-26 — Medição do teste de carga e folga dos limites do pipeline
+
+T025, T033 e T034 da spec 004 (FR-011a; research R5). Medição no job `load`, em runners `ubuntu-latest`
+compartilhados, com os 100 mil filmes gerados e os limites provisórios.
+
+- **Execuções**, todas no commit `38334af`, todas verdes e sem nenhum erro HTTP ou de contrato:
+
+  | Execução | Intervalos p95 / p99 | Listagem p95 / p99 | Carga direta | Carga por Kafka |
+  | --- | --- | --- | --- | --- |
+  | push [45826809441](https://github.com/andersonfelipediefenbach/outsera/actions/runs/45826809441) | 0,78 / 1,04 ms | 9,23 / 12,09 ms | 20,1 s | 148,4 s |
+  | PR [45826811997](https://github.com/andersonfelipediefenbach/outsera/actions/runs/45826811997), tentativa 1 | 0,95 / 1,34 ms | 10,13 / 13,15 ms | 18,3 s | 192,6 s |
+  | PR 45826811997, tentativa 2 | 1,40 / 2,02 ms | 10,00 / 12,40 ms | 16,6 s | 108,4 s |
+  | **menor / mediana / maior** | p95 0,78 / 0,95 / 1,40; p99 1,04 / 1,34 / 2,02 | p95 9,23 / 10,00 / 10,13; p99 12,09 / 12,40 / 13,15 | 16,6 / 18,3 / 20,1 s | 108,4 / 148,4 / 192,6 s |
+
+  A vazão foi de cerca de 44,4 req/s nos intervalos e 8,9 req/s na listagem, medida sobre os 2 min 15 s
+  do teste. As taxas pedidas são 50 e 10 req/s nos 2 min sem o aquecimento.
+- **Por que 3 execuções, e não as 5 da R5:** decisão do Anderson. Com o cache dos intervalos (ADR 0026),
+  o maior p99 dos intervalos foi 2,02 ms, contra o objetivo de cerca de 112 ms, com folga de mais de 50×.
+  A dispersão de cada percentil (maior sobre menor) ficou abaixo de 2×: 1,79× no p95 e 1,94× no p99 dos
+  intervalos, e 1,10× e 1,09× na listagem. Nenhuma condição de parada do T025 disparou.
+- **Objetivos do SLO,** que não mudam: disponibilidade de 99,5% e 99% das requisições dos intervalos até o
+  bucket `le="0.111848106"` (cerca de 112 ms, confirmado no T026), em 28 dias.
+- **Limites finais do k6** (`load/intervals.js`), amarrados ao objetivo do SLO por decisão do Anderson:
+
+  | Limite | Pior medição | Limite |
+  | --- | --- | --- |
+  | intervalos p99 | 2,02 ms | abaixo de 111,848 ms, o bucket do alerta de latência |
+  | listagem p99 | 13,15 ms | abaixo de 100 ms |
+  | erro HTTP e de contrato | 0 | abaixo de 1% |
+
+  O p95 continua no resumo do job, sem reprovar.
+- **Por que não 2× a pior medição,** a regra original da R5: com medianas abaixo de 1 ms, 2× a pior
+  medição dariam limites de 3 e 5 ms nos intervalos, e isso só mediria o ruído do runner compartilhado,
+  como uma pausa de GC ou um vizinho barulhento. O job de carga existe para pegar **regressões reais**,
+  como a perda do cache dos intervalos, que levou o p99 a 927 ms com 100 mil filmes, e não variações de
+  milissegundos. Com o limite no objetivo do SLO, o job reprova quando o objetivo estaria em risco.
+- **Prova de que os limites reprovam o job** (SC-004), na máquina local, com o compose e o k6, feita com
+  a versão anterior do roteiro, que ainda tinha limites de p95:
+  - `K6_P95_INTERVALS_MS=1`: o k6 saiu com 99, com o limite dos intervalos ultrapassado. O mesmo mecanismo
+    vale hoje com `K6_P99_INTERVALS_MS`;
+  - k6 com um token errado e o `app` com outro: o k6 saiu com 99, com os 401 contados como erro HTTP e como
+    erro de contrato.
+
 ## 2026-11-26 — Pipeline do commit 127584c: job load e job compose
 
 Execuções 45813784469 e 45814146445, diagnosticadas pelos logs que o Anderson enviou.

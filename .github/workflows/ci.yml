@@ -270,6 +270,25 @@ jobs:
           format: table
           exit-code: '1'
 
+  alert-rules:
+    # Regras de alerta do SLO (spec 004, FR-004, FR-006 e FR-008; research R3), com o promtool da mesma
+    # imagem do Prometheus do compose: o mesmo digest e a versão que o Dependabot atualiza.
+    name: Regras de alerta do SLO (promtool)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: promtool check rules
+        run: docker compose run --rm --no-deps --entrypoint promtool prometheus check rules /etc/prometheus/rules/slo.yml
+      # O check config exige que o credentials_file exista. Ele é criado pelo entrypoint do serviço, que o
+      # --entrypoint substitui; aqui ele fica vazio, como na subida sem token.
+      - name: promtool check config
+        run: |
+          docker compose run --rm --no-deps --entrypoint sh prometheus \
+            -c ': > /tmp/api-token && exec promtool check config /etc/prometheus/prometheus.yml'
+      - name: promtool test rules (cada alerta dispara e não dispara nos cenários certos)
+        run: docker compose run --rm --no-deps --entrypoint promtool prometheus test rules /etc/prometheus/rules/slo.test.yml
+
   load:
     # Teste de carga e medição da carga inicial (spec 004, FR-010 a FR-019, SC-004 a SC-006; research R4
     # a R7). Gera o CSV duas vezes e compara os SHA-256, mede a carga direta e a carga por Kafka com o CSV
@@ -315,5 +334,5 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Teste do compose (passos 0 a 8 e 7b)
+      - name: Teste do compose (passos 0 a 8, 4b e 7b)
         run: .github/scripts/compose-test.sh
