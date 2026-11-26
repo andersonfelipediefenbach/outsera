@@ -1,0 +1,132 @@
+# Regras de alerta do SLO do endpoint de intervalos (spec 004, FR-004 a FR-006; research R1 e R2). A
+# página do SLO, com os objetivos, o orçamento e as taxas de consumo, está em docs/slo.md.
+#
+# - Disponibilidade: 99,5% em 28 dias (orçamento de 0,5%). Ruim é a resposta 5xx; 2xx, 304 e 4xx são boas
+#   (FR-005). O alvo fora da coleta conta pelo AwardsAppDown.
+# - Latência: 99% das requisições até o bucket de 0.111848106 s (cerca de 112 ms) em 28 dias (orçamento de
+#   1%). O total é o de todas as requisições aos intervalos, com qualquer status.
+# - Alertas por taxa de consumo do orçamento em duas janelas (SRE Workbook): página com 14,4× em 1 h e
+#   5 min, aviso com 6× em 6 h e 30 min. Sem tráfego, a razão é NaN (0/0) e nada dispara.
+#
+# Testes: slo.test.yml (promtool test rules), no job alert-rules do pipeline.
+groups:
+  - name: awards-slo-recording
+    rules:
+      # Fração de respostas 5xx entre todas as requisições aos intervalos.
+      - record: awards:intervals_errors:ratio_rate5m
+        expr: |
+          sum(rate(http_server_requests_seconds_count{uri="/api/producers/intervals",status=~"5.."}[5m]))
+          /
+          sum(rate(http_server_requests_seconds_count{uri="/api/producers/intervals"}[5m]))
+      - record: awards:intervals_errors:ratio_rate30m
+        expr: |
+          sum(rate(http_server_requests_seconds_count{uri="/api/producers/intervals",status=~"5.."}[30m]))
+          /
+          sum(rate(http_server_requests_seconds_count{uri="/api/producers/intervals"}[30m]))
+      - record: awards:intervals_errors:ratio_rate1h
+        expr: |
+          sum(rate(http_server_requests_seconds_count{uri="/api/producers/intervals",status=~"5.."}[1h]))
+          /
+          sum(rate(http_server_requests_seconds_count{uri="/api/producers/intervals"}[1h]))
+      - record: awards:intervals_errors:ratio_rate6h
+        expr: |
+          sum(rate(http_server_requests_seconds_count{uri="/api/producers/intervals",status=~"5.."}[6h]))
+          /
+          sum(rate(http_server_requests_seconds_count{uri="/api/producers/intervals"}[6h]))
+
+      # Fração de requisições acima do bucket de 0.111848106 s entre todas as requisições aos intervalos.
+      - record: awards:intervals_slow:ratio_rate5m
+        expr: |
+          1 - (
+            sum(rate(http_server_requests_seconds_bucket{uri="/api/producers/intervals",le="0.111848106"}[5m]))
+            /
+            sum(rate(http_server_requests_seconds_count{uri="/api/producers/intervals"}[5m]))
+          )
+      - record: awards:intervals_slow:ratio_rate30m
+        expr: |
+          1 - (
+            sum(rate(http_server_requests_seconds_bucket{uri="/api/producers/intervals",le="0.111848106"}[30m]))
+            /
+            sum(rate(http_server_requests_seconds_count{uri="/api/producers/intervals"}[30m]))
+          )
+      - record: awards:intervals_slow:ratio_rate1h
+        expr: |
+          1 - (
+            sum(rate(http_server_requests_seconds_bucket{uri="/api/producers/intervals",le="0.111848106"}[1h]))
+            /
+            sum(rate(http_server_requests_seconds_count{uri="/api/producers/intervals"}[1h]))
+          )
+      - record: awards:intervals_slow:ratio_rate6h
+        expr: |
+          1 - (
+            sum(rate(http_server_requests_seconds_bucket{uri="/api/producers/intervals",le="0.111848106"}[6h]))
+            /
+            sum(rate(http_server_requests_seconds_count{uri="/api/producers/intervals"}[6h]))
+          )
+
+  - name: awards-slo-alerts
+    rules:
+      - alert: AwardsIntervalsAvailabilityBudgetBurn
+        expr: |
+          awards:intervals_errors:ratio_rate1h > (14.4 * 0.005)
+          and
+          awards:intervals_errors:ratio_rate5m > (14.4 * 0.005)
+        for: 2m
+        labels:
+          severity: page
+          slo: intervals-availability
+        annotations:
+          summary: Disponibilidade dos intervalos consumindo o orçamento 14,4× mais rápido que o permitido
+          description: Respostas 5xx em {{ $value | humanizePercentage }} das requisições aos intervalos na última hora e nos últimos 5 minutos. O objetivo é 99,5% de disponibilidade em 28 dias.
+          runbook_url: https://github.com/andersonfelipediefenbach/outsera/blob/main/docs/runbook.md#awardsintervalsavailabilitybudgetburn
+      - alert: AwardsIntervalsAvailabilityBudgetBurn
+        expr: |
+          awards:intervals_errors:ratio_rate6h > (6 * 0.005)
+          and
+          awards:intervals_errors:ratio_rate30m > (6 * 0.005)
+        for: 2m
+        labels:
+          severity: ticket
+          slo: intervals-availability
+        annotations:
+          summary: Disponibilidade dos intervalos consumindo o orçamento 6× mais rápido que o permitido
+          description: Respostas 5xx em {{ $value | humanizePercentage }} das requisições aos intervalos nas últimas 6 horas e nos últimos 30 minutos. O objetivo é 99,5% de disponibilidade em 28 dias.
+          runbook_url: https://github.com/andersonfelipediefenbach/outsera/blob/main/docs/runbook.md#awardsintervalsavailabilitybudgetburn
+
+      - alert: AwardsIntervalsLatencyBudgetBurn
+        expr: |
+          awards:intervals_slow:ratio_rate1h > (14.4 * 0.01)
+          and
+          awards:intervals_slow:ratio_rate5m > (14.4 * 0.01)
+        for: 2m
+        labels:
+          severity: page
+          slo: intervals-latency
+        annotations:
+          summary: Latência dos intervalos consumindo o orçamento 14,4× mais rápido que o permitido
+          description: '{{ $value | humanizePercentage }} das requisições aos intervalos acima de 111,848 ms na última hora e nos últimos 5 minutos. O objetivo é 99% das requisições até 111,848 ms em 28 dias.'
+          runbook_url: https://github.com/andersonfelipediefenbach/outsera/blob/main/docs/runbook.md#awardsintervalslatencybudgetburn
+      - alert: AwardsIntervalsLatencyBudgetBurn
+        expr: |
+          awards:intervals_slow:ratio_rate6h > (6 * 0.01)
+          and
+          awards:intervals_slow:ratio_rate30m > (6 * 0.01)
+        for: 2m
+        labels:
+          severity: ticket
+          slo: intervals-latency
+        annotations:
+          summary: Latência dos intervalos consumindo o orçamento 6× mais rápido que o permitido
+          description: '{{ $value | humanizePercentage }} das requisições aos intervalos acima de 111,848 ms nas últimas 6 horas e nos últimos 30 minutos. O objetivo é 99% das requisições até 111,848 ms em 28 dias.'
+          runbook_url: https://github.com/andersonfelipediefenbach/outsera/blob/main/docs/runbook.md#awardsintervalslatencybudgetburn
+
+      - alert: AwardsAppDown
+        expr: up{job="app"} == 0
+        for: 1m
+        labels:
+          severity: page
+          slo: intervals-availability
+        annotations:
+          summary: Aplicação fora da coleta do Prometheus
+          description: O alvo {{ $labels.instance }} está sem coleta há mais de 1 minuto. Enquanto isso, as requisições contam como ruins para a disponibilidade.
+          runbook_url: https://github.com/andersonfelipediefenbach/outsera/blob/main/docs/runbook.md#awardsappdown

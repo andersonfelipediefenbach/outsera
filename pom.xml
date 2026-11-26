@@ -27,10 +27,11 @@
         <!-- Cobertura mínima de linhas dos testes de integração (spec 002, FR-028a). Medido: 97,06% no
              fim do Marco 1. Sobrescrevível na linha de comando, para provar que o portão funciona. -->
         <jacoco.line.minimum>0.90</jacoco.line.minimum>
-        <!-- O perfil postgres-it liga as duas propriedades abaixo: roda só os *PostgresIT e não aplica a
-             cobertura mínima, que é a do ./mvnw verify padrão (spec 003, research R16). -->
+        <!-- O perfil postgres-it pula a execução padrão: roda só os *PostgresIT (spec 003, research R16).
+             A cobertura mínima só é conferida no perfil extras, sobre a soma da execução padrão (modo padrão)
+             e da execução dos extras, como no job build do pipeline (constituição 2.0.0). -->
         <it.default.skip>false</it.default.skip>
-        <jacoco.check.skip>false</jacoco.check.skip>
+        <jacoco.check.skip>true</jacoco.check.skip>
         <!-- Dependências de runtime do kafka-clients 4.2.2, fora do BOM do Spring Boot 4.1.2. As versões
              trazidas por ele (lz4-java 1.11.2 e snappy-java 1.1.10.7) têm vulnerabilidades altas com
              correção, que reprovaram a porta da imagem no PR do Marco 3: CVE-2026-106451 no lz4-java e
@@ -182,11 +183,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <configuration>
-                    <includes>
-                        <include>**/*IT.java</include>
-                    </includes>
                     <!-- Os testes que exigem PostgreSQL rodam só no perfil postgres-it, no pipeline
-                         (spec 003, FR-007; Princípio VI, constituição 1.7.0; research R16). -->
+                         (spec 003, FR-007; Princípio VI; research R16). -->
                     <excludes>
                         <exclude>**/*PostgresIT.java</exclude>
                     </excludes>
@@ -194,27 +192,15 @@
                 </configuration>
                 <executions>
                     <execution>
-                        <goals>
-                            <goal>integration-test</goal>
-                            <goal>verify</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <!-- Os testes que verificam o log rodam de novo com o JSON ligado, numa JVM
-                             própria: o Logback é global na JVM, e ligar o JSON num contexto mudaria o
-                             formato dos testes seguintes (spec 002, FR-018; research R6). -->
-                        <id>json-logs</id>
+                        <!-- ./mvnw verify padrão: só os ITs do modo padrão, numa única execução
+                             (constituição 2.0.0, Princípios II e VI). Os ITs dos extras e a execução com o
+                             log em JSON ficam no perfil extras, que o job build roda no pipeline. -->
                         <goals>
                             <goal>integration-test</goal>
                             <goal>verify</goal>
                         </goals>
                         <configuration>
-                            <groups>log</groups>
-                            <environmentVariables>
-                                <LOGGING_STRUCTURED_FORMAT_CONSOLE>ecs</LOGGING_STRUCTURED_FORMAT_CONSOLE>
-                            </environmentVariables>
-                            <reportsDirectory>${project.build.directory}/failsafe-reports-json-logs</reportsDirectory>
-                            <summaryFile>${project.build.directory}/failsafe-reports-json-logs/failsafe-summary.xml</summaryFile>
+                            <includesFile>${project.basedir}/src/test/default-mode-its.txt</includesFile>
                         </configuration>
                     </execution>
                 </executions>
@@ -269,6 +255,63 @@
     </build>
 
     <profiles>
+        <profile>
+            <!-- ./mvnw -Pextras verify: além da execução padrão (modo padrão), os ITs dos extras e a execução com
+                 o log em JSON, e a cobertura mínima de linhas sobre a soma das execuções. Sem Docker, só com
+                 o JDK. Executado obrigatoriamente pelo job build do pipeline (constituição 2.0.0,
+                 Princípios II e VI). -->
+            <id>extras</id>
+            <properties>
+                <jacoco.check.skip>false</jacoco.check.skip>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <!-- Os ITs do que vem desligado por padrão (Kafka, autenticação ligada e log em JSON), fora os do PostgreSQL. -->
+                                <id>extras</id>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                                <configuration>
+                                    <includes>
+                                        <include>**/*IT.java</include>
+                                    </includes>
+                                    <excludesFile>${project.basedir}/src/test/default-mode-its.txt</excludesFile>
+                                    <reportsDirectory>${project.build.directory}/failsafe-reports-extras</reportsDirectory>
+                                    <summaryFile>${project.build.directory}/failsafe-reports-extras/failsafe-summary.xml</summaryFile>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <!-- Os testes que verificam o log rodam de novo com o JSON ligado, numa JVM
+                                     própria: o Logback é global na JVM, e ligar o JSON num contexto mudaria o
+                                     formato dos testes seguintes (spec 002, FR-018; research R6). -->
+                                <id>json-logs</id>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                                <configuration>
+                                    <includes>
+                                        <include>**/*IT.java</include>
+                                    </includes>
+                                    <groups>log</groups>
+                                    <environmentVariables>
+                                        <LOGGING_STRUCTURED_FORMAT_CONSOLE>ecs</LOGGING_STRUCTURED_FORMAT_CONSOLE>
+                                    </environmentVariables>
+                                    <reportsDirectory>${project.build.directory}/failsafe-reports-json-logs</reportsDirectory>
+                                    <summaryFile>${project.build.directory}/failsafe-reports-json-logs/failsafe-summary.xml</summaryFile>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <profile>
             <!-- ./mvnw -Ppostgres-it verify: só os *PostgresIT, contra o PostgreSQL de DB_URL, DB_USER e
                  DB_PASSWORD. Executado obrigatoriamente pelo job postgres do pipeline (spec 003, FR-007;

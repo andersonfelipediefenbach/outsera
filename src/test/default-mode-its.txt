@@ -1,0 +1,74 @@
+# ITs do modo padrão (constituição 2.0.0, Princípios II e VI): a execução padrão do Failsafe no ./mvnw verify.
+# Critério: todo comportamento do modo padrão (H2, carga do CSV, endpoints e Swagger), inclusive as regras
+# do CSV acrescentadas pela spec 003 e o que vem ligado sem configuração (ETag, sondas, métricas, log em
+# texto, segurança com a autenticação desligada). O que vem desligado por padrão (Kafka, autenticação
+# ligada, log em JSON) fica na execução extras do perfil extras, que usa esta lista como excludesFile; o
+# PostgreSQL fica no perfil postgres-it. Um padrão por linha, relativo a src/test/java. As bases abstratas
+# ficam de fora: o Failsafe não roda classes abstratas.
+
+# Marco 1 (tag v0.1.0)
+com/outsera/awards/SmokeIT.java
+com/outsera/awards/adversario/Case01TiesAtBothEndsIT.java
+com/outsera/awards/adversario/Case02SeveralPairsSameProducerIT.java
+com/outsera/awards/adversario/Case03ZeroWithMultiplicityIT.java
+com/outsera/awards/adversario/Case04ExactIdentityIT.java
+com/outsera/awards/adversario/Case05SeparatorsInSequenceIT.java
+com/outsera/awards/adversario/Case06BomSpacesUtf8IT.java
+com/outsera/awards/adversario/Case07InvalidBetweenWinnersIT.java
+com/outsera/awards/adversario/Case08FirstLineWinsIT.java
+com/outsera/awards/adversario/Case09ExtremeYearsIT.java
+com/outsera/awards/adversario/Case10RepeatsWithoutSecondWinIT.java
+com/outsera/awards/adversario/Case11MinEqualsMaxIT.java
+com/outsera/awards/adversario/Case12AndSeparatorCaseIT.java
+com/outsera/awards/adversario/Case13AccentAndCaseOrderIT.java
+com/outsera/awards/docs/ApiDocsIT.java
+com/outsera/awards/docs/IntervalsContractIT.java
+com/outsera/awards/docs/MoviesContractIT.java
+com/outsera/awards/ingestion/BomVariationsIT.java
+com/outsera/awards/ingestion/DefaultFileIT.java
+com/outsera/awards/ingestion/DuplicateLinesIT.java
+com/outsera/awards/ingestion/EmptyLoadIT.java
+com/outsera/awards/ingestion/HarmlessVariationsIT.java
+com/outsera/awards/ingestion/HeaderCaseIT.java
+com/outsera/awards/ingestion/InvalidLinesIT.java
+com/outsera/awards/ingestion/LoadSummaryIT.java
+com/outsera/awards/ingestion/OptionalStudiosIT.java
+com/outsera/awards/ingestion/StartupFailureIT.java
+com/outsera/awards/intervals/DisjointProducersIT.java
+com/outsera/awards/intervals/DuplicateWinnerIT.java
+com/outsera/awards/intervals/IntervalEdgeCasesIT.java
+com/outsera/awards/intervals/IntervalsShapeIT.java
+com/outsera/awards/intervals/InvalidLineIgnoredIT.java
+com/outsera/awards/intervals/NoRepeatWinnersIT.java
+com/outsera/awards/intervals/ProducerSeparatorsIT.java
+com/outsera/awards/intervals/RandomizedOracleIT.java
+com/outsera/awards/intervals/ReferenceFileIT.java
+com/outsera/awards/intervals/SameYearWinsIT.java
+com/outsera/awards/intervals/ThreeOrMoreWinsIT.java
+com/outsera/awards/intervals/TiesMaxIT.java
+com/outsera/awards/intervals/TiesMinIT.java
+com/outsera/awards/intervals/UnorderedLinesIT.java
+com/outsera/awards/intervals/WinnerVariantsIT.java
+com/outsera/awards/movies/MoviesInvalidParamsIT.java
+com/outsera/awards/movies/MoviesListingIT.java
+com/outsera/awards/movies/ResponseTimeIT.java
+com/outsera/awards/web/HttpMethodsIT.java
+
+# Marcos 2 e 3, no modo padrão
+com/outsera/awards/ingestion/FieldTooLongIT.java
+com/outsera/awards/ingestion/NulCharacterIT.java
+com/outsera/awards/etag/EtagAcrossRunsIT.java
+com/outsera/awards/etag/EtagEmptyIT.java
+com/outsera/awards/etag/IntervalsEtagIT.java
+com/outsera/awards/etag/MoviesEtagIT.java
+com/outsera/awards/health/HealthProbesIT.java
+com/outsera/awards/health/ProbeStatesIT.java
+com/outsera/awards/health/ReadinessAfterLoadIT.java
+com/outsera/awards/health/ReadinessInvalidLinesIT.java
+com/outsera/awards/metrics/MetricsIT.java
+com/outsera/awards/logging/TextLogFormatIT.java
+com/outsera/awards/docs/ApiDocsSecurityIT.java
+com/outsera/awards/security/AuthDisabledByDefaultIT.java
+com/outsera/awards/security/CacheHeadersIT.java
+com/outsera/awards/security/NoGeneratedPasswordIT.java
+com/outsera/awards/isolation/DefaultModeIsolationIT.java

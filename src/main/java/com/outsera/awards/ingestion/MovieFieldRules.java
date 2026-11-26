@@ -42,6 +42,34 @@ public final class MovieFieldRules {
         return year >= MIN_YEAR && year <= MAX_YEAR;
     }
 
+    /**
+     * O texto sem os espaços em volta: os caracteres de U+0001 a U+0020, nas duas pontas (spec 001, FR-006
+     * e FR-008). É a única regra de "espaços em volta", usada pelo leitor do CSV e pelo parser de eventos.
+     *
+     * <p>Diferente do {@link String#trim()}, o U+0000 nunca é retirado: ele não é espaço, e um campo com ele
+     * em qualquer posição é rejeitado ({@code NUL_CHARACTER}). Com o {@code trim}, um U+0000 nas pontas
+     * sumia em silêncio, e o filme era gravado com outro valor (testador adversário da ingestão por Kafka,
+     * caso 13). NBSP (U+00A0) e U+200B fazem parte do texto.
+     */
+    public static String strip(String value) {
+        if (value == null) {
+            return null;
+        }
+        int start = 0;
+        int end = value.length();
+        while (start < end && isSpace(value.charAt(start))) {
+            start++;
+        }
+        while (end > start && isSpace(value.charAt(end - 1))) {
+            end--;
+        }
+        return value.substring(start, end);
+    }
+
+    private static boolean isSpace(char c) {
+        return c >= 1 && c <= ' ';
+    }
+
     /** O título, já sem os espaços em volta, não é vazio. */
     public static boolean hasTitle(String title) {
         return title != null && !title.isEmpty();
@@ -54,7 +82,10 @@ public final class MovieFieldRules {
 
     /**
      * O detalhe do primeiro campo maior que a coluna do esquema, ou nulo se todos cabem (motivo
-     * {@code FIELD_TOO_LONG}). O tamanho é contado em caracteres, como as colunas {@code VARCHAR}.
+     * {@code FIELD_TOO_LONG}). O tamanho é contado em unidades UTF-16 ({@link String#length()}), a medida
+     * que o H2 usa nas colunas {@code VARCHAR}: assim, nenhum campo aceito aqui é recusado pelo banco, e o
+     * limite é o mesmo no H2 e no PostgreSQL. Um emoji fora do plano básico conta 2 (spec 001, FR-006;
+     * testador adversário da ingestão por Kafka, caso 17).
      */
     public static String tooLong(String title, String studios, String producers, List<String> producerNames) {
         String detail = exceeds("título", title, TITLE_MAX);
@@ -93,7 +124,7 @@ public final class MovieFieldRules {
         if (value == null) {
             return null;
         }
-        int length = value.codePointCount(0, value.length());
+        int length = value.length();
         return length > max ? field + " com " + length + " caracteres; máximo " + max : null;
     }
 }

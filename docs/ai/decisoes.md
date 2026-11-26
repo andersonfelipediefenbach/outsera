@@ -3,6 +3,562 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-26 — Proteção da main depois do Marco 4
+
+O ruleset `main` está ativo para a branch padrão, com a lista de bypass vazia. Para concluir o T064
+(FR-031), foram adicionados os checks de alertas do SLO e de carga aos oito do Marco 3. Os dez checks
+obrigatórios têm o GitHub Actions como origem:
+
+| Job | Check obrigatório no GitHub |
+| --- | --- |
+| `workflow-policy` | Política do workflow, do Dependabot e do compose |
+| `build` | Build, testes e cobertura |
+| `postgres` | Testes com PostgreSQL |
+| `codeql` | Análise de segurança do código (CodeQL) |
+| `dependencies` | Vulnerabilidades das dependências (Trivy) |
+| `dockerfile-lint` | Lint do Dockerfile (hadolint) |
+| `image` | Imagem, vulnerabilidades da imagem e teste de fumaça |
+| `compose` | Compose com PostgreSQL, Kafka, Prometheus e Grafana |
+| `alert-rules` | Regras de alerta do SLO (promtool) |
+| `load` | Teste de carga (k6) e carga inicial com o CSV gerado |
+
+Após salvar o ruleset, os dez apareceram como obrigatórios no
+[PR #12](https://github.com/andersonfelipediefenbach/outsera/pull/12/checks) e passaram no commit
+`3d83d07`, tanto na [execução do PR](https://github.com/andersonfelipediefenbach/outsera/actions/runs/45836107162)
+quanto na [execução do push](https://github.com/andersonfelipediefenbach/outsera/actions/runs/45836092814).
+
+## 2026-11-26 — T012 não executado: verificação do job de dependências
+
+- **Decisão do Anderson:** o T012 da spec 004 não é executado. Ele previa um branch temporário com o
+  `lz4-java` 1.11.2, publicado só para ver o job `dependencies` ficar vermelho no pipeline (FR-034).
+- **Comprovação que fica no lugar,** toda local, com o Trivy 0.70.0 da action e a mesma porta do pipeline:
+  - **T003:** no commit `011eeba`, com o `lz4-java` 1.11.2 efetivo, o Trivy em `rootfs` sobre os JARs de
+    runtime copiados pelo Maven (`target/runtime-deps`) saiu com **1**, com a CVE-2026-106451 no
+    `lz4-java` e a CVE-2026-108106 e a CVE-2026-93451 no `snappy-java` 1.1.10.7;
+  - **T007:** no HEAD, a mesma porta saiu com **0**, e o inventário JSON trouxe o `lz4-java` 1.11.4 e o
+    `snappy-java` 1.1.10.12. A expressão `jq` do passo de inventário foi testada, inclusive com um pacote
+    ausente, que cai no ramo de falha;
+  - **pipeline:** o job `dependencies` passa a rodar com o inventário efetivo e mostra as duas versões no
+    resumo (SC-010).
+
+  O registro completo está na entrada "Job de dependências: causa da lacuna das transitivas do
+  kafka-clients".
+- **O que não fica comprovado:** só a execução do job vermelho no próprio GitHub Actions. O comando, a
+  versão do Trivy e a porta são os mesmos do job, então o risco é a diferença de ambiente, e não a lógica.
+- **Branch `verificacao/trivy-transitivas`:** ficou só local, com o commit `3c1fc42`, sem push. Nenhum
+  commit dele entrou no `marco/4-acabamento`.
+
+## 2026-11-26 — Marco 4 com escopo reduzido
+
+- **Decisão do Anderson:** o Marco 4 fecha com as etapas 1 a 3, e as etapas 4, 5 e 6 ficam adiadas.
+- **Entra:**
+  - etapa 1: pendências do Marco 3, inventário efetivo no job de dependências e testador adversário;
+  - etapa 2: gerador de CSV e teste de carga;
+  - etapa 3: SLO e alertas;
+  - a página do SLO e o runbook (T059 e T060), porque os alertas apontam para as âncoras do runbook;
+  - a seção do Marco 4 no README, com o roteiro do que ficou para depois (T062, reduzido).
+- **Fica adiado,** com a spec e as tarefas guardadas para um marco futuro:
+  - etapa 4: cache AOT da JVM na imagem (US4, FR-020 a FR-023);
+  - etapa 5: SBOM e assinatura keyless (US5, FR-024 a FR-027);
+  - etapa 6: dev container (US6, FR-028 a FR-030) e os ADRs 0020 a 0025 (FR-037). As decisões desses temas
+    já estão neste registro.
+- **Consequências:**
+  - os checks obrigatórios da `main` (FR-031, T064) passam a ser 10: os 8 do Marco 3, `alert-rules` e
+    `load`;
+  - a conferência do pipeline (T063) vale para esses 10 jobs;
+  - o T012 não é executado (entrada "T012 não executado: verificação do job de dependências").
+  - a spec 004 registra a decisão em Clarifications e no Status, e as tarefas adiadas estão marcadas como
+    ADIADO no `tasks.md`.
+
+## 2026-11-26 — Medição do teste de carga e folga dos limites do pipeline
+
+T025, T033 e T034 da spec 004 (FR-011a; research R5). Medição no job `load`, em runners `ubuntu-latest`
+compartilhados, com os 100 mil filmes gerados e os limites provisórios.
+
+- **Execuções**, todas no commit `38334af`, todas verdes e sem nenhum erro HTTP ou de contrato:
+
+  | Execução | Intervalos p95 / p99 | Listagem p95 / p99 | Carga direta | Carga por Kafka |
+  | --- | --- | --- | --- | --- |
+  | push [45826809441](https://github.com/andersonfelipediefenbach/outsera/actions/runs/45826809441) | 0,78 / 1,04 ms | 9,23 / 12,09 ms | 20,1 s | 148,4 s |
+  | PR [45826811997](https://github.com/andersonfelipediefenbach/outsera/actions/runs/45826811997), tentativa 1 | 0,95 / 1,34 ms | 10,13 / 13,15 ms | 18,3 s | 192,6 s |
+  | PR 45826811997, tentativa 2 | 1,40 / 2,02 ms | 10,00 / 12,40 ms | 16,6 s | 108,4 s |
+  | **menor / mediana / maior** | p95 0,78 / 0,95 / 1,40; p99 1,04 / 1,34 / 2,02 | p95 9,23 / 10,00 / 10,13; p99 12,09 / 12,40 / 13,15 | 16,6 / 18,3 / 20,1 s | 108,4 / 148,4 / 192,6 s |
+
+  A vazão foi de cerca de 44,4 req/s nos intervalos e 8,9 req/s na listagem, medida sobre os 2 min 15 s
+  do teste. As taxas pedidas são 50 e 10 req/s nos 2 min sem o aquecimento.
+- **Por que 3 execuções, e não as 5 da R5:** decisão do Anderson. Com o cache dos intervalos (ADR 0026),
+  o maior p99 dos intervalos foi 2,02 ms, contra o objetivo de cerca de 112 ms, com folga de mais de 50×.
+  A dispersão de cada percentil (maior sobre menor) ficou abaixo de 2×: 1,79× no p95 e 1,94× no p99 dos
+  intervalos, e 1,10× e 1,09× na listagem. Nenhuma condição de parada do T025 disparou.
+- **Objetivos do SLO,** que não mudam: disponibilidade de 99,5% e 99% das requisições dos intervalos até o
+  bucket `le="0.111848106"` (cerca de 112 ms, confirmado no T026), em 28 dias.
+- **Limites finais do k6** (`load/intervals.js`), amarrados ao objetivo do SLO por decisão do Anderson:
+
+  | Limite | Pior medição | Limite |
+  | --- | --- | --- |
+  | intervalos p99 | 2,02 ms | abaixo de 111,848 ms, o bucket do alerta de latência |
+  | listagem p99 | 13,15 ms | abaixo de 100 ms |
+  | erro HTTP e de contrato | 0 | abaixo de 1% |
+
+  O p95 continua no resumo do job, sem reprovar.
+- **Por que não 2× a pior medição,** a regra original da R5: com medianas abaixo de 1 ms, 2× a pior
+  medição dariam limites de 3 e 5 ms nos intervalos, e isso só mediria o ruído do runner compartilhado,
+  como uma pausa de GC ou um vizinho barulhento. O job de carga existe para pegar **regressões reais**,
+  como a perda do cache dos intervalos, que levou o p99 a 927 ms com 100 mil filmes, e não variações de
+  milissegundos. Com o limite no objetivo do SLO, o job reprova quando o objetivo estaria em risco.
+- **Prova de que os limites reprovam o job** (SC-004), na máquina local, com o compose e o k6, feita com
+  a versão anterior do roteiro, que ainda tinha limites de p95:
+  - `K6_P95_INTERVALS_MS=1`: o k6 saiu com 99, com o limite dos intervalos ultrapassado. O mesmo mecanismo
+    vale hoje com `K6_P99_INTERVALS_MS`;
+  - k6 com um token errado e o `app` com outro: o k6 saiu com 99, com os 401 contados como erro HTTP e como
+    erro de contrato.
+
+## 2026-11-26 — Pipeline do commit 127584c: job load e job compose
+
+Execuções 45813784469 e 45814146445, diagnosticadas pelos logs que o Anderson enviou.
+
+- **Job `load`, nas duas execuções:** o passo do script levou cerca de 21,5 min. A geração passou (os dois
+  SHA-256 iguais ao registrado no Windows), mas a carga direta e a carga por Kafka falharam, cada uma com
+  "sem readiness 200 em 600 s". No passo 4, o compose não subiu o k6 porque "container awards-app-1
+  exited (1)": a aplicação terminava na subida, e o script esperava o prazo inteiro sem perceber.
+- **Causa provável:** o gerador cria o arquivo com `Files.createTempFile`, que no Linux dá a permissão
+  `rw-------`, só para o dono. O `ATOMIC_MOVE` mantém essa permissão. A aplicação roda no container com o
+  usuário 10001 e não consegue ler o `movies.csv` montado, então a carga falha na subida ("o caminho não é
+  um arquivo legível") e a aplicação sai com 1. No Windows não há permissão POSIX, e tudo passava. Os
+  dois caminhos de carga usam o mesmo arquivo.
+- **Correção:**
+  - o gerador deixa o arquivo com `rw-r--r--` quando o sistema de arquivos tem permissões POSIX. O
+    conteúdo e o SHA-256 não mudam;
+  - o `load-test.sh` para a espera da readiness assim que o container sai e mostra o fim do log dele no
+    log do job. Uma falha assim leva segundos, e não 10 minutos.
+- **Tamanho do arquivo:** a carga nunca chegou a começar no runner, então ainda não há medição dos 100 mil
+  filmes lá. O tamanho não mudou.
+- **Job `compose`, só em 45814146445, em 24 s:** falhou no build da imagem, no passo do Dockerfile que baixa
+  as dependências do Maven Central (`dependency:go-offline`, saída 1). Na outra execução do mesmo commit, o
+  mesmo build passou, e o job ficou verde em 3 min 38 s. Falha passageira de rede ou de limite do Maven
+  Central. Nada foi mudado por ela.
+
+## 2026-11-26 — Intervalos guardados entre as leituras, invalidados a cada gravação
+
+- **Falha encontrada no T021 da spec 004:** com os 100 mil filmes gerados, o endpoint de intervalos deu
+  p95 de 227 ms e p99 de 927 ms no k6, na máquina local. O objetivo de latência do SLO é 99% até o bucket
+  de cerca de 112 ms (research R1), e o T025 manda parar se o maior p99 passar dele.
+- **Opções descartadas pelo Anderson:** manter o objetivo e otimizar só o cálculo, trocar o bucket ou
+  medir com um arquivo menor. A decisão foi corrigir o endpoint.
+- **Causa:** o endpoint recalculava tudo a cada chamada. Ele lia todas as vitórias (`findWins`) e montava
+  os intervalos, embora o resultado só mude quando os dados mudam.
+- **Correção (`ProducerIntervalsCache`):** o resultado calculado fica guardado e é invalidado a cada
+  gravação.
+  - **Onde se invalida:** a carga direta do CSV (`importMovies`) e cada evento do Kafka gravado ou
+    atualizado (`record`) chamam `registerWrite()` dentro da sua transação. Com isso, há uma gravação em
+    andamento até o fim dela, com commit ou rollback (`afterCompletion`). Uma geração avança no começo e no
+    fim de cada gravação.
+  - **Consistência imediata:** com uma gravação em andamento, a leitura vai direto ao banco e não guarda
+    nada, então vê exatamente o que o banco mostra. Fora disso, ela serve o resultado guardado só se ele é
+    da geração atual, e só guarda um resultado novo se nenhuma gravação começou ou terminou durante o
+    cálculo. Assim, depois de uma gravação confirmada, nenhuma leitura recebe um resultado anterior a ela,
+    mesmo na janela entre o commit no banco e o fim da transação.
+  - **Por que em memória, e não numa tabela de versão:** a tabela exigiria a migração V2, e o
+    `SchemaPostgresIT` (da `v0.3.0`) confere que o histórico do Flyway tem só a versão 1. Alterar esse IT
+    seria mexer num teste que o `check-unchanged-tests.sh` protege.
+  - **Uma única instância:** o estado em memória vale para uma instância, que é o caso do modo padrão e do
+    compose. Com várias instâncias (Marco 5, Cloud Run), a invalidação precisa passar a um contador de
+    versão no banco ou a um evento compartilhado, como registra o
+    [ADR 0026](../adr/0026-intervalos-guardados-entre-leituras.md).
+  - **ETag:** continua igual, calculado pelo corpo da resposta.
+- **Comprovação:**
+  - `KafkaIntervalsCacheIT`, novo: lê duas vezes, grava dois vencedores por evento e, assim que a listagem
+    os mostra, lê de novo, sem esperar. O resultado e o ETag já são os novos. Depois, uma atualização
+    desfaz a mudança, e o resultado e o ETag voltam aos de antes. **Com o `registerWrite()` desligado, o
+    IT reprova** em "min logo depois da gravação";
+  - `KafkaUpdateIT`, `KafkaNewWinnerIT`, `KafkaIdempotencyIT`, `ReferenceFileIT`, `RandomizedOracleIT`
+    e os ITs de ETag: verdes;
+  - `./mvnw clean verify` verde (209 testes, 79 s) e `./mvnw -Pextras verify` verde (209, 61 com 5
+    pulados, e 85; cobertura de 93,30%; 255 s);
+  - **um `-Pextras` vermelho, descartado:** depois da prova de mutação, o arquivo foi restaurado de uma
+    cópia com data anterior à classe compilada, e a compilação incremental manteve o bytecode mutante.
+    Sete ITs de Kafka reprovaram por isso, com intervalos antigos. Um registro em memória do cache mostrou
+    que a invalidação estava certa, e o `clean verify` confirmou. Daqui em diante, toda prova de mutação
+    termina com `./mvnw clean`.
+- **Medição** (k6 no compose, com os 100 mil filmes gerados, na máquina local, com os limites provisórios):
+
+  | Endpoint | Antes (p95 / p99) | Depois (p95 / p99) |
+  | --- | --- | --- |
+  | intervalos | 227 ms / 927 ms | **1,54 ms / 1,84 ms** |
+  | listagem | 104 ms / 732 ms | 13,1 ms / 16,4 ms |
+
+  Nos dois, nenhum erro HTTP nem de contrato, e o k6 saiu com 0. A listagem melhorou porque os intervalos
+  deixaram de disputar a CPU. Os números do pipeline vêm do T025.
+
+## 2026-11-25 — Emenda 2.0.0 da constituição: `./mvnw verify` só com os testes do modo padrão
+
+- **Origem:** com os ITs dos Marcos 2 a 4, o `./mvnw verify` padrão chegou a cerca de 8 min nas medições
+  mais lentas da máquina local (540 s no último verde). É o comando que o avaliador roda para o core.
+- **Decisão do Anderson:**
+  - o `./mvnw verify` padrão roda só os ITs do modo padrão, numa única execução do Failsafe;
+  - os ITs do que vem desligado por padrão e a execução com o log em JSON vão para o perfil Maven `extras`
+    (`./mvnw -Pextras verify`), sem Docker e só com o JDK. O job `build` roda esse perfil
+    obrigatoriamente;
+  - a cobertura mínima de 90% é conferida nesse perfil, sobre a soma das execuções.
+- **Versão:** o pedido era uma emenda MINOR do Princípio VI. A mudança atinge também o Princípio II, que
+  exigia que "os testes do enunciado e dos extras da API" passassem com `./mvnw verify`. Levada a
+  escolha ao Anderson, ele decidiu por **MAJOR, 2.0.0**, porque essa garantia literal deixa de valer.
+- **Critério do recorte** (ajustado pelo Anderson, no lugar do primeiro recorte, que era só o Marco 1):
+  - **perfil padrão:** os ITs de todo comportamento do modo padrão, que roda sem nenhuma configuração.
+    São o H2, a carga do CSV com todas as regras (inclusive as da spec 003, como o `FIELD_TOO_LONG` e o
+    `NUL_CHARACTER`), os endpoints, o Swagger e o que vem ligado por padrão;
+  - **perfil `extras`:** o que vem desligado por padrão, ou seja, Kafka, autenticação ligada, log em JSON
+    e observabilidade que dependa de configuração. O PostgreSQL continua no `postgres-it`.
+- **Lista do perfil padrão** (`src/test/default-mode-its.txt`, 63 ITs). A execução padrão usa a lista
+  como `includesFile`, e a execução `extras` a usa como `excludesFile`, então todo IT roda numa execução
+  só. As bases abstratas ficam de fora, porque o Failsafe não as roda.
+  - os 46 ITs do Marco 1 (tag `v0.1.0`);
+  - `FieldTooLongIT` e `NulCharacterIT`, as regras do CSV da spec 003;
+  - `etag/*`, `health/*` e `MetricsIT`: o ETag, as sondas e o `/actuator/prometheus` vêm ligados sem
+    configuração (`exposure: health,prometheus`);
+  - `TextLogFormatIT`: o log em texto é o padrão;
+  - `ApiDocsSecurityIT`: o contrato que o Swagger serve no modo padrão;
+  - `AuthDisabledByDefaultIT`, `CacheHeadersIT`, `NoGeneratedPasswordIT` e `DefaultModeIsolationIT`:
+    o comportamento do modo padrão sem token, sem senha gerada e sem Kafka.
+- **No perfil `extras`:** `kafka/**` (inclusive os ITs do testador adversário), `AuthEnabledIT`,
+  `AuthProblemDetailsIT`, `AuthContractIT`, `CacheHeadersWithTokenIT`, `TokenNotLoggedIT` e
+  `JsonLogFormatIT`, mais a execução `json-logs`.
+- **O que não muda:** nenhum IT foi alterado, só o perfil em que roda. O `check-unchanged-tests.sh` contra
+  a `v0.2.0` e a `v0.3.0` continua valendo, e passa. O perfil `postgres-it` não muda.
+- **Atualizados:** constituição (II, VI e o portão de merge), `pom.xml`, job `build` do `ci.yml`,
+  `AGENTS.md`, README (seções 2 e 5, tabela do pipeline e estrutura) e a spec 004 (Clarifications,
+  FR-001, FR-035, FR-038, SC-001, plano e tarefas). Os ADRs 0001, 0004, 0010, 0012 e 0019 falam do
+  `./mvnw verify` da época e ficaram como registro histórico.
+- **Medição** (mesma máquina, sem Docker, todas verdes):
+
+  | Comando | Onde | Tempo | Testes |
+  | --- | --- | --- | --- |
+  | `./mvnw verify` antes da emenda | cópia de trabalho compilada | 266 a 540 s | 269 (5 pulados) e 85 |
+  | `./mvnw verify` com o primeiro recorte (só o Marco 1) | clone limpo, com a compilação | 64 s | 142 |
+  | `./mvnw verify` com o critério do modo padrão | **clone limpo**, com a compilação | **63 s** | 209 |
+  | `./mvnw verify` com o critério do modo padrão | cópia de trabalho | 69 s | 209 |
+  | `./mvnw -Pextras verify` com o critério do modo padrão | cópia de trabalho compilada | 247 s | 209, 60 (5 pulados) e 85 |
+
+  Os 209 e os 60 somam os 269 de antes, e os 85 da execução com o log em JSON são os mesmos. A
+  cobertura de linhas no `-Pextras` ficou em 95,36%. O `./mvnw -Ppostgres-it verify` não muda.
+
+## 2026-11-25 — Publicador Kafka: envio assíncrono, com o marcador por último
+
+- **Falha encontrada pelo T021 da spec 004:** no compose, a carga por Kafka dos 100 mil filmes gerados
+  levou cerca de 611 s, do início do container `app` à readiness 200. A espera do `load-test.sh` é de
+  600 s, e o runner compartilhado costuma ser mais lento.
+- **Causa:** o publicador enviava um evento por vez e esperava a confirmação de cada um (`send().get()`,
+  com `acks=all`), cerca de 166 eventos por segundo. O consumidor acompanhava logo atrás.
+- **Correção, pedida pelo Anderson:**
+  - **filmes:** envio assíncrono, em blocos de 10 mil. O publicador junta as confirmações de cada bloco e
+    espera todas antes de seguir. O `flush` do produtor só volta quando todos os registros terminaram;
+  - **ordem:** o produtor do publicador é idempotente (`enable.idempotence=true`, `acks=all`), e o tópico
+    tem uma partição;
+  - **marcador:** continua por último, de forma síncrona, e só sai depois de todos os filmes confirmados;
+  - **produtor próprio:** o `linger.ms` (20) e o `batch.size` (256 KiB) valem só para o publicador, numa
+    cópia da fábrica do Boot (`copyWithConfigurationOverride`). O produtor do consumidor, que envia ao
+    tópico de erros, não muda.
+- **Falha de envio, com a spec 003:** uma tentativa em que algum envio falha não publica o marcador, e a
+  readiness fica negativa. Depois da espera crescente, a tentativa seguinte recomeça do primeiro evento sem
+  confirmação. Os eventos reenviados caem na gravação idempotente por ano e título (FR-014). A falha não
+  encerra o publicador de vez, porque o caso de borda "Broker indisponível" da spec 003 exige que a
+  aplicação continue viva e publique quando o broker voltar (`KafkaBrokerLateStartIT` e
+  `KafkaBrokerUnavailableIT`).
+- **Medição local**, no compose, com a mesma imagem de base e o mesmo CSV de 100 mil filmes:
+
+  | | Publicador (fim da publicação) | Carga por Kafka (início do `app` à readiness 200) |
+  | --- | --- | --- |
+  | Antes | cerca de 600 s | cerca de 611 s |
+  | Depois | **cerca de 2 s** | **366 s** |
+
+  Nas duas, 100000 lidas, 100000 publicadas, 0 rejeitadas, 100000 filmes na listagem e os intervalos
+  plantados.
+- **Gargalo que sobra:** o consumidor, com uma transação e uma confirmação de offset por evento
+  (`ack-mode: record`), cerca de 290 eventos por segundo. Mudar isso muda a garantia de "um evento
+  inválido não trava o consumo" e a nova tentativa sem avançar o offset (spec 003, FR-015 e FR-015a), e
+  fica fora desta correção. Se o job `load` passar da espera no runner, a decisão volta ao Anderson.
+- **Comprovação:** os 39 ITs de Kafka verdes (e os 17 da execução com log em JSON), inclusive o
+  `KafkaBrokerLateStartIT`, o `KafkaBrokerUnavailableIT`, o `KafkaReadinessIT`, o `PublisherSummaryIT` e os
+  casos do marcador do testador adversário. `./mvnw -Ppostgres-it verify` verde (9 testes, com o
+  `RestartPostgresIT` e o caso 29). `./mvnw verify` completo verde.
+
+## 2026-11-25 — Carga direta: flush automático a cada consulta, com custo quadrático
+
+- **Falha encontrada pelo T016 da spec 004:** com o CSV gerado de 100 mil filmes, a carga direta
+  (`./mvnw spring-boot:run`) passou de 20 minutos sem terminar, com a CPU ocupada o tempo todo.
+- **Causa:** a carga grava o arquivo inteiro numa única transação (`MovieImportService.importMovies`), e
+  cada linha faz um `findByYearAndTitle`. Com o modo de flush padrão (`AUTO`), o Hibernate sincroniza o
+  contexto de persistência antes de cada consulta e confere todas as entidades já carregadas. Com o
+  contexto crescendo a cada linha, o custo total é quadrático no número de filmes. Os 206 filmes do
+  `movielist.csv` não deixavam isso aparecer.
+- **Correção, feita pelo Anderson:** durante a carga direta, o flush passa a `FlushModeType.COMMIT`, e o
+  modo anterior volta no fim. A consulta por linha não sincroniza mais o contexto, e tudo é gravado no
+  commit da transação.
+- **Por que a correção é segura:**
+  - a duplicata do arquivo não depende do banco. O `MovieCsvReader` a descarta antes, pelo mapa em memória
+    das chaves aceitas (spec 001, FR-006d), então a consulta nunca precisa ver um filme ainda não gravado
+    da mesma carga;
+  - os produtores criados na carga ficam no mapa `byName` da transação;
+  - num reinício sobre o PostgreSQL, os filmes de antes já estão no banco, e a consulta continua os vendo;
+  - o caminho do Kafka grava cada evento na sua transação, com o flush padrão, e não muda.
+- **Comprovação:**
+  - `DuplicateLinesIT` (nas duas execuções do Failsafe), `DuplicateWinnerIT`, `ReferenceFileIT`,
+    `KafkaIdempotencyIT`, `KafkaUpdateIT`, `KafkaEquivalenceIT`, `KafkaReferenceFileIT` e
+    `KafkaAdversarialEventsIT`: verdes;
+  - `./mvnw -Ppostgres-it verify`, contra um PostgreSQL 18 local descartável: 9 testes verdes, com o
+    `RestartDirectPostgresIT` e o caso 29;
+  - `./mvnw verify` completo: verde.
+- **Medição local** (do início da JVM ao fim da carga, JAR já construído, mesma semente do gerador):
+
+  | Filmes | Antes | Depois |
+  | --- | --- | --- |
+  | 5 mil | 15,2 s | 11,9 s |
+  | 10 mil | 40,7 s | 11,8 s |
+  | 20 mil | 199,8 s | 13,1 s |
+  | 100 mil | mais de 20 min (interrompida) | 19 s até a readiness 200; 24,5 s no container |
+
+  Com os 100 mil filmes, a carga deu 100000 lidas, 100000 aceitas e 0 rejeitadas, com `min` e `max`
+  exatamente iguais aos casos plantados pelo gerador.
+- **Por que mexer em `src/main` no Marco 4:** o plano só previa mudanças em `src/main` pelo testador
+  adversário. Esta é uma falha de desempenho que o T016 encontrou, e sem a correção o teste de carga do
+  Marco 4 não roda. O comportamento observável não muda.
+
+## 2026-11-25 — Job de dependências: causa da lacuna das transitivas do kafka-clients
+
+Investigação da spec 004 (FR-032, research R12, T003), feita num `git worktree` temporário fora do
+repositório, no commit `011eeba`. É o anterior à fixação das versões (`ae2ba76`), com o `lz4-java` 1.11.2
+efetivo. O worktree foi removido no fim.
+
+- **Versão do Trivy:** a `aquasecurity/trivy-action` v0.36.0 (`ed142fd`) instala o Trivy **v0.70.0**
+  (input `version`, padrão `v0.70.0` no `action.yaml`). Todas as execuções abaixo usaram a imagem
+  `aquasec/trivy:0.70.0`.
+- **Item 1, `trivy fs --list-all-pkgs` sobre o repositório, como no job:** o inventário tem só as 14
+  dependências do `pom.xml` (13 diretas e a raiz), sem nenhuma transitiva. O `lz4-java`, o `snappy-java` e
+  o `kafka-clients` não aparecem. A saída foi 0.
+  - Com `--debug`, o motivo aparece. O Trivy busca os POMs no Maven Central na hora da análise, a começar
+    pelo pai `spring-boot-starter-parent` 4.1.2. Nas três execuções, o Central respondeu **429** (limite de
+    requisições) a todas as buscas.
+  - Sem o pai, as versões das diretas que vêm do BOM ficam indefinidas, e o Trivy não desce às
+    transitivas. O único aviso é um `WARN` genérico ("Dependency version cannot be determined. Child
+    dependencies will not be found"), com o link
+    <https://trivy.dev/docs/v0.70/guide/coverage/language/java#empty-dependency-version>. As falhas de busca
+    só aparecem em `DEBUG`.
+  - **Contraprova:** o mesmo comando com o `~/.m2` local montado e `--offline-scan` não faz nenhuma busca.
+    Ele lista 122 pacotes, entre eles `lz4-java` 1.11.2, `snappy-java` 1.1.10.7 e `kafka-clients` 4.2.2,
+    com as CVE-2026-106451, CVE-2026-108106 e CVE-2026-93451. Quando tem os POMs, o Trivy chega às mesmas
+    versões do build.
+- **Item 2, versões efetivas do Maven:** `dependency:list -DincludeScope=runtime` dá `lz4-java` 1.11.2
+  (runtime), `snappy-java` 1.1.10.7 (runtime) e `kafka-clients` 4.2.2 (compile). As duas vêm do
+  `kafka-clients`. O `dependency:tree -Dscope=runtime` pedido no T003 corta esse ramo e não as mostra, por
+  isso o inventário foi conferido com o `dependency:list`, que usa o mesmo filtro do `copy-dependencies`.
+- **Item 3, porta sobre `target/runtime-deps`:** os 115 JARs copiados pelo Maven.
+  - **Com `trivy fs`, a porta não analisa nada.** O log mostra "Number of language-specific files num=0", e
+    a saída é 0. No Trivy, a análise de JAR só existe nos modos `image` e `rootfs`. No `fs`, o Java coberto
+    é o `pom.xml`.
+  - **Com `trivy rootfs`**, com a porta do pipeline (`--severity HIGH,CRITICAL --ignore-unfixed --exit-code
+    1`), a saída é **1**, com exatamente as três CVEs: CVE-2026-106451 no `lz4-java` 1.11.2, CVE-2026-108106
+    e CVE-2026-93451 no `snappy-java` 1.1.10.7.
+- **Causa:** a análise do `pom.xml` depende de buscas remotas que podem falhar sem reprovar o job. Quando
+  uma falha, as transitivas somem do inventário e nada é apontado.
+  - Isso difere da hipótese da R12, que era uma resolução de versões diferente da do build. O Trivy resolve
+    certo quando tem os POMs.
+  - Não há como saber qual busca falhou no runner do Marco 3, porque o log do job não tem `DEBUG`. O efeito
+    é o mesmo: o job ficou verde sem ver as transitivas.
+  - A R12 foi atualizada com o resultado e com a troca de `fs` por `rootfs`.
+- **Correção (T006):** o job `dependencies` passa a analisar o que o Maven copia, com
+  `dependency:copy-dependencies -DincludeScope=runtime` e o Trivy em `rootfs`. O inventário não depende da
+  rede, porque o Maven já baixou os JARs. Um passo confere no resumo que `lz4-java` e `snappy-java` estão no
+  inventário e falha se algum faltar.
+- **Conferência no HEAD (T007):** com o `pom.xml` atual, a mesma porta em `rootfs` sai com 0. O inventário
+  JSON tem `at.yawk.lz4:lz4-java` 1.11.4 e `org.xerial.snappy:snappy-java` 1.1.10.12. A expressão `jq` do
+  passo novo foi testada sobre esse inventário, inclusive com um pacote ausente, que cai no ramo de falha.
+  A comprovação contra uma versão vulnerável no pipeline é a verificação única do T012 (FR-034), que
+  depende do push.
+
+## 2026-11-25 — Decisões do plano do Marco 4
+
+Decisões do responsável sobre o plano da spec 004 (`plan.md`, "Decisões do responsável sobre o plano"),
+mais as duas clarificações da spec:
+
+1. **Limite do SLO de latência:** é o bucket que já existe no histograma, cerca de 112 ms
+   (`le="0.111848106"`, a conferir no T026), sem mudar o `application.yml` (R1).
+2. **Folga do pipeline:** os limites do k6 são 2× a maior medição de cada percentil, arredondados para cima
+   (R5).
+3. **Execuções de medição:** as 5 execuções são feitas com "Re-run jobs" do job `load` no mesmo commit, sem
+   commits vazios (R5).
+4. **Etapas:** cada etapa do bolt termina com o `./mvnw verify` verde e um commit.
+5. **Clarificação: cache só da JVM.** O cache AOT é só o da JVM, gerado por uma execução de treino no build
+   da imagem. O processamento AOT do Spring fica de fora, porque fixaria as condições de perfil no build. A
+   escolha de perfil continua na execução, e a mesma imagem serve ao modo padrão e ao compose (US4-6,
+   FR-020).
+6. **Clarificação: assinatura num registro temporário.** Sem publicar a imagem, ela vai a um registro
+   temporário dentro do job, é assinada lá e recebe o SBOM como atestado assinado. O registro é descartado
+   no fim do job. Só a entrada no registro de transparência é pública (US5-6, FR-025).
+
+## 2026-11-25 — Proteção da main ao fim do Marco 3
+
+Configuração da proteção da `main` feita pelo Anderson depois do merge do Marco 3 (T093 da spec 003; spec
+004, FR-031, R14). Está registrada aqui como ponto de partida. A lista com os 12 checks do Marco 4 é o
+T064, na entrada "Proteção da main depois do Marco 4".
+
+- **Mecanismo:** um ruleset **ativo**, aplicado à branch padrão (`main`).
+- **Bypass:** nenhum *bypass actor*. Ninguém, nem administrador, passa por cima das regras.
+- **Pull request obrigatório,** com **0 aprovações** exigidas. A revisão do Codex fica nos comentários do
+  PR, e o repositório tem um único responsável humano.
+- **Resolução das conversas obrigatória** antes do merge.
+- **Checks obrigatórios:** os 8 jobs do Marco 3, que são `workflow-policy`, `build`, `postgres`, `codeql`,
+  `dependencies`, `dockerfile-lint`, `image` e `compose`.
+- **Branch atualizado antes do merge:** não é exigido.
+- **Force push:** bloqueado.
+- **Exclusão da branch:** bloqueada.
+
+## 2026-11-25 — Testador adversário: ingestão por Kafka
+
+T005 da spec 004 (FR-035, R13; T050 da spec 003). O Anderson acionou o Codex como testador adversário
+da ingestão por Kafka. O Codex escreveu 30 casos a partir da spec 003, do contrato dos eventos, da spec
+001, do data-model da spec 001, do OpenAPI e do enunciado, sem ler `src/main`. Os casos ficaram fora do
+repositório. Todos os casos viraram ITs permanentes em `src/test/java/com/outsera/awards/kafka/adversario/`,
+com o `@DisplayName` começando por `S004 FR-035`. Nenhum caso foi cortado.
+
+**Como os casos foram agrupados.** A consolidação segue a do `KafkaInvalidEventsIT` do Marco 3 e foi
+pedida pelo Anderson.
+- **`KafkaAdversarialEventsIT`:** 24 casos numa única aplicação e num único broker, um depois do outro
+  (01 a 21, 27, 28 e 30). São os que não mexem no marcador, na readiness nem na subida.
+  - Cada caso tem chaves (`cNN/...`) e títulos (`CNN ...`) próprios. Só ficam sem prefixo os títulos que
+    são o próprio dado testado (500 letras, emojis, só NBSP), e eles já são únicos.
+  - Cada conferência é uma `SoftAssertions` com a mensagem do caso. Uma exceção num caso vira falha dele,
+    e os seguintes rodam.
+  - O caso confere os filmes novos ou alterados desde o início dele, que nenhum filme anterior mudou, e os
+    registros novos do tópico de erros.
+  - No fim de cada caso, todo vencedor gravado é reenviado como indicado, pelo próprio caminho de
+    atualização (spec 003, FR-014). Assim, `min` e `max` continuam conferidos exatamente por caso.
+- **Contexto próprio:** só os casos que mexem no marcador ou na readiness (22, 23, 24, 25 e as três
+  variantes do 26, uma classe cada) e o que mexe na subida (29, no PostgreSQL).
+- **Prova de que o agrupamento não enfraqueceu o teste:** com as correções de `src/main` guardadas num
+  `git stash`, o `KafkaAdversarialEventsIT` reprovou exatamente os casos 05, 11, 13 e 17, cada um com as
+  mensagens dele. Os outros 20 passaram, sem efeito em cascata. Depois, as correções voltaram.
+- **Medição local** (`./mvnw verify` sem `clean`, na mesma máquina e no mesmo dia, todas verdes). A
+  referência do limite de 2× da research R15 da spec 003 é o tempo do job `build` no pipeline, e não a
+  máquina local (decisão do Anderson). Os números abaixo servem para comparar a consolidação:
+
+  | Execução | Tempo | Testes |
+  | --- | --- | --- |
+  | HEAD do Marco 3, sem os ITs novos (T001 e T010 da spec 004) | 233 a 252 s | 261 (5 pulados) e 85 |
+  | Com os ITs novos, um contexto por caso (31 classes) | 563 s | 292 (5 pulados) e 85 |
+  | Depois da consolidação (8 classes) | **260 s** | 269 (5 pulados) e 85 |
+
+  - Os ITs do testador somam cerca de 69 s no verify: 39 s do `KafkaAdversarialEventsIT` com os 24 casos,
+    contra cerca de 10 s **por caso** com contexto próprio, e de 3,4 s a 6,4 s para cada uma das sete
+    classes do marcador.
+  - O número de testes caiu de 292 para 269 só porque 24 classes viraram uma, com os mesmos 24 casos.
+  - `./mvnw -Ppostgres-it verify` contra um PostgreSQL 18 local descartável, com a mesma imagem e a mesma
+    configuração do job `postgres` (porta 55432, para não tocar outro container da máquina): 9 testes,
+    verdes, em 71 s. O caso 29 levou 18,8 s.
+  - A confirmação do limite fica para o tempo do job `build` na primeira execução do pipeline no
+    branch.
+
+**Como os ITs verificam.**
+- Aplicação completa, broker embutido e H2, sem mocks (Princípio I). O resultado é lido por HTTP:
+  listagem, intervalos, ETag e readiness.
+- O tópico de erros é lido pelo broker. Para cada rejeição, o IT confere os bytes originais, o código do
+  motivo, os cabeçalhos de origem, o offset do evento no tópico de filmes e o aviso no log.
+- O README dos casos pedia filmes, produtores e vínculos conferidos no banco. Os vínculos aparecem nos
+  intervalos, por HTTP, e o banco não é consultado.
+- O fim de cada sequência é o offset que o consumidor confirmou no grupo (`ack-mode: record`), sem
+  esperas fixas.
+- **Retenção do marcador** (casos 22 a 26 e 29): os casos pedem para reter no transporte o marcador que
+  a aplicação publica. O `HoldingProducerInterceptor`, de `src/test`, é um `ProducerInterceptor` do
+  próprio Kafka, ligado só nos testes por `spring.kafka.producer.properties.interceptor.classes`. Ele
+  desvia o registro, com chave, valor e cabeçalhos intactos, para o tópico `<filmes>.held`, e o teste o
+  solta depois pelo broker real. Não substitui nenhuma classe da aplicação: o publicador envia como
+  sempre. Por isso não conta como mock.
+
+**Resultado de cada ataque**, rodado antes de qualquer correção ("passou" quer dizer que a aplicação já
+fazia o esperado):
+
+| Caso | Ataque | Antes | Ação |
+| --- | --- | --- | --- |
+| 01 | JSON truncado, vazio, `null`, array e vírgula final | passou | — |
+| 02 | duas raízes JSON no mesmo valor | passou | — |
+| 03 | bytes `C3 28` dentro do título | passou | — |
+| 04 | ano, título, produtores e `winner` ausentes | passou | — |
+| 05 | título número, produtores array, estúdios objeto, título e produtores `null` | **falhou**: o `studios` objeto era gravado como ausente, e o título número e os produtores array saíam como `TITLE_MISSING` e `PRODUCERS_MISSING` | achado decidido; corrigido |
+| 06 | `winner` `"yes"`, `" YES "`, `"true"`, `"false"`, `""`, `1`, `0` e `null` | passou | — |
+| 07 | ano texto, fração, `2001.0`, `2.001e3` e booleano | passou | achado (expoente) decidido sem mudança |
+| 08 | anos 1 e 9999; 0, 10000, -1 e maiores que 32 e 64 bits | passou | — |
+| 09 | campos extras, `type` explícito e chave alheia ou nula | passou | — |
+| 10 | `type` `"Movie"`, `7` e `null` | passou | achado decidido sem mudança (`null` vale ausente) |
+| 11 | propriedade `winner` repetida com valores opostos | **falhou**: valia a última ocorrência | achado decidido; corrigido |
+| 12 | BOM UTF-8 antes do objeto | passou (`NOT_JSON`) | achado decidido sem mudança |
+| 13 | U+0000 escapado no título, nos estúdios e nos produtores; NUL literal | **falhou**: o U+0000 nas pontas era retirado pelo `trim` e o filme gravado sem ele | conflito entre a spec 001 e o data-model 003 decidido; corrigido nos dois caminhos |
+| 14 | NFC e NFD no título e no nome | passou | oráculo ajustado (abaixo) |
+| 15 | título só com NBSP, produtor U+200B, Iris com NBSP, título só com espaços | passou | achado decidido sem mudança |
+| 16 | título 500/501, estúdios 1000/1001, produtores 1000/1001, nome 500/501 | passou | — |
+| 17 | 1, 250, 251, 500 e 501 emojis no título | **falhou**: 251 e 500 passavam na validação e o H2 recusava (`DATABASE_REJECTED`, SQLState 22001) | achado decidido; corrigido |
+| 18 | `and` repetido, em caixa mista, nas pontas e embutido em nomes | passou | — |
+| 19 | tabulação em volta do `and` | passou | achado decidido sem mudança |
+| 20 | reentrega byte a byte antes e depois de outra vitória, com ETag | passou | — |
+| 21 | atualização pelo título com espaços, troca de vínculos e replay antigo | passou | — |
+| 22 | filmes do publicador com o marcador retido | passou | — |
+| 23 | marcador de outra execução repetido; marcador atual repetido | passou | — |
+| 24 | marcador sem `runId`; filme com a chave `load-completed` | passou | — |
+| 25 | cópia do marcador atual antes do último filme | passou, como documentado (a cópia libera a readiness) | achado decidido; documentado no contrato |
+| 26-A | `count` 1 com nenhum filme | passou (libera) | achado decidido sem mudança |
+| 26-B | marcador sem `count` | **falhou**: liberava a readiness | achado decidido; corrigido |
+| 26-C | `count` `"0"` | **falhou**: liberava a readiness | achado decidido; corrigido |
+| 27 | empates em `min` e `max`, vitórias no mesmo ano e ordem Unicode | passou | — |
+| 28 | atualização inválida de um filme existente | passou | — |
+| 29 | reinício com o PostgreSQL: reaplica o CSV, mantém o filme externo e ignora o marcador antigo | passou | — |
+| 30 | três vitórias no mesmo ano, com replay | passou | — |
+
+**Achados de ambiguidade, decididos pelo Anderson** e escritos na spec antes do código: spec 003,
+Clarifications de 2026-11-25, FR-012 e FR-013, data-model e contrato dos eventos; spec 001, FR-006, FR-007
+e FR-008, e data-model.
+
+1. **Tipos errados (05, 10):** motivo novo `FIELD_TYPE_INVALID` para `title`, `producers` ou `studios`
+   presente com outro tipo que texto. `null` vale ausente em todos os campos. Assim, título e produtores
+   nulos continuam `TITLE_MISSING` e `PRODUCERS_MISSING`, e `type` nulo é um filme.
+2. **Rigor do JSON (07, 11, 12):** propriedade repetida é `NOT_JSON`, pela detecção estrita do Jackson. O
+   BOM continua `NOT_JSON`, porque a tolerância é só do arquivo CSV. O ano com expoente continua
+   `YEAR_NOT_NUMERIC`, porque só o token de inteiro é aceito.
+3. **Unicode (15, 17, 19):** o tamanho é contado em unidades UTF-16, como o H2 mede, e o limite fica igual
+   nos dois bancos. Os espaços em volta são os caracteres de U+0001 a U+0020; NBSP e U+200B fazem parte
+   do texto. A tabulação e as quebras de linha separam o `and`.
+4. **U+0000 nas pontas (13):** a spec 001 (FR-006, "contém") e o data-model da spec 003 ("removido pelo
+   `trim` … não chega a ser rejeitado") se contradiziam. Vale a FR-006: o U+0000 é rejeitado em qualquer
+   posição, e o data-model foi corrigido.
+5. **Marcador (25, 26):** o `count` é validado como inteiro JSON ≥ 0, com o motivo novo `COUNT_INVALID`,
+   mas não é barreira. O caso 25 só acontece com escrita indevida no tópico. O contrato agora diz que a
+   readiness é um sinal operacional, não uma barreira de segurança, e que a proteção do tópico é do
+   broker (ACLs), fora do escopo.
+
+**Correções em `src/main`:**
+- `MovieFieldRules.strip`: a regra única dos espaços em volta, usada pelo CSV e pelo Kafka;
+- `MovieFieldRules.tooLong`: o tamanho passa a ser `String.length`;
+- `MovieCsvReader`: sem o `setTrim` do Commons CSV, que usa o `String.trim`; os campos passam pelo
+  `strip`;
+- `MovieEventParser`: `STRICT_DUPLICATE_DETECTION`, `FIELD_TYPE_INVALID` e `COUNT_INVALID`;
+- `EventRejectionReason`: os dois motivos novos.
+
+Essas mudanças valem também para a carga direta. Um campo do CSV com U+0000 nas pontas, ou com 251 a 500
+caracteres fora do plano básico, passa a ser rejeitado com aviso. Antes, ele era gravado sem o U+0000 ou
+interrompia a carga com um erro do H2. O `movielist.csv` não tem nenhum dos dois, e o resultado de
+referência não muda.
+
+**Desvios dos oráculos dos casos:**
+- Caso 14: o oráculo escreve os dois produtores como `José` em NFC. Na resposta, um deles vem em NFD. O
+  NFD vem primeiro pela FR-015 da spec 001 (`e` < `é`), e o IT confere os nomes reais.
+- Caso 23: o `runId` da "execução anterior" é um UUID novo, com a serialização do publicador. Para o
+  consumidor, outra execução é qualquer `runId` diferente.
+- Caso 29: roda no perfil `postgres-it` (`KafkaCase29RestartReappliesCsvPostgresIT`), como os outros
+  testes de reinício. O H2 do modo padrão é em memória e não sobrevive ao reinício.
+
+**Ponto em aberto, sem decisão:** no CSV, o léxico do Commons CSV (`ignoreSurroundingSpaces`) também
+ignora, nas pontas, os espaços Unicode do `Character.isWhitespace`, como o EM SPACE (U+2003). No Kafka,
+eles fazem parte do texto. A divergência já existia antes deste bolt e não aparece no `movielist.csv` nem
+nos casos do testador (NBSP e U+200B são iguais nos dois caminhos). Por isso a spec não afirma nada sobre
+esses espaços.
+
 ## 2026-11-25 — Pipeline do PR do Marco 3: endereço do broker vazando entre os testes pela propriedade de sistema
 
 - **Falha:** no commit `230dffc`, o job `build` reprovou nos dois eventos. No `push`, só o

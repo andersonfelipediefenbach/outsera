@@ -1,4 +1,35 @@
 <!--
+Sync Impact Report (2.0.0)
+- Version change: 1.7.0 → 2.0.0
+  Justificativa: MAJOR, por decisão do responsável. O Princípio II deixa de exigir que os testes dos
+  extras passem com o `./mvnw verify` padrão: essa garantia literal deixa de valer. O `./mvnw verify`
+  padrão passa a rodar só os ITs do **modo padrão**, numa única execução do Failsafe: todo comportamento
+  com H2, a carga do CSV (inclusive as regras acrescentadas pela spec 003), os endpoints, o Swagger e o
+  que vem ligado sem configuração. Os ITs do que vem **desligado por padrão** (Kafka, autenticação
+  ligada, log em JSON e observabilidade que dependa de configuração) e a execução com o log em JSON vão
+  para o perfil Maven `extras`, também sem Docker e só com o JDK, que o job `build` do pipeline executa
+  obrigatoriamente. O PostgreSQL continua no perfil `postgres-it`. A cobertura mínima de 90% é verificada
+  no pipeline sobre a soma das execuções. Nenhum teste é removido, relaxado ou alterado: muda só o
+  perfil em que roda.
+  Origem: o `./mvnw verify` padrão chegou a cerca de 8 min com os ITs dos Marcos 2 a 4, e é o comando
+  que o avaliador roda para o core (spec 004, etapa 2).
+- Modified principles: II. Execução só com ./mvnw; VI. Rastreabilidade requisito → teste
+- Modified sections: Fluxo de desenvolvimento e portões de qualidade (portão de merge)
+- Added sections: nenhuma
+- Removed sections: nenhuma
+- Impacto:
+  - pom.xml ✅ execução padrão só com os ITs de `src/test/default-mode-its.txt`; perfil `extras` com os demais,
+    a execução `json-logs` e a cobertura mínima;
+  - .github/workflows/ci.yml ✅ o job `build` roda `./mvnw -B -Pextras verify`;
+  - AGENTS.md ✅ regras invioláveis, fluxo de trabalho, testes e definição de pronto;
+  - README.md ✅ "Avalie em 2 minutos", com o tempo medido, e o comando dos extras;
+  - specs/004-acabamento-operacional ✅ FR-001, FR-002, SC-001, plano e tarefas;
+  - specs/001 a 003: o texto histórico fala do `./mvnw verify` da época; a regra vigente é esta;
+  - docs/ai/decisoes.md ✅ emenda registrada;
+  - `check-unchanged-tests.sh`: sem mudança, porque nenhum IT muda.
+- Templates requiring updates: nenhum
+- Follow-up TODOs: nenhum
+
 Sync Impact Report (1.7.0)
 - Version change: 1.6.0 → 1.7.0
   Justificativa: MINOR. O Princípio VI ganha uma regra de comprovação para o comportamento da
@@ -222,9 +253,15 @@ Os sete princípios abaixo são **inegociáveis**. Uma violação bloqueia o mer
 
 ### II. Execução só com ./mvnw
 
-- A aplicação MUST subir com `./mvnw spring-boot:run`, e todos os testes do enunciado e dos extras
-  da API MUST passar com `./mvnw verify`, sem Docker e sem nenhuma instalação além do JDK
-  (item 4.3 do enunciado).
+- A aplicação MUST subir com `./mvnw spring-boot:run`, e os testes de todo comportamento do **modo
+  padrão** MUST passar com `./mvnw verify`, numa única execução do Failsafe, sem Docker e sem nenhuma
+  instalação além do JDK (item 4.3 do enunciado). O modo padrão é o que roda sem nenhuma configuração:
+  H2, a carga do CSV com todas as suas regras (inclusive as acrescentadas pelos extras), os endpoints, o
+  Swagger e o que vem ligado por padrão.
+- Os testes do que vem **desligado por padrão** (Kafka, autenticação ligada, log em JSON e
+  observabilidade que dependa de configuração) MUST passar com `./mvnw -Pextras verify`, que roda também
+  os do modo padrão, igualmente sem Docker e só com o JDK. O pipeline MUST executar esse perfil no job
+  `build`, com o job vermelho reprovando o merge.
 - O modo padrão MUST usar H2 em memória e carregar o CSV fornecido como padrão.
 - Os testes de Kafka MUST usar o broker embutido do Spring, e não Testcontainers. Os testes que
   dependem de PostgreSQL ficam em um perfil Maven separado, fora do `./mvnw verify` padrão.
@@ -291,12 +328,16 @@ documentação coerentes e evita o modelo cascata.
     indicado na spec ou no plano.
 - Requisito sem comprovação não é considerado entregue. Um requisito de comportamento da aplicação
   MUST NOT ser comprovado só por revisão ou só pelo pipeline: ele precisa do seu teste de integração no
-  `./mvnw verify`.
+  `./mvnw verify`, se for do modo padrão, ou no `./mvnw -Pextras verify`, se depender de algo desligado
+  por padrão (Princípio II). Os dois rodam sem Docker, e o pipeline executa o segundo obrigatoriamente.
+- A **cobertura mínima** de linhas dos testes de integração (90%) é verificada no `./mvnw -Pextras
+  verify`, sobre a soma das execuções do Failsafe, e o pipeline a exige no job `build`.
 - **Comportamento que depende de infraestrutura indisponível no modo padrão** (por exemplo, o
   PostgreSQL): é comprovado por testes de integração num **perfil Maven dedicado**, que o pipeline MUST
   executar obrigatoriamente, com o job vermelho reprovando o merge. Esses testes seguem o Princípio I
   (contexto completo, sem mocks, verificação por HTTP). A exceção vale só para o que não pode rodar sem
-  essa infraestrutura. Todo o resto continua exigindo o teste no `./mvnw verify`, inclusive o
+  essa infraestrutura. Todo o resto continua exigindo o teste sem Docker (`./mvnw verify` ou
+  `./mvnw -Pextras verify`), inclusive o
   comportamento comum aos dois modos, que é testado com H2. Uma dependência que tem substituto
   embutido sem Docker, como o broker Kafka do Spring, não entra na exceção (Princípio II).
 - O README MUST trazer a tabela de requisitos do enunciado, com o teste que comprova cada um.
@@ -385,8 +426,8 @@ documentação coerentes e evita o modelo cascata.
   - As sessões são exportadas para `docs/ai/sessoes/`.
   - As sugestões aceitas ou rejeitadas são registradas, com o motivo, em `docs/ai/decisoes.md`.
   - Dados pessoais MUST NOT entrar nessa evidência.
-- **Portão de merge:** os princípios I a VII estão atendidos, `./mvnw verify` está verde sem
-  Docker e as decisões estão registradas.
+- **Portão de merge:** os princípios I a VII estão atendidos, `./mvnw verify` e `./mvnw -Pextras
+  verify` estão verdes sem Docker e as decisões estão registradas.
 
 ## Governance
 
@@ -403,4 +444,4 @@ documentação coerentes e evita o modelo cascata.
   conformidade com os princípios I a VII. Os sete princípios são inegociáveis e não admitem
   exceção em "Complexity Tracking". Qualquer outra divergência MUST ser justificada no plano.
 
-**Version**: 1.7.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-24
+**Version**: 2.0.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-25

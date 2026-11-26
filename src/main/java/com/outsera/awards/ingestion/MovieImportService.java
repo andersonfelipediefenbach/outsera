@@ -3,7 +3,10 @@ package com.outsera.awards.ingestion;
 import com.outsera.awards.movie.Movie;
 import com.outsera.awards.movie.MovieRepository;
 import com.outsera.awards.producer.Producer;
+import com.outsera.awards.producer.ProducerIntervalsCache;
 import com.outsera.awards.producer.ProducerRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.FlushModeType;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,22 +26,39 @@ public class MovieImportService {
 
     private final MovieRepository movies;
     private final ProducerRepository producers;
+    private final EntityManager entityManager;
+    private final ProducerIntervalsCache intervalsCache;
 
-    public MovieImportService(MovieRepository movies, ProducerRepository producers) {
+    public MovieImportService(MovieRepository movies, ProducerRepository producers, EntityManager entityManager,
+            ProducerIntervalsCache intervalsCache) {
         this.movies = movies;
         this.producers = producers;
+        this.entityManager = entityManager;
+        this.intervalsCache = intervalsCache;
     }
 
     /** Carga direta: grava todas as linhas numa única transação, como no Marco 1. */
     @Transactional
     public void importMovies(List<MovieRow> rows) {
-        Map<String, Producer> byName = new HashMap<>();
-        rows.forEach(row -> record(row, byName));
+        // Os intervalos guardados deixam de valer, com efeito até o fim desta transação.
+        intervalsCache.registerWrite();
+        // O leitor já deduplica os filmes, e produtores criados na carga ficam no mapa local.
+        // As consultas não precisam sincronizar as alterações a cada linha.
+        FlushModeType previousFlushMode = entityManager.getFlushMode();
+        entityManager.setFlushMode(FlushModeType.COMMIT);
+        try {
+            Map<String, Producer> byName = new HashMap<>();
+            rows.forEach(row -> record(row, byName));
+        } finally {
+            entityManager.setFlushMode(previousFlushMode);
+        }
     }
 
     /** Cria ou atualiza o filme da linha, criando os produtores que ainda não existem. */
     @Transactional
     public void record(MovieRow row) {
+        // Os intervalos guardados deixam de valer, com efeito até o fim desta transação.
+        intervalsCache.registerWrite();
         record(row, new HashMap<>());
     }
 

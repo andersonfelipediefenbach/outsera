@@ -868,3 +868,1954 @@ Um commit por causa. Rode o ./mvnw verify e o check-unchanged-tests.sh v0.2.0 an
 </pasted_content id="03d1">
 
 ```
+
+## 2026-11-25 11:09:26 -03:00
+
+- Sessao: `2ecd539a-eb50-4089-bd78-0c6dff229653`
+
+```text
+No pipeline do commit atual, o build falhou nos dois eventos: push depois de 3 min e pull_request depois de 5 min. Leia os logs dos dois com o gh (gh run list --branch marco/3-docker e gh run view <id> --log-failed) e diagnostique a causa antes de corrigir. Diga se é a mesma falha nos dois e em qual das duas execuções do Failsafe ela acontece (texto ou JSON). Localmente o verify passou, então explique o que é diferente no runner. Não aumente prazos para esconder o problema. Um commit, sem push.
+```
+
+## 2026-11-25 11:53:28 -03:00
+
+- Sessao: `048e1f72-29a7-44c0-8bbc-2fb4cca3f2b7`
+
+```text
+
+
+<pasted_content id="3d64">
+/speckit-specify Marco 4: acabamento operacional, num único bolt. Nada muda no modo padrão do enunciado (./mvnw, H2, só testes de integração), e cada item tem a comprovação do seu tipo pelo Princípio VI. Escopo:
+1. Alertas de SLO no Prometheus do compose (disponibilidade e latência do endpoint de intervalos), com regras versionadas e verificadas no pipeline.
+2. Teste de carga com k6 contra o compose, com limites de latência e de erro que reprovam o job, rodando no pipeline.
+3. Dados gerados: um gerador de CSV grande e determinístico para o k6 e para medir a carga inicial, sem substituir o movielist.csv padrão.
+4. Cache de AOT (Spring Boot e JVM) na imagem, com o tempo de subida medido antes e depois.
+5. SBOM da imagem e assinatura (cosign keyless no Actions), sem publicação da imagem neste marco.
+6. Dev container para abrir o projeto pronto (JDK 25, Maven, Docker).
+Inclua também as pendências do marco 3: o registro da proteção da main (T093), a investigação de por que o job de dependências do Trivy não apontou as transitivas do kafka-clients (com correção) e a execução do testador adversário na ingestão por Kafka. O README ganha a seção do marco 4 entre os extras.
+</pasted_content id="3d64">
+
+```
+
+## 2026-11-25 11:53:42 -03:00
+
+- Sessao: `048e1f72-29a7-44c0-8bbc-2fb4cca3f2b7`
+
+```text
+ /cl
+```
+
+## 2026-11-25 11:54:26 -03:00
+
+- Sessao: `7e42c09a-3302-4816-a904-f00f64eff940`
+
+```text
+
+
+<pasted_content id="21fb">
+/speckit-specify Marco 4: acabamento operacional, num único bolt. Nada muda no modo padrão do enunciado (./mvnw, H2, só testes de integração), e cada item tem a comprovação do seu tipo pelo Princípio VI. Escopo:
+1. Alertas de SLO no Prometheus do compose (disponibilidade e latência do endpoint de intervalos), com regras versionadas e verificadas no pipeline.
+2. Teste de carga com k6 contra o compose, com limites de latência e de erro que reprovam o job, rodando no pipeline.
+3. Dados gerados: um gerador de CSV grande e determinístico para o k6 e para medir a carga inicial, sem substituir o movielist.csv padrão.
+4. Cache de AOT (Spring Boot e JVM) na imagem, com o tempo de subida medido antes e depois.
+5. SBOM da imagem e assinatura (cosign keyless no Actions), sem publicação da imagem neste marco.
+6. Dev container para abrir o projeto pronto (JDK 25, Maven, Docker).
+Inclua também as pendências do marco 3: o registro da proteção da main (T093), a investigação de por que o job de dependências do Trivy não apontou as transitivas do kafka-clients (com correção) e a execução do testador adversário na ingestão por Kafka. O README ganha a seção do marco 4 entre os extras.
+</pasted_content id="21fb">
+
+```
+
+## 2026-11-25 12:12:30 -03:00
+
+- Sessao: `7e42c09a-3302-4816-a904-f00f64eff940`
+
+```text
+
+
+<pasted_content id="21fb">
+Suposições aceitas, com três ajustes na spec:
+1. O pipeline comprova o determinismo do gerador: gera o arquivo duas vezes com a mesma semente e compara os hashes.
+2. O teste do Trivy contra uma versão vulnerável segue o roteiro da T050 do Marco 2: branch temporário, nunca mergeado, apagado no fim, sem nenhum commit voltando ao branch do marco.
+3. Deixe explícito que o objetivo do SLO e os limites do k6 vêm da medição num runner compartilhado, e que o limite do pipeline é mais folgado por causa do ruído do runner, para o job não ficar instável. Registre a medição e a folga escolhida em docs/ai/decisoes.md.
+Depois disso, siga para o /speckit-plan.
+</pasted_content id="21fb">
+
+```
+
+## 2026-11-25 14:02:35 -03:00
+
+- Sessao: `7e42c09a-3302-4816-a904-f00f64eff940`
+
+```text
+/speckit-tasks Aceito as decisões do plano: o SLO de latência usa o limite que já existe no histograma (cerca de 112 ms), e a folga do pipeline é de 2× sobre a maior medição. As 5 execuções de medição do job de carga são feitas com Re-run jobs no mesmo commit, sem commits vazios. Divida em etapas, cada uma terminando com o ./mvnw verify verde e um commit.
+```
+
+## 2026-11-25 14:08:57 -03:00
+
+- Sessao: `7e42c09a-3302-4816-a904-f00f64eff940`
+
+```text
+/speckit-analyze
+```
+
+## 2026-11-25 14:12:04 -03:00
+
+- Sessao: `7e42c09a-3302-4816-a904-f00f64eff940`
+
+```text
+Aplique o H1 como recomendado: o job devcontainer sobe o compose com docker compose up -d --build --wait e confere o resultado de referência; as portas encaminhadas ficam como item de revisão no checklist. Aplique também os seis MEDIUM e os três LOW como recomendados. Se algum deles mudar o que a spec promete, em vez de só como comprovar, me mostre antes de aplicar. Depois rode o /speckit-analyze de novo e me mostre o resultado. Não faça commit.
+```
+
+## 2026-11-25 14:23:30 -03:00
+
+- Sessao: `7e42c09a-3302-4816-a904-f00f64eff940`
+
+```text
+Sim, aplique o L4 e o L5 agora no tasks.md. Não faça commit.
+```
+
+## 2026-11-25 14:25:13 -03:00
+
+- Sessao: `7e42c09a-3302-4816-a904-f00f64eff940`
+
+```text
+export docs/ai/sessoes/12-marco-4.md
+```
+
+## 2026-11-25 14:27:41 -03:00
+
+- Sessao: `7e42c09a-3302-4816-a904-f00f64eff940`
+
+```text
+export docs/ai/sessoes/12-marco-4-planejamento.md
+```
+
+## 2026-11-25 14:42:06 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+/speckit-implement Execute o bolt único do marco 4, etapa por etapa, fazendo um commit ao fim de cada etapa. Não faça push. Pare quando chegar a uma tarefa que depende de mim. Na etapa 1, registre em docs/ai/decisoes.md a proteção da main já configurada: ruleset ativo na branch padrão, sem bypass, PR obrigatório com 0 aprovações, resolução das conversas obrigatória, os 8 checks do Marco 3 obrigatórios, sem exigir branch atualizado, sem force push e sem exclusão.
+```
+
+## 2026-11-25 15:24:08 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+liberei espaço, pode tocar ficha
+```
+
+## 2026-11-25 15:24:55 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bnmuuayru</task-id>
+<tool-use-id>toolu_01DrBN3s2YnTCLuCJUqXfG9i</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bnmuuayru.output</output-file>
+<status>completed</status>
+<summary>Background command "Run baseline Maven verify and time it" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 15:29:29 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bj9sfhzv8</task-id>
+<tool-use-id>toolu_01EXbyEeDwzGJ7PnQHVaNHu8</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bj9sfhzv8.output</output-file>
+<status>completed</status>
+<summary>Background command "Run baseline Maven verify and time it" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 15:37:59 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+ok, aguardo o commit da etapa 1
+```
+
+## 2026-11-25 15:38:24 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b9ord70zq</task-id>
+<tool-use-id>toolu_01GpAWgjVjpBh7NEs4WtQKTW</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\b9ord70zq.output</output-file>
+<status>completed</status>
+<summary>Background command "Run Maven verify for etapa 1" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 15:38:29 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bfuk7hcjp</task-id>
+<tool-use-id>toolu_0111K2KYfGcWKuwCroyd8YLT</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bfuk7hcjp.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim do ./mvnw verify da etapa 1" stream ended</summary>
+<event>rc=0 elapsed=233s
+[INFO] Tests run: 261, Failures: 0, Errors: 0, Skipped: 5
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] Total time:  03:48 min
+[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-25 15:39:58 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+
+
+<pasted_content id="7c07">
+Você é um testador adversário. Seu objetivo é encontrar eventos Kafka que façam a aplicação se comportar de forma diferente do que a especificação promete. Você não tem acesso ao código, só a estes documentos: spec-003.md (modo Docker e ingestão por Kafka), kafka-events.md (contrato dos eventos), spec-001.md e data-model-001.md (regras de validação dos filmes), openapi.yaml e enunciado.md.
+
+Para cada ataque, crie em casos/ um arquivo NN-nome-curto.md com:
+- a sequência exata de eventos publicados (chave e valor, byte a byte quando importar), incluindo o marcador de carga concluída quando fizer parte do ataque;
+- o resultado esperado segundo a spec, citando o requisito (FR ou SC): o que vai para o banco, o que vai para o tópico de erros e com qual motivo, a resposta do GET de intervalos e o estado da readiness;
+- por que você acha que a implementação pode errar.
+
+Explore principalmente: JSON malformado ou com tipos errados, campos ausentes, extras ou duplicados, unicode (BOM, NUL, emojis, normalização, espaços invisíveis), limites de tamanho, ano nos limites, winner em formatos ambíguos, separadores de produtores ("and", vírgulas, espaços), duplicatas e reenvio do mesmo evento (idempotência), atualização de um filme já carregado, ordem dos eventos, eventos depois do marcador, marcador duplicado ou ausente, e empates no cálculo dos intervalos.
+
+No fim, crie casos/README.md com uma tabela: caso, requisito atacado e por que é arriscado. Não invente comportamento: se a spec for ambígua num ponto, registre isso como achado, em vez de escolher uma resposta.
+</pasted_content id="7c07">
+
+```
+
+## 2026-11-25 15:49:08 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+O testador adversário gerou os casos em D:\Repo\PESSOAIS\outsera-test\adversario-kafka\casos. Siga o T005: para cada caso, escreva o IT em src/test/java/com/outsera/awards/kafka/adversario/, confirme se falha, e corrija só os que falharem (spec antes do código, quando mudar comportamento). Casos que apontam ambiguidade na spec: me mostre antes de decidir. Registre tudo em docs/ai/decisoes.md, inclusive os ataques que passaram. Commit ao fim, sem push.
+```
+
+## 2026-11-25 15:56:25 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+Opção 2. E documente no kafka-events.md que o marcador antecipado (caso 25) só acontece com escrita indevida no tópico, que a readiness é um sinal operacional e não uma barreira de segurança, e que a proteção do tópico é responsabilidade do broker (ACLs), fora do escopo.
+```
+
+## 2026-11-25 16:08:48 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bzts0m3x8</task-id>
+<tool-use-id>toolu_015eUYb9KEUHjGHFGMf276oA</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bzts0m3x8.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the new adversarial Kafka ITs before fixes" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 16:21:30 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+rodou já o verify?
+```
+
+## 2026-11-25 16:23:41 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+Antes do commit do T005, consolide os ITs adversários como fizemos no Marco 3 com os 16 eventos inválidos: agrupe os casos que não mudam a readiness nem dependem de estado próprio numa única aplicação e num único broker, com chaves e títulos distintos por caso e uma asserção com mensagem própria para cada um (assertAll ou SoftAssertions). Mantenha contexto próprio só para os casos que mexem com o marcador, a readiness ou a subida. Nenhum caso pode ser cortado. Meça o verify antes e depois e confirme que fica dentro do limite de 2× da R15. Registre a medição no decisoes.md.
+```
+
+## 2026-11-25 16:27:45 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bwu1mf3hr</task-id>
+<tool-use-id>toolu_016DFgvaAGyUGq3eK3Bo3smc</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bwu1mf3hr.output</output-file>
+<status>completed</status>
+<summary>Background command "Run full Maven verify after fixes" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 16:27:45 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>btdsf3mxf</task-id>
+<tool-use-id>toolu_01LuyNMmGy999bgVeZbC2Dyh</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\btdsf3mxf.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim do ./mvnw verify completo depois das correções" stream ended</summary>
+<event>rc=0 elapsed=563s
+[INFO] Tests run: 292, Failures: 0, Errors: 0, Skipped: 5
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] Total time:  09:16 min
+[INFO] All coverage checks have been met.
+[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-25 16:34:32 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+Não meça a v0.2.0 localmente. A referência do tempo é o job de build no pipeline. Assim que o verify "depois" e o caso 29 no postgres-it terminarem verdes, registre as medições locais no decisoes.md, faça o commit do T005 e siga direto para a etapa 2, sem me esperar. Só pare em tarefas que dependem de mim (T012, T025, T063 e T064) ou se algo falhar.
+```
+
+## 2026-11-25 16:35:45 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b37mcomwt</task-id>
+<tool-use-id>toolu_01G2s8MZZLU1NtLZAWyntfMZ</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\b37mcomwt.output</output-file>
+<status>completed</status>
+<summary>Background command "Measure full verify after consolidation" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 16:35:46 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bw2ffpdao</task-id>
+<tool-use-id>toolu_0173nEhw7t2jzEXk4v3qBk3b</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bw2ffpdao.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim do verify depois da consolidação" stream ended</summary>
+<event>rc=0 elapsed=260s
+[INFO] Tests run: 269, Failures: 0, Errors: 0, Skipped: 5
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] Total time:  04:16 min
+[INFO] All coverage checks have been met.
+39.12 s KafkaAdversarialEventsIT
+6.449 s KafkaCase22MarkerWithheldIT
+3.896 s KafkaCase23OldAndDuplicateMarkerIT
+4.042 s KafkaCase24MarkerWithoutRunIdIT
+3.436 s KafkaCase25EarlyMarkerIT
+3.711 s KafkaCase26aMarkerCountInconsistentIT
+4.070 s KafkaCase26bMarkerCountMissingIT
+4.095 s KafkaCase26cMarkerCountTextIT
+[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-25 16:40:53 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+redefini meu limite, pode continuar
+```
+
+## 2026-11-25 17:04:01 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bwp91awy2</task-id>
+<tool-use-id>toolu_01AbTNeo9rKwpd1AX2w5Nuss</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bwp91awy2.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim da carga direta de 100 mil filmes" stream ended</summary>
+<event>LIMITE de 20 min atingido sem fim da carga</event>
+</task-notification>
+```
+
+## 2026-11-25 20:30:14 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+fiz alguns ajustes a nivel de código, o problema maior era o flush. verique agora
+```
+
+## 2026-11-25 20:43:45 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b9bs6wkbq</task-id>
+<tool-use-id>toolu_011qawPed6B1VkdqL1LNgER9</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\b9bs6wkbq.output</output-file>
+<status>completed</status>
+<summary>Background command "Bring up compose with generated CSV and measure Kafka load" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 20:43:56 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b4lk03rvo</task-id>
+<tool-use-id>toolu_01UweUxCzNui7wYSpFWQdpF7</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\b4lk03rvo.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim da carga por Kafka de 100 mil filmes no compose" stream ended</summary>
+<event>[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-25 21:01:25 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+
+
+<pasted_content id="7c07">
+A correção do FlushModeType.COMMIT na carga direta é minha. Antes do commit:
+1. Confirme que a detecção de duplicatas não depende de consulta ao banco dentro da transação. Com COMMIT, uma consulta não enxerga os filmes ainda não gravados. Rode os ITs de duplicata do CSV e do Kafka e o perfil postgres-it.
+2. Registre no decisoes.md a causa (flush automático a cada consulta, custo quadrático), a tabela antes/depois e o motivo de mexer em src/main no Marco 4: é uma falha de desempenho que o T016 encontrou.
+3. Publicador Kafka: troque o send().get() por evento por envio assíncrono, com o produtor idempotente (enable.idempotence=true, acks=all), para manter a ordem. Junte os futures, espere todos e só então publique o marcador, que continua sendo enviado por último e de forma síncrona. Se algum envio falhar, o publicador falha e não publica o marcador. Ajuste linger.ms e batch.size só no publicador.
+Meça a carga por Kafka dos 100 mil no compose antes e depois e me mostre o resultado. Commits separados para a carga direta e para o publicador. Não faça push.
+</pasted_content id="7c07">
+
+```
+
+## 2026-11-25 21:10:18 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bpeheh05c</task-id>
+<tool-use-id>toolu_01HDWygttJCETAmrEJxTWNQF</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bpeheh05c.output</output-file>
+<status>completed</status>
+<summary>Background command "Full verify with direct-load flush fix" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 21:10:22 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>budvrhesr</task-id>
+<tool-use-id>toolu_01EYQMauSQXyihdv1oKWm37A</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\budvrhesr.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim do verify com a correção da carga direta" stream ended</summary>
+<event>rc=0 elapsed=266s
+[INFO] Tests run: 269, Failures: 0, Errors: 0, Skipped: 5
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-25 21:12:12 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<pasted_content id="7c07">
+A primeira execução do Failsafe terminou verde (269 testes, 0 falhas). Quando a segunda terminar:
+1. Rode o perfil postgres-it completo, com o PostgreSQL descartável na porta 55432. O último relatório do KafkaCase29RestartReappliesCsvPostgresIT é das 19:08 e tem erro na criação do schema, de uma execução em que o banco não estava de pé. Ele precisa passar agora.
+2. Com o verify e o postgres-it verdes, faça o commit da carga direta (MovieImportService e o registro no decisoes.md).
+3. Siga para a correção do publicador Kafka, como combinado: envio assíncrono com produtor idempotente, o marcador por último e síncrono, a medição dos 100 mil no compose antes e depois, e um commit separado.
+4. Depois, continue a etapa 2 até o T025 e pare para eu fazer o push.
+Não me espere entre esses passos, a não ser que algo falhe.
+</pasted_content id="7c07">
+```
+
+## 2026-11-25 21:26:54 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+Depois do commit do publicador, antes de voltar ao T021: o ./mvnw verify padrão leva ~8 min e é o que o avaliador roda para o core. Proponha e aplique uma emenda MINOR do Princípio VI: o ./mvnw verify padrão roda só os ITs do enunciado (Marco 1), numa única execução do Failsafe; os ITs dos extras e a execução com log em JSON vão para um perfil Maven extras, que o job build roda obrigatoriamente no pipeline. A cobertura mínima de 90% é verificada no pipeline sobre a soma das duas execuções. Atualize o AGENTS.md, a spec 004 e o README (seção "Avalie em 2 minutos", com o tempo medido e o comando dos extras). O check-unchanged-tests.sh continua valendo, porque nenhum IT muda, só o perfil em que roda. Meça o ./mvnw verify padrão num clone limpo e me mostre. Um commit, sem push.
+```
+
+## 2026-11-25 21:32:26 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bxca3uzt8</task-id>
+<tool-use-id>toolu_01P8CcjpNZVCeGJn2VvZugTp</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bxca3uzt8.output</output-file>
+<status>completed</status>
+<summary>Background command "Full verify with async publisher" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 21:32:27 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bwglohqdu</task-id>
+<tool-use-id>toolu_011t6NUSQ9JZjjb5r4B17xEg</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bwglohqdu.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim do verify com o publicador assíncrono" stream ended</summary>
+<event>rc=0 elapsed=540s
+[INFO] Tests run: 269, Failures: 0, Errors: 0, Skipped: 5
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-25 21:39:03 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bupjl0fn6</task-id>
+<tool-use-id>toolu_0188nkqPgLtkWqB319ysHUEo</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bupjl0fn6.output</output-file>
+<status>completed</status>
+<summary>Background command "Run verify with extras profile and coverage" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 21:39:08 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bi6yuxvau</task-id>
+<tool-use-id>toolu_01AzLC8N9kARsCSvMHXnnfAG</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bi6yuxvau.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim do ./mvnw -Pextras verify" stream ended</summary>
+<event>rc=0 elapsed=236s
+[INFO] Tests run: 142, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 127, Failures: 0, Errors: 0, Skipped: 5
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+[INFO] Total time:  03:53 min
+cobertura de linhas: 95.36%
+[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-25 21:53:14 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+Ajuste o critério do recorte: o perfil padrão roda os ITs de todo comportamento do modo padrão (H2, carga do CSV, endpoints, Swagger), inclusive as regras do CSV acrescentadas pela spec 003 (FIELD_TOO_LONG, NUL e os demais que testam o modo padrão). O perfil extras fica com o que vem desligado por padrão: Kafka, autenticação, PostgreSQL, log em JSON e observabilidade que dependa de configuração. Atualize a constituição (o texto da 2.0.0), o README e a spec 004 com esse critério, meça o ./mvnw verify padrão de novo num clone limpo e faça o amend do commit da emenda. Depois siga para o T021 e pare no T025.
+```
+
+## 2026-11-25 22:01:03 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bmd6r8vg0</task-id>
+<tool-use-id>toolu_01HxRf6uJ678xRNMHjpLd3NG</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bmd6r8vg0.output</output-file>
+<status>completed</status>
+<summary>Background command "Run extras profile with new criterion" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 22:01:15 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bar6uukaw</task-id>
+<tool-use-id>toolu_01B8hGCE4dpsvqiTHPAKwCSX</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bar6uukaw.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim do -Pextras com o critério novo" stream ended</summary>
+<event>rc=0 elapsed=247s
+[INFO] Tests run: 209, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 60, Failures: 0, Errors: 0, Skipped: 5
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+[INFO] Total time:  04:03 min
+cobertura de linhas: 95.36%
+[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-25 22:17:06 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b3c2kymfl</task-id>
+<summary>Monitor event: "resultados da carga direta com 500 mil, 1 milhão e 2 milhões"</summary>
+<event>memória da VM do Docker: 15.5 GiB
+500000 filmes: pronta em 42 s; 500000 linhas lidas, 500000 aceitas, 0 rejeitadas; 4.338GiB / 15.55GiB</event>
+</task-notification>
+```
+
+## 2026-11-25 22:18:36 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b3c2kymfl</task-id>
+<summary>Monitor event: "resultados da carga direta com 500 mil, 1 milhão e 2 milhões"</summary>
+<event>1000000 filmes: pronta em 89 s; 1000000 linhas lidas, 1000000 aceitas, 0 rejeitadas; 6.457GiB / 15.55GiB</event>
+</task-notification>
+```
+
+## 2026-11-25 22:22:18 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b3c2kymfl</task-id>
+<tool-use-id>toolu_013hafPeGJ8YH8QEv9j7BhTm</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\b3c2kymfl.output</output-file>
+<status>completed</status>
+<summary>Monitor "resultados da carga direta com 500 mil, 1 milhão e 2 milhões" stream ended</summary>
+<event>2000000 filmes: pronta em 222 s; 2000000 linhas lidas, 2000000 aceitas, 0 rejeitadas; 11.77GiB / 15.55GiB</event>
+</task-notification>
+```
+
+## 2026-11-25 22:22:31 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bfgn7prz5</task-id>
+<tool-use-id>toolu_01NuAbs8hoZxrFtMx52FtN53</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bfgn7prz5.output</output-file>
+<status>completed</status>
+<summary>Background command "Measure direct load memory limits with large files" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 22:27:28 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b4pwy3iqd</task-id>
+<tool-use-id>toolu_018EQv1or7cmRkoc8BWYEn6v</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\b4pwy3iqd.output</output-file>
+<status>completed</status>
+<summary>Background command "Run default and extras verify for etapa 2" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 22:27:33 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b9x1bonda</task-id>
+<tool-use-id>toolu_01WjYwPDNhdVs3N2gfsWQ7ht</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\b9x1bonda.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim do verify e do -Pextras da etapa 2" stream ended</summary>
+<event>verify: rc=0 71s
+[INFO] Tests run: 209, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+extras: rc=0 225s
+[INFO] Tests run: 209, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 60, Failures: 0, Errors: 0, Skipped: 5
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-25 23:07:22 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+
+
+<pasted_content id="7c07">
+Não aceite nenhuma das três opções do SLO. Corrija o endpoint: o resultado dos intervalos só muda quando os dados mudam. Guarde o resultado calculado e invalide a cada gravação (carga do CSV, evento do Kafka gravado ou atualizado), por exemplo com um contador de versão incrementado na mesma transação da gravação. A consistência precisa ser imediata: depois de uma gravação confirmada, a próxima leitura já vê o resultado novo. O ETag continua funcionando. Comprove com os ITs que já atualizam dados (KafkaUpdateIT, KafkaNewWinnerIT) e acrescente um IT que lê, grava e lê de novo, conferindo que o resultado mudou. Registre a decisão no decisoes.md (causa, medição antes e depois). Meça de novo o p95 e o p99 com os 100 mil filmes. Rode o ./mvnw verify e o -Pextras. Um commit, sem push. Depois pare no T025.
+</pasted_content id="7c07">
+
+```
+
+## 2026-11-26 07:36:52 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<pasted_content id="7c07">
+Não aceite nenhuma das três opções do SLO. Corrija o endpoint: o resultado dos intervalos só muda quando os dados mudam. Guarde o resultado calculado e invalide a cada gravação (carga do CSV, evento do Kafka gravado ou atualizado), por exemplo com um contador de versão incrementado na mesma transação da gravação. A consistência precisa ser imediata: depois de uma gravação confirmada, a próxima leitura já vê o resultado novo. O ETag continua funcionando. Comprove com os ITs que já atualizam dados (KafkaUpdateIT, KafkaNewWinnerIT) e acrescente um IT que lê, grava e lê de novo, conferindo que o resultado mudou. Registre a decisão no decisoes.md (causa, medição antes e depois). Meça de novo o p95 e o p99 com os 100 mil filmes. Rode o ./mvnw verify e o -Pextras. Um commit, sem push. Depois pare no T025.
+</pasted_content id="7c07">
+```
+
+## 2026-11-26 08:00:10 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bdvpooeex</task-id>
+<tool-use-id>toolu_01SFbfzhP5z26WN57rodGH92</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bdvpooeex.output</output-file>
+<status>completed</status>
+<summary>Background command "Run default and extras verify with cache" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-26 08:00:15 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bn5d4018v</task-id>
+<tool-use-id>toolu_01GZrA7Ka81rr9mpxK5BDTJD</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bn5d4018v.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim do verify e do -Pextras com o cache" stream ended</summary>
+<event>verify: rc=0 87s
+[INFO] Tests run: 209, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+extras: rc=1 268s
+[INFO] Tests run: 209, Failures: 0, Errors: 0, Skipped: 0
+[ERROR] Tests run: 61, Failures: 7, Errors: 0, Skipped: 5
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD FAILURE
+C:/Users/ander/AppData/Local/Temp/claude/cd9697c376913fb9/1b0838f5-80da-4eae-ad98-f5e4b9887483/scratchpad/cache-b.log:[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 50.53 s &lt;&lt;&lt; FAILURE! -- in com.outsera.awards.kafka.adversario.KafkaAdversarialEventsIT
+C:/Users/ander/AppData/Local/Temp/claude/cd9697c376913fb9/1b0838f5-80da-4eae-ad98-f5e4b9887483/scratchpad/cache-b.log:[ERROR] com.outsera.awards.kafka.adversario.KafkaAdversarialEventsIT.adversarialEventCases(CapturedOutput) -- Time elapsed: 34.07 s &lt;&lt;&lt; FAILURE!
+C:/Users/ander/AppData/Local/Temp/claude/cd9697c376913fb9/1b0838f5-80da-4eae-ad98-f5e4b9887483/scratchpad/cache-b.log:[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 3.465 s &lt;&lt;&lt; FAILURE! -- in com.outsera.awards.kafka.adversario.KafkaCase23OldAndDuplicateMarkerIT
+C:/Users/ander/AppData/Local/Temp/claude/cd9697c376913fb9/1b0838f5-80da-4eae-ad98-f5e4b9887483/scratchpad/cache-b.log:[ERROR] com.outsera.awards.kafka.adversario.KafkaCase23OldAndDuplicateMarkerIT.oldMarkerIsIgnoredAndCurrentReplayIsHarmless(CapturedOutput) -- Time elapsed: 1.864 s &lt;&lt;&lt; FAILURE!
+C:/Users/ander/AppData/Local/Temp/claude/cd9697c376913fb9/1b0838f5-80da-4eae-ad98-f5e4b9887483/scratchpad/cache-b.log:[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 4.001 s &lt;&lt;&lt; FAILURE! -- in com.outsera.awards.kafka.adversario.KafkaCase24MarkerWithoutRunIdIT
+[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-26 08:17:27 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bw5nz6upx</task-id>
+<tool-use-id>toolu_01CbzLx7A3KNvKFonHXTGcE3</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bw5nz6upx.output</output-file>
+<status>killed</status>
+<summary>Background command "Clean verify and extras verify with cache" was stopped because the system is running low on memory</summary>
+<note>This is not a failure of the command. Claude Code stopped it because the system was critically low on memory while the session was idle, which says nothing about the command or its own memory use, so there is nothing in it to debug. Do not start it again on your own, even if the work seems to need it: memory may still be short. Report what was stopped and why, and start it again only when asked. The user can turn this behavior off by starting Claude Code with CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP=1 in its environment; setting it from a shell command has no effect.</note>
+</task-notification>
+```
+
+## 2026-11-26 08:29:34 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+Autorizado. Já fechei o Docker Desktop. Rode o ./mvnw clean verify e o ./mvnw -Pextras verify, um de cada vez. Com os dois verdes, faça os dois commits separados: o do cache e o do load-test.sh. No registro do cache, deixe explícito no ADR que ele vale para uma única instância e que, com várias instâncias (Marco 5, Cloud Run), a invalidação precisa passar a um contador no banco ou a um evento compartilhado. Depois pare no T025.
+```
+
+## 2026-11-26 08:50:59 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+Crie agora o branch verificacao/trivy-transitivas a partir do marco/4-acabamento, conforme o T012, com um único commit que muda o lz4-java para 1.11.2. Volte para o marco/4-acabamento ao terminar. O push eu faço.
+```
+
+## 2026-11-26 09:35:50 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+
+
+<pasted_content id="7c07">
+O job load falhou nos dois pipelines do commit 127584c (runs 45813784469 e 45814146445), depois de ~23 min, no passo "Gerador, carga direta, carga por Kafka e k6". O job compose falhou só no run 45814146445, em 29 s, no passo 3. Leia os logs com gh run view <run> --log-failed e diagnostique antes de corrigir:
+1. Em que parte do passo o load falhou e quanto tempo cada etapa levou no runner (geração, carga direta, carga por Kafka, k6).
+2. Se a carga por Kafka dos 100 mil não cabe no runner, me mostre os tempos e as opções antes de mudar o tamanho. Não reduza o arquivo para fazer o teste passar sem me consultar.
+3. A causa da falha do compose, e se é passageira ou real.
+Não faça push.
+</pasted_content id="7c07">
+
+```
+
+## 2026-11-26 09:52:39 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+
+
+<pasted_content id="7c07">
+ Image awards:local Skipped Image can be built
+== 0. Imagens (fora da medição do SC-008)
+ Image postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71 Pulling 
+ Image prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06 Pulling 
+ Image apache/kafka-native:4.4.0@sha256:11fde816adf384402de9f3e57aeaf2c3722ba0671610247817688d07441714b4 Pulling 
+ Image grafana/grafana:13.3.2@sha256:81556409ba48b2b922e0adb69a2511337d8ba7578f11962eefa6149a2d815101 Pulling 
+ Image apache/kafka-native:4.4.0@sha256:11fde816adf384402de9f3e57aeaf2c3722ba0671610247817688d07441714b4 Pulled 
+ Image prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06 Pulled 
+ Image postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71 Pulled 
+ Image grafana/grafana:13.3.2@sha256:81556409ba48b2b922e0adb69a2511337d8ba7578f11962eefa6149a2d815101 Pulled 
+ Image apache/kafka:4.4.0@sha256:833b867a9585a141da455dc2b57431c65cbccb27f11c91f694444cca9f777e0f Pulling 
+ Image apache/kafka:4.4.0@sha256:833b867a9585a141da455dc2b57431c65cbccb27f11c91f694444cca9f777e0f Pulled 
+ Image awards:local Building 
+Dockerfile:12
+
+--------------------
+
+  10 |     COPY mvnw pom.xml ./
+
+  11 |     COPY .mvn .mvn
+
+  12 | >>> RUN --mount=type=cache,target=/root/.m2 sh ./mvnw -B -q dependency:go-offline
+
+  13 |     
+
+  14 |     COPY src/main src/main
+
+--------------------
+
+failed to solve: process "/bin/sh -c sh ./mvnw -B -q dependency:go-offline" did not complete successfully: exit code: 1
+
+Error: Process completed with exit code 1.
+</pasted_content id="7c07">
+
+
+
+<pasted_content id="7c07">
+1s
+0s
+10s
+1m 15s
+21m 40s
+Run .github/scripts/load-test.sh awards:ci
+--- passo 1: geração do CSV duas vezes, com os mesmos parâmetros
+/home/runner/work/outsera/outsera/target/generated-data/a.csv: 100000 filmes, SHA-256 c4b741e30f85898ce6a2649554ca2c5b65836a4217a03dae33be243d7880f4a6
+/home/runner/work/outsera/outsera/target/generated-data/movies.csv: 100000 filmes, SHA-256 c4b741e30f85898ce6a2649554ca2c5b65836a4217a03dae33be243d7880f4a6
+    SHA-256: c4b741e30f85898ce6a2649554ca2c5b65836a4217a03dae33be243d7880f4a6 e c4b741e30f85898ce6a2649554ca2c5b65836a4217a03dae33be243d7880f4a6 (100000 filmes)
+==> passo 1: OK - duas gerações com o mesmo SHA-256
+==> passo 1b: OK - SHA-256 igual ao registrado no Windows
+--- passo 2: carga direta do CSV gerado
+    sem readiness 200 em 600 s
+==> passo 2: FALHA - carga direta sem linha rejeitada
+--- passo 3: carga por Kafka no compose
+ Image grafana/grafana:13.3.2@sha256:81556409ba48b2b922e0adb69a2511337d8ba7578f11962eefa6149a2d815101 Pulling 
+ Image postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71 Pulling 
+ Image apache/kafka-native:4.4.0@sha256:11fde816adf384402de9f3e57aeaf2c3722ba0671610247817688d07441714b4 Pulling 
+ Image prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06 Pulling 
+ f6bf6bb569c5 Pulling fs layer 0B
+ 7a8519c01f22 Pulling fs layer 0B
+ d53a350ae5bb Pulling fs layer 0B
+ cfe87db7b7e0 Pulling fs layer 0B
+ 72dcf69f72aa Pulling fs layer 0B
+ 456bdf926fcd Pulling fs layer 0B
+ f4d3d6669d6d Pulling fs layer 0B
+ 492c0d6bf242 Pulling fs layer 0B
+ add0f1445f2b Pulling fs layer 0B
+ 18e62f3eca8a Pulling fs layer 0B
+ c8e24e5ae408 Pulling fs layer 0B
+ b7e7a06300b2 Pulling fs layer 0B
+ 1852dbe34288 Pulling fs layer 0B
+ c6b93ad5979a Pulling fs layer 0B
+ 7eed13b0ab7b Pulling fs layer 0B
+ 68bc385fe873 Pulling fs layer 0B
+ 823ccdff3565 Pulling fs layer 0B
+ 4f4fb700ef54 Pulling fs layer 0B
+ 76b7d90609bc Pulling fs layer 0B
+ 69a08516771f Pulling fs layer 0B
+ 20e2ea9ba9ef Pulling fs layer 0B
+ 3b9ae6ca12fb Pulling fs layer 0B
+ e18067f65fa3 Pulling fs layer 0B
+ cb39808c0ffb Pulling fs layer 0B
+ f5f62becff0c Pulling fs layer 0B
+ 1ec43e655c6c Pulling fs layer 0B
+ 4f4fb700ef54 Already exists 0B
+ 3f4dea45886b Pulling fs layer 0B
+ f2d7cafd5afd Pulling fs layer 0B
+ e69a9c2fdea7 Pulling fs layer 0B
+ bbd27b019c4a Pulling fs layer 0B
+ 1645cfdb7f22 Pulling fs layer 0B
+ 4721f81aac5e Pulling fs layer 0B
+ 45e02dc2fee3 Pulling fs layer 0B
+ d53a350ae5bb Download complete 0B
+ 3b9ae6ca12fb Download complete 0B
+ c8e24e5ae408 Download complete 0B
+ f6bf6bb569c5 Download complete 0B
+ 7a8519c01f22 Downloading 5.243MB
+ 1852dbe34288 Download complete 0B
+ 3f4dea45886b Download complete 0B
+ 1645cfdb7f22 Downloading 1.049MB
+ e18067f65fa3 Download complete 0B
+ 18e62f3eca8a Download complete 0B
+ cb39808c0ffb Download complete 0B
+ f5f62becff0c Downloading 6.291MB
+ 1ec43e655c6c Downloading 2.999kB
+ 69a08516771f Downloading 1.426kB
+ 72dcf69f72aa Download complete 0B
+ 76b7d90609bc Download complete 0B
+ c6b93ad5979a Downloading 139B
+ b7e7a06300b2 Downloading 8.735MB
+ 456bdf926fcd Download complete 0B
+ 492c0d6bf242 Downloading 3.146MB
+ add0f1445f2b Download complete 0B
+ 823ccdff3565 Download complete 0B
+ cfe87db7b7e0 Download complete 0B
+ f4d3d6669d6d Download complete 0B
+ 72dcf69f72aa Extracting 1B
+ 1645cfdb7f22 Downloading 6.291MB
+ 7a8519c01f22 Downloading 11.53MB
+ 492c0d6bf242 Downloading 9.437MB
+ f2d7cafd5afd Download complete 0B
+ e69a9c2fdea7 Download complete 0B
+ 44136fa355b3 Already exists 0B
+ 20e2ea9ba9ef Downloading 6.291MB
+ c6b93ad5979a Download complete 0B
+ 68bc385fe873 Downloading 5.243MB
+ bbd27b019c4a Download complete 0B
+ f5f62becff0c Download complete 0B
+ 4721f81aac5e Download complete 0B
+ b7e7a06300b2 Download complete 0B
+ 7eed13b0ab7b Downloading 5.243MB
+ 1ec43e655c6c Download complete 0B
+ 45e02dc2fee3 Download complete 0B
+ 69a08516771f Download complete 0B
+ 72dcf69f72aa Extracting 1B
+ c8e24e5ae408 Extracting 1B
+ e69a9c2fdea7 Extracting 1B
+ f5f62becff0c Extracting 1B
+ c6b93ad5979a Pull complete 0B
+ 1645cfdb7f22 Downloading 10.49MB
+ 68bc385fe873 Downloading 9.437MB
+ 7eed13b0ab7b Downloading 9.437MB
+ 492c0d6bf242 Downloading 13.63MB
+ 94ec85689262 Download complete 0B
+ 7a8519c01f22 Downloading 16.78MB
+ c8e24e5ae408 Extracting 1B
+ e69a9c2fdea7 Pull complete 0B
+ b6e258833b3c Download complete 0B
+ 20e2ea9ba9ef Downloading 10.49MB
+ 72dcf69f72aa Extracting 1B
+ 4721f81aac5e Extracting 1B
+ f5f62becff0c Extracting 1B
+ 20e2ea9ba9ef Downloading 14.68MB
+ 492c0d6bf242 Downloading 16.78MB
+ 7a8519c01f22 Downloading 20.97MB
+ 68bc385fe873 Downloading 13.63MB
+ 7eed13b0ab7b Downloading 13.63MB
+ 59826502041d Download complete 0B
+ 1645cfdb7f22 Downloading 14.68MB
+ c8e24e5ae408 Extracting 1B
+ 3f4dea45886b Extracting 1B
+ 72dcf69f72aa Pull complete 0B
+ f5f62becff0c Extracting 1B
+ 456bdf926fcd Extracting 1B
+ 4721f81aac5e Pull complete 0B
+ 1645cfdb7f22 Downloading 19.92MB
+ a89ecea4e9c1 Download complete 0B
+ 492c0d6bf242 Downloading 20.97MB
+ 7a8519c01f22 Downloading 25.17MB
+ 68bc385fe873 Downloading 17.83MB
+ 7eed13b0ab7b Downloading 17.83MB
+ 20e2ea9ba9ef Downloading 18.87MB
+ c8e24e5ae408 Extracting 1B
+ 3f4dea45886b Pull complete 0B
+ 456bdf926fcd Extracting 1B
+ f5f62becff0c Pull complete 0B
+ 1ec43e655c6c Pull complete 0B
+ 7a8519c01f22 Downloading 32.51MB
+ 1645cfdb7f22 Downloading 27.26MB
+ 492c0d6bf242 Downloading 28.31MB
+ 20e2ea9ba9ef Downloading 26.21MB
+ 7eed13b0ab7b Downloading 26.21MB
+ 68bc385fe873 Downloading 24.12MB
+ 456bdf926fcd Pull complete 0B
+ c8e24e5ae408 Pull complete 0B
+ b7e7a06300b2 Extracting 1B
+ 7a8519c01f22 Downloading 39.85MB
+ 492c0d6bf242 Downloading 35.65MB
+ 1645cfdb7f22 Downloading 34.6MB
+ 20e2ea9ba9ef Downloading 33.55MB
+ 68bc385fe873 Downloading 33.55MB
+ 7eed13b0ab7b Downloading 34.6MB
+ b7e7a06300b2 Extracting 1B
+ 1645cfdb7f22 Downloading 41.94MB
+ 20e2ea9ba9ef Downloading 41.94MB
+ 7a8519c01f22 Downloading 49.28MB
+ 492c0d6bf242 Downloading 42.99MB
+ 68bc385fe873 Downloading 41.94MB
+ 7eed13b0ab7b Downloading 44.04MB
+ b7e7a06300b2 Extracting 1B
+ 1645cfdb7f22 Downloading 50.33MB
+ 7a8519c01f22 Download complete 0B
+ 492c0d6bf242 Downloading 51.38MB
+ 20e2ea9ba9ef Download complete 0B
+ 68bc385fe873 Downloading 50.33MB
+ 7eed13b0ab7b Downloading 52.43MB
+ b7e7a06300b2 Extracting 1B
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Downloading 62.91MB
+ 1645cfdb7f22 Downloading 60.82MB
+ 68bc385fe873 Downloading 59.77MB
+ 7eed13b0ab7b Downloading 62.91MB
+ 18e62f3eca8a Pull complete 0B
+ 20e2ea9ba9ef Extracting 1B
+ b7e7a06300b2 Pull complete 0B
+ 1645cfdb7f22 Downloading 71.3MB
+ 68bc385fe873 Downloading 72.35MB
+ 7eed13b0ab7b Downloading 74.45MB
+ 492c0d6bf242 Download complete 0B
+ 76b7d90609bc Pull complete 0B
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 1645cfdb7f22 Downloading 83.89MB
+ 7eed13b0ab7b Downloading 87.03MB
+ 68bc385fe873 Downloading 83.89MB
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 1645cfdb7f22 Downloading 94.37MB
+ 68bc385fe873 Downloading 95.42MB
+ 7eed13b0ab7b Downloading 98.57MB
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 1645cfdb7f22 Downloading 104.9MB
+ 68bc385fe873 Downloading 109.1MB
+ 7eed13b0ab7b Downloading 110.1MB
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 68bc385fe873 Downloading 122.7MB
+ 7eed13b0ab7b Downloading 125.8MB
+ 1645cfdb7f22 Downloading 115.5MB
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 68bc385fe873 Downloading 138.4MB
+ 7eed13b0ab7b Downloading 139.5MB
+ 1645cfdb7f22 Download complete 0B
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 68bc385fe873 Downloading 153.1MB
+ 7eed13b0ab7b Downloading 155.2MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 68bc385fe873 Downloading 167.8MB
+ 7eed13b0ab7b Downloading 167.8MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 7eed13b0ab7b Downloading 184.5MB
+ 68bc385fe873 Downloading 184.5MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 7eed13b0ab7b Downloading 201.3MB
+ 68bc385fe873 Downloading 193.4MB
+ 1645cfdb7f22 Extracting 1B
+ 7eed13b0ab7b Downloading 205.5MB
+ 68bc385fe873 Downloading 193.4MB
+ 492c0d6bf242 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 492c0d6bf242 Extracting 1B
+ 68bc385fe873 Download complete 0B
+ 7eed13b0ab7b Downloading 221.2MB
+ 1645cfdb7f22 Extracting 1B
+ 492c0d6bf242 Extracting 2B
+ 20e2ea9ba9ef Extracting 2B
+ 7eed13b0ab7b Downloading 241.2MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 261.1MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 281MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 296.3MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Pull complete 0B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 296.3MB
+ 1645cfdb7f22 Extracting 2B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 296.3MB
+ 1645cfdb7f22 Extracting 2B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 296.3MB
+ 1645cfdb7f22 Extracting 2B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 296.3MB
+ cb39808c0ffb Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7a8519c01f22 Extracting 1B
+ 492c0d6bf242 Pull complete 0B
+ 3b9ae6ca12fb Pull complete 0B
+ e18067f65fa3 Pull complete 0B
+ cb39808c0ffb Pull complete 0B
+ 69a08516771f Pull complete 0B
+ Image apache/kafka-native:4.4.0@sha256:11fde816adf384402de9f3e57aeaf2c3722ba0671610247817688d07441714b4 Pulled 
+ 7eed13b0ab7b Download complete 0B
+ 7a8519c01f22 Extracting 1B
+ 7eed13b0ab7b Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7a8519c01f22 Extracting 1B
+ 7eed13b0ab7b Extracting 1B
+ 1645cfdb7f22 Extracting 3B
+ 7a8519c01f22 Extracting 1B
+ 7eed13b0ab7b Extracting 1B
+ 7eed13b0ab7b Extracting 1B
+ 1645cfdb7f22 Extracting 3B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 3B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ d53a350ae5bb Pull complete 0B
+ f6bf6bb569c5 Pull complete 0B
+ add0f1445f2b Pull complete 0B
+ cfe87db7b7e0 Pull complete 0B
+ f4d3d6669d6d Pull complete 0B
+ 7a8519c01f22 Pull complete 0B
+ Image prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06 Pulled 
+ 1645cfdb7f22 Extracting 3B
+ 7eed13b0ab7b Extracting 1B
+ 1645cfdb7f22 Extracting 3B
+ 7eed13b0ab7b Extracting 1B
+ 1645cfdb7f22 Extracting 3B
+ 7eed13b0ab7b Extracting 2B
+ 1645cfdb7f22 Extracting 3B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 1645cfdb7f22 Pull complete 0B
+ f2d7cafd5afd Pull complete 0B
+ bbd27b019c4a Pull complete 0B
+ 45e02dc2fee3 Pull complete 0B
+ Image postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71 Pulled 
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 6B
+ 7eed13b0ab7b Extracting 6B
+ 68bc385fe873 Extracting 1B
+ 7eed13b0ab7b Pull complete 0B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 3B
+ 68bc385fe873 Extracting 3B
+ 68bc385fe873 Extracting 3B
+ 68bc385fe873 Extracting 3B
+ 68bc385fe873 Extracting 3B
+ 68bc385fe873 Extracting 3B
+ 4f4fb700ef54 Pull complete 0B
+ 1852dbe34288 Pull complete 0B
+ 823ccdff3565 Pull complete 0B
+ 68bc385fe873 Pull complete 0B
+ Image grafana/grafana:13.3.2@sha256:81556409ba48b2b922e0adb69a2511337d8ba7578f11962eefa6149a2d815101 Pulled 
+ Network awards_default Creating 
+ Network awards_default Created 
+ Volume awards_pgdata Creating 
+ Volume awards_pgdata Created 
+ Volume awards_kafkadata Creating 
+ Volume awards_kafkadata Created 
+ Container awards-kafka-1 Creating 
+ Container awards-postgres-1 Creating 
+ Container awards-postgres-1 Created 
+ Container awards-kafka-1 Created 
+ Container awards-app-1 Creating 
+ Container awards-app-1 Created 
+ Container awards-prometheus-1 Creating 
+ Container awards-prometheus-1 Created 
+ Container awards-grafana-1 Creating 
+ Container awards-grafana-1 Created 
+ Container awards-kafka-1 Starting 
+ Container awards-postgres-1 Starting 
+ Container awards-postgres-1 Started 
+ Container awards-kafka-1 Started 
+ Container awards-postgres-1 Waiting 
+ Container awards-kafka-1 Waiting 
+ Container awards-kafka-1 Healthy 
+ Container awards-postgres-1 Healthy 
+ Container awards-app-1 Starting 
+ Container awards-app-1 Started 
+ Container awards-prometheus-1 Starting 
+ Container awards-prometheus-1 Started 
+ Container awards-grafana-1 Starting 
+ Container awards-grafana-1 Started 
+    sem readiness 200 em 600 s
+==> passo 3: FALHA - carga por Kafka sem linha rejeitada
+--- passo 4: k6
+ Container awards-kafka-1 Running 
+ Container awards-postgres-1 Running 
+ Container awards-kafka-1 Waiting 
+ Container awards-postgres-1 Waiting 
+ Container awards-postgres-1 Healthy 
+ Container awards-kafka-1 Healthy 
+ Container awards-app-1 Starting 
+ Container awards-app-1 Started 
+ Image grafana/k6:2.4.0@sha256:d41bb79cd8de5a7ad619b53570e3712633e8bff0937010a5c6c57a4747e7a276 Pulling 
+ 4f4fb700ef54 Pulling fs layer 0B
+ b46f6d67c0bc Pulling fs layer 0B
+ 2fdc73d4d0db Pulling fs layer 0B
+ 4f4fb700ef54 Already exists 0B
+ b46f6d67c0bc Download complete 0B
+ 2fdc73d4d0db Downloading 14.68MB
+ b46f6d67c0bc Extracting 1B
+ 2fdc73d4d0db Download complete 0B
+ b46f6d67c0bc Extracting 1B
+ 44136fa355b3 Already exists 0B
+ b46f6d67c0bc Pull complete 0B
+ 2fdc73d4d0db Extracting 1B
+ 598ab8121a35 Download complete 0B
+ 2fdc73d4d0db Extracting 1B
+ 2fdc73d4d0db Extracting 1B
+ 2fdc73d4d0db Extracting 1B
+ 2fdc73d4d0db Extracting 1B
+ 2fdc73d4d0db Extracting 1B
+ 4f4fb700ef54 Pull complete 0B
+ 2fdc73d4d0db Pull complete 0B
+ Image grafana/k6:2.4.0@sha256:d41bb79cd8de5a7ad619b53570e3712633e8bff0937010a5c6c57a4747e7a276 Pulled 
+ Container awards-app-1 Waiting 
+ Container awards-app-1 Error dependency app failed to start
+dependency failed to start: container awards-app-1 exited (1)
+    o k6 saiu com 1 (99 = limite ultrapassado)
+==> passo 4: FALHA - k6 dentro dos limites
+load-test.sh: FALHA em 3 passo(s).
+Error: Process completed with exit code 1.
+</pasted_content id="7c07">
+
+
+
+<pasted_content id="7c07">
+0s
+8s
+1m 24s
+21m 33s
+Run .github/scripts/load-test.sh awards:ci
+--- passo 1: geração do CSV duas vezes, com os mesmos parâmetros
+/home/runner/work/outsera/outsera/target/generated-data/a.csv: 100000 filmes, SHA-256 c4b741e30f85898ce6a2649554ca2c5b65836a4217a03dae33be243d7880f4a6
+/home/runner/work/outsera/outsera/target/generated-data/movies.csv: 100000 filmes, SHA-256 c4b741e30f85898ce6a2649554ca2c5b65836a4217a03dae33be243d7880f4a6
+    SHA-256: c4b741e30f85898ce6a2649554ca2c5b65836a4217a03dae33be243d7880f4a6 e c4b741e30f85898ce6a2649554ca2c5b65836a4217a03dae33be243d7880f4a6 (100000 filmes)
+==> passo 1: OK - duas gerações com o mesmo SHA-256
+==> passo 1b: OK - SHA-256 igual ao registrado no Windows
+--- passo 2: carga direta do CSV gerado
+    sem readiness 200 em 600 s
+==> passo 2: FALHA - carga direta sem linha rejeitada
+--- passo 3: carga por Kafka no compose
+ Image grafana/grafana:13.3.2@sha256:81556409ba48b2b922e0adb69a2511337d8ba7578f11962eefa6149a2d815101 Pulling 
+ Image postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71 Pulling 
+ Image apache/kafka-native:4.4.0@sha256:11fde816adf384402de9f3e57aeaf2c3722ba0671610247817688d07441714b4 Pulling 
+ Image prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06 Pulling 
+ f5f62becff0c Pulling fs layer 0B
+ 69a08516771f Pulling fs layer 0B
+ e18067f65fa3 Pulling fs layer 0B
+ cb39808c0ffb Pulling fs layer 0B
+ 3b9ae6ca12fb Pulling fs layer 0B
+ 20e2ea9ba9ef Pulling fs layer 0B
+ 1ec43e655c6c Pulling fs layer 0B
+ 1852dbe34288 Pulling fs layer 0B
+ 7eed13b0ab7b Pulling fs layer 0B
+ 823ccdff3565 Pulling fs layer 0B
+ 68bc385fe873 Pulling fs layer 0B
+ 76b7d90609bc Pulling fs layer 0B
+ 4f4fb700ef54 Pulling fs layer 0B
+ c6b93ad5979a Pulling fs layer 0B
+ c8e24e5ae408 Pulling fs layer 0B
+ b7e7a06300b2 Pulling fs layer 0B
+ 18e62f3eca8a Pulling fs layer 0B
+ 4f4fb700ef54 Already exists 0B
+ 7a8519c01f22 Pulling fs layer 0B
+ f6bf6bb569c5 Pulling fs layer 0B
+ 72dcf69f72aa Pulling fs layer 0B
+ d53a350ae5bb Pulling fs layer 0B
+ 492c0d6bf242 Pulling fs layer 0B
+ 456bdf926fcd Pulling fs layer 0B
+ cfe87db7b7e0 Pulling fs layer 0B
+ f4d3d6669d6d Pulling fs layer 0B
+ add0f1445f2b Pulling fs layer 0B
+ 45e02dc2fee3 Pulling fs layer 0B
+ 3f4dea45886b Pulling fs layer 0B
+ e69a9c2fdea7 Pulling fs layer 0B
+ 1645cfdb7f22 Pulling fs layer 0B
+ 4721f81aac5e Pulling fs layer 0B
+ bbd27b019c4a Pulling fs layer 0B
+ f2d7cafd5afd Pulling fs layer 0B
+ e69a9c2fdea7 Downloading 993B
+ 1ec43e655c6c Download complete 0B
+ 69a08516771f Download complete 0B
+ 44136fa355b3 Already exists 0B
+ e18067f65fa3 Download complete 0B
+ 7a8519c01f22 Downloading 2.097MB
+ 7eed13b0ab7b Downloading 6.291MB
+ f6bf6bb569c5 Download complete 0B
+ e69a9c2fdea7 Download complete 0B
+ cb39808c0ffb Download complete 0B
+ f5f62becff0c Downloading 4.194MB
+ 76b7d90609bc Download complete 0B
+ add0f1445f2b Download complete 0B
+ 3b9ae6ca12fb Download complete 0B
+ f2d7cafd5afd Download complete 0B
+ 1852dbe34288 Download complete 0B
+ b6e258833b3c Download complete 0B
+ 45e02dc2fee3 Download complete 0B
+ e69a9c2fdea7 Extracting 1B
+ 68bc385fe873 Downloading 3.146MB
+ 3f4dea45886b Download complete 0B
+ 1645cfdb7f22 Downloading 1.049MB
+ f5f62becff0c Download complete 0B
+ 20e2ea9ba9ef Downloading 5.243MB
+ 72dcf69f72aa Download complete 0B
+ 18e62f3eca8a Download complete 0B
+ 4721f81aac5e Download complete 0B
+ 823ccdff3565 Download complete 0B
+ d53a350ae5bb Download complete 0B
+ 7a8519c01f22 Downloading 8.389MB
+ 492c0d6bf242 Downloading 2.097MB
+ 7eed13b0ab7b Downloading 12.58MB
+ bbd27b019c4a Download complete 0B
+ 456bdf926fcd Download complete 0B
+ c6b93ad5979a Download complete 0B
+ b7e7a06300b2 Downloading 1.049MB
+ cfe87db7b7e0 Download complete 0B
+ f4d3d6669d6d Download complete 0B
+ e69a9c2fdea7 Pull complete 0B
+ 94ec85689262 Download complete 0B
+ f5f62becff0c Extracting 1B
+ 4721f81aac5e Pull complete 0B
+ 72dcf69f72aa Extracting 1B
+ c6b93ad5979a Pull complete 0B
+ 20e2ea9ba9ef Downloading 10.49MB
+ 7a8519c01f22 Downloading 12.58MB
+ 492c0d6bf242 Downloading 6.291MB
+ 59826502041d Download complete 0B
+ 1645cfdb7f22 Downloading 6.291MB
+ 68bc385fe873 Downloading 7.34MB
+ 7eed13b0ab7b Downloading 16.78MB
+ c8e24e5ae408 Downloading 4.194MB
+ b7e7a06300b2 Downloading 5.243MB
+ 3f4dea45886b Pull complete 0B
+ 72dcf69f72aa Pull complete 0B
+ 456bdf926fcd Extracting 1B
+ f5f62becff0c Extracting 1B
+ 7a8519c01f22 Downloading 17.83MB
+ 492c0d6bf242 Downloading 10.49MB
+ 20e2ea9ba9ef Downloading 15.73MB
+ 7eed13b0ab7b Downloading 22.02MB
+ a89ecea4e9c1 Download complete 0B
+ 1645cfdb7f22 Downloading 10.49MB
+ c8e24e5ae408 Download complete 0B
+ b7e7a06300b2 Download complete 0B
+ 68bc385fe873 Downloading 12.58MB
+ 456bdf926fcd Pull complete 0B
+ f5f62becff0c Pull complete 0B
+ c8e24e5ae408 Extracting 1B
+ 20e2ea9ba9ef Downloading 22.02MB
+ 1645cfdb7f22 Downloading 16.78MB
+ 7a8519c01f22 Downloading 25.17MB
+ 492c0d6bf242 Downloading 15.73MB
+ 68bc385fe873 Downloading 18.87MB
+ 7eed13b0ab7b Downloading 29.36MB
+ 1ec43e655c6c Pull complete 0B
+ c8e24e5ae408 Extracting 1B
+ 1645cfdb7f22 Downloading 24.12MB
+ 20e2ea9ba9ef Downloading 31.46MB
+ 7a8519c01f22 Downloading 32.51MB
+ 492c0d6bf242 Downloading 22.02MB
+ 68bc385fe873 Downloading 26.21MB
+ 7eed13b0ab7b Downloading 36.7MB
+ c8e24e5ae408 Extracting 1B
+ 1645cfdb7f22 Downloading 31.46MB
+ 7a8519c01f22 Downloading 40.89MB
+ 492c0d6bf242 Downloading 29.36MB
+ 20e2ea9ba9ef Downloading 38.8MB
+ 7eed13b0ab7b Downloading 45.09MB
+ 68bc385fe873 Downloading 34.6MB
+ c8e24e5ae408 Pull complete 0B
+ b7e7a06300b2 Extracting 1B
+ 1645cfdb7f22 Downloading 39.85MB
+ 7a8519c01f22 Downloading 49.28MB
+ 492c0d6bf242 Downloading 36.7MB
+ 68bc385fe873 Downloading 41.94MB
+ 7eed13b0ab7b Downloading 51.38MB
+ 20e2ea9ba9ef Downloading 47.19MB
+ b7e7a06300b2 Extracting 1B
+ 1645cfdb7f22 Downloading 49.28MB
+ 68bc385fe873 Downloading 50.33MB
+ 7eed13b0ab7b Downloading 59.77MB
+ 7a8519c01f22 Download complete 0B
+ 492c0d6bf242 Downloading 44.04MB
+ 20e2ea9ba9ef Download complete 0B
+ 20e2ea9ba9ef Extracting 1B
+ b7e7a06300b2 Extracting 1B
+ 1645cfdb7f22 Downloading 58.72MB
+ 492c0d6bf242 Downloading 54.53MB
+ 7eed13b0ab7b Downloading 70.25MB
+ 68bc385fe873 Downloading 61.87MB
+ b7e7a06300b2 Pull complete 0B
+ 20e2ea9ba9ef Extracting 1B
+ 1645cfdb7f22 Downloading 69.21MB
+ 68bc385fe873 Downloading 73.4MB
+ 492c0d6bf242 Downloading 63.16MB
+ 7eed13b0ab7b Downloading 82.84MB
+ 76b7d90609bc Pull complete 0B
+ 20e2ea9ba9ef Extracting 1B
+ 18e62f3eca8a Pull complete 0B
+ 1645cfdb7f22 Downloading 81.79MB
+ 492c0d6bf242 Download complete 0B
+ 7eed13b0ab7b Downloading 96.47MB
+ 68bc385fe873 Downloading 85.98MB
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 1645cfdb7f22 Downloading 95.42MB
+ 7eed13b0ab7b Downloading 110.1MB
+ 68bc385fe873 Downloading 98.57MB
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 1645cfdb7f22 Downloading 107MB
+ 7eed13b0ab7b Downloading 122.7MB
+ 68bc385fe873 Downloading 111.1MB
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 68bc385fe873 Downloading 125.8MB
+ 7eed13b0ab7b Downloading 137.4MB
+ 1645cfdb7f22 Download complete 0B
+ 20e2ea9ba9ef Extracting 1B
+ 1645cfdb7f22 Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 7eed13b0ab7b Downloading 149.9MB
+ 68bc385fe873 Downloading 139.5MB
+ 20e2ea9ba9ef Extracting 1B
+ 1645cfdb7f22 Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 7eed13b0ab7b Downloading 162.5MB
+ 68bc385fe873 Downloading 153.1MB
+ 20e2ea9ba9ef Extracting 1B
+ 1645cfdb7f22 Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 7eed13b0ab7b Downloading 176.2MB
+ 68bc385fe873 Downloading 166.7MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 68bc385fe873 Downloading 180.4MB
+ 7eed13b0ab7b Downloading 191.9MB
+ 20e2ea9ba9ef Extracting 2B
+ 1645cfdb7f22 Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 68bc385fe873 Downloading 193.4MB
+ 7eed13b0ab7b Downloading 206.6MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 492c0d6bf242 Extracting 1B
+ 7eed13b0ab7b Downloading 226.5MB
+ 68bc385fe873 Downloading 193.4MB
+ 1645cfdb7f22 Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 68bc385fe873 Download complete 0B
+ 7eed13b0ab7b Downloading 244.3MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 492c0d6bf242 Extracting 1B
+ 7eed13b0ab7b Downloading 263.2MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 282.1MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 296.3MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 296.3MB
+ 1645cfdb7f22 Extracting 2B
+ 20e2ea9ba9ef Pull complete 0B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 296.3MB
+ cb39808c0ffb Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 492c0d6bf242 Pull complete 0B
+ 7eed13b0ab7b Downloading 296.3MB
+ cb39808c0ffb Pull complete 0B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Download complete 0B
+ e18067f65fa3 Pull complete 0B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 69a08516771f Pull complete 0B
+ 3b9ae6ca12fb Pull complete 0B
+ Image apache/kafka-native:4.4.0@sha256:11fde816adf384402de9f3e57aeaf2c3722ba0671610247817688d07441714b4 Pulled 
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 3B
+ 7a8519c01f22 Extracting 1B
+ 7eed13b0ab7b Extracting 1B
+ 1645cfdb7f22 Extracting 3B
+ 7a8519c01f22 Pull complete 0B
+ 7eed13b0ab7b Extracting 1B
+ f6bf6bb569c5 Pull complete 0B
+ add0f1445f2b Pull complete 0B
+ d53a350ae5bb Pull complete 0B
+ cfe87db7b7e0 Pull complete 0B
+ f4d3d6669d6d Pull complete 0B
+ Image prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06 Pulled 
+ 1645cfdb7f22 Extracting 3B
+ 7eed13b0ab7b Extracting 1B
+ 1645cfdb7f22 Extracting 3B
+ 7eed13b0ab7b Extracting 1B
+ f2d7cafd5afd Pull complete 0B
+ bbd27b019c4a Pull complete 0B
+ 1645cfdb7f22 Pull complete 0B
+ 7eed13b0ab7b Extracting 2B
+ 45e02dc2fee3 Pull complete 0B
+ Image postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71 Pulled 
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 68bc385fe873 Extracting 1B
+ 7eed13b0ab7b Pull complete 0B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 3B
+ 68bc385fe873 Extracting 3B
+ 68bc385fe873 Extracting 3B
+ 68bc385fe873 Extracting 3B
+ 4f4fb700ef54 Extracting 1B
+ 823ccdff3565 Pull complete 0B
+ 68bc385fe873 Pull complete 0B
+ 4f4fb700ef54 Pull complete 0B
+ 1852dbe34288 Pull complete 0B
+ Image grafana/grafana:13.3.2@sha256:81556409ba48b2b922e0adb69a2511337d8ba7578f11962eefa6149a2d815101 Pulled 
+ Network awards_default Creating 
+ Network awards_default Created 
+ Volume awards_pgdata Creating 
+ Volume awards_pgdata Created 
+ Volume awards_kafkadata Creating 
+ Volume awards_kafkadata Created 
+ Container awards-kafka-1 Creating 
+ Container awards-postgres-1 Creating 
+ Container awards-postgres-1 Created 
+ Container awards-kafka-1 Created 
+ Container awards-app-1 Creating 
+ Container awards-app-1 Created 
+ Container awards-prometheus-1 Creating 
+ Container awards-prometheus-1 Created 
+ Container awards-grafana-1 Creating 
+ Container awards-grafana-1 Created 
+ Container awards-kafka-1 Starting 
+ Container awards-postgres-1 Starting 
+ Container awards-postgres-1 Started 
+ Container awards-kafka-1 Started 
+ Container awards-postgres-1 Waiting 
+ Container awards-kafka-1 Waiting 
+ Container awards-kafka-1 Healthy 
+ Container awards-postgres-1 Healthy 
+ Container awards-app-1 Starting 
+ Container awards-app-1 Started 
+ Container awards-prometheus-1 Starting 
+ Container awards-prometheus-1 Started 
+ Container awards-grafana-1 Starting 
+ Container awards-grafana-1 Started 
+    sem readiness 200 em 600 s
+==> passo 3: FALHA - carga por Kafka sem linha rejeitada
+--- passo 4: k6
+ Container awards-kafka-1 Running 
+ Container awards-postgres-1 Running 
+ Container awards-kafka-1 Waiting 
+ Container awards-postgres-1 Waiting 
+ Container awards-postgres-1 Healthy 
+ Container awards-kafka-1 Healthy 
+ Container awards-app-1 Starting 
+ Container awards-app-1 Started 
+ Image grafana/k6:2.4.0@sha256:d41bb79cd8de5a7ad619b53570e3712633e8bff0937010a5c6c57a4747e7a276 Pulling 
+ 2fdc73d4d0db Pulling fs layer 0B
+ b46f6d67c0bc Pulling fs layer 0B
+ 4f4fb700ef54 Pulling fs layer 0B
+ 4f4fb700ef54 Already exists 0B
+ b46f6d67c0bc Download complete 0B
+ b46f6d67c0bc Extracting 1B
+ 2fdc73d4d0db Downloading 5.243MB
+ b46f6d67c0bc Pull complete 0B
+ 2fdc73d4d0db Downloading 24.12MB
+ 44136fa355b3 Already exists 0B
+ 598ab8121a35 Download complete 0B
+ 2fdc73d4d0db Download complete 0B
+ 2fdc73d4d0db Extracting 1B
+ 2fdc73d4d0db Extracting 1B
+ 2fdc73d4d0db Extracting 1B
+ 2fdc73d4d0db Extracting 1B
+ 4f4fb700ef54 Extracting 1B
+ 2fdc73d4d0db Pull complete 0B
+ 4f4fb700ef54 Pull complete 0B
+ Image grafana/k6:2.4.0@sha256:d41bb79cd8de5a7ad619b53570e3712633e8bff0937010a5c6c57a4747e7a276 Pulled 
+ Container awards-app-1 Waiting 
+ Container awards-app-1 Error dependency app failed to start
+dependency failed to start: container awards-app-1 exited (1)
+    o k6 saiu com 1 (99 = limite ultrapassado)
+==> passo 4: FALHA - k6 dentro dos limites
+load-test.sh: FALHA em 3 passo(s).
+</pasted_content id="7c07">
+
+```
+
+## 2026-11-26 10:37:42 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+O job load passou nos pipelines do push e do PR, e numa reexecução no run 45826811997: 3 medições no total. Com o cache, o p99 dos intervalos ficou em ~2 ms, contra um objetivo de 112 ms, e a folga torna desnecessárias as 5 medições previstas na R5. Leia as 3 execuções com o gh, fixe os limites do k6 com folga de 2× sobre a pior, registre no decisoes.md e na R5 por que 3 bastaram, e siga para a etapa 3.
+```
+
+## 2026-11-26 10:45:52 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+Não use 2× a pior medição nos limites do k6: com medianas abaixo de 1 ms, isso só mede o ruído do runner. Amarre os limites ao objetivo do SLO: intervalos com p99 abaixo de 112 ms (o mesmo bucket do alerta), listagem com p99 abaixo de 100 ms, erro abaixo de 1%. Registre na R5 e no decisoes.md o motivo: o job de carga existe para pegar regressões reais, como a perda do cache, e não variações de milissegundos. Abri o Docker Desktop: termine a etapa 3 (T027, T028, T030, T035 a T037). Depois siga com o escopo reduzido que combinamos: etapas 4, 5 e 6 adiadas, README com a seção do Marco 4 e o roteiro, push e me avise com o pipeline verde.
+```
+
+## 2026-11-26 10:52:56 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+subi o docker
+```
+
+## 2026-11-26 10:56:17 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+Para fechar logo: não rode o -Pextras nem o compose-test.sh localmente. O pipeline roda os dois (jobs build e compose), e é ele a comprovação. Interrompa o -Pextras se ainda estiver rodando. Rode só o ./mvnw verify padrão, faça o commit da etapa 3, aplique o escopo reduzido (etapas 4, 5 e 6 adiadas, README com a seção do Marco 4 e o roteiro), faça o push e me avise. Se algo falhar no pipeline, você lê o log com o gh e corrige.
+```
+
+## 2026-11-26 10:56:21 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>baqiswft2</task-id>
+<tool-use-id>toolu_01ABiBQpPWhwnpcNh6kfKeHr</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\baqiswft2.output</output-file>
+<status>completed</status>
+<summary>Background command "Run clean verify then extras verify for etapa 3" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-26 10:58:08 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bt59ut99v</task-id>
+<tool-use-id>toolu_01MR3Y2Le5HXA9JgTeP3XDMi</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bt59ut99v.output</output-file>
+<status>completed</status>
+<summary>Background command "Run default verify before etapa 3 commit" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-26 11:02:19 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bs5y4bzi6</task-id>
+<summary>Monitor event: "jobs dos pipelines 45834851937 (push) e 45834861459 (PR)"</summary>
+<event>45834851937: Lint do Dockerfile: success; Política do workflow,: success; Regras de alerta: success | status=in_progress
+45834861459: Política do workflow,: success; Lint do Dockerfile: success; Regras de alerta: success | status=in_progress</event>
+</task-notification>
+```
+
+## 2026-11-26 11:03:50 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bs5y4bzi6</task-id>
+<summary>Monitor event: "jobs dos pipelines 45834851937 (push) e 45834861459 (PR)"</summary>
+<event>45834851937: Testes com PostgreSQL: success; Vulnerabilidades das dependências: success; Lint do Dockerfile: success; Política do workflow,: success; Regras de alerta: success | status=in_progress
+45834861459: Política do workflow,: success; Testes com PostgreSQL: success; Lint do Dockerfile: success; Vulnerabilidades das dependências: success; Regras de alerta: success | status=in_progress</event>
+</task-notification>
+```
+
+## 2026-11-26 11:04:40 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bs5y4bzi6</task-id>
+<summary>Monitor event: "jobs dos pipelines 45834851937 (push) e 45834861459 (PR)"</summary>
+<event>45834851937: Testes com PostgreSQL: success; Vulnerabilidades das dependências: success; Análise de segurança: success; Lint do Dockerfile: success; Política do workflow,: success; Regras de alerta: success; Imagem, vulnerabilidades da: success | status=in_progress
+45834861459: Política do workflow,: success; Testes com PostgreSQL: success; Lint do Dockerfile: success; Vulnerabilidades das dependências: success; Regras de alerta: success; Imagem, vulnerabilidades da: success | status=in_progress</event>
+</task-notification>
+```
+
+## 2026-11-26 11:05:03 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+O T012 não vai ser executado, como decidi antes. Nao precise apagar a branch local verificacao/trivy-transitivas, marque o T012 como não executado com referência à prova local do T003 e do T007, registre no decisoes.md e faça o commit. Push só depois que os pipelines atuais terminarem.
+```
+
+## 2026-11-26 11:05:42 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bs5y4bzi6</task-id>
+<summary>Monitor event: "jobs dos pipelines 45834851937 (push) e 45834861459 (PR)"</summary>
+<event>45834851937: Testes com PostgreSQL: success; Vulnerabilidades das dependências: success; Análise de segurança: success; Lint do Dockerfile: success; Política do workflow,: success; Regras de alerta: success; Imagem, vulnerabilidades da: success; Compose com PostgreSQL,: success | status=in_progress
+45834861459: Política do workflow,: success; Análise de segurança: success; Build, testes e: success; Testes com PostgreSQL: success; Lint do Dockerfile: success; Vulnerabilidades das dependências: success; Regras de alerta: success; Compose com PostgreSQL,: success; Imagem, vulnerabilidades da: success | status=in_progress</event>
+</task-notification>
+```
+
+## 2026-11-26 11:06:21 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bs5y4bzi6</task-id>
+<summary>Monitor event: "jobs dos pipelines 45834851937 (push) e 45834861459 (PR)"</summary>
+<event>45834851937: Testes com PostgreSQL: success; Vulnerabilidades das dependências: success; Análise de segurança: success; Lint do Dockerfile: success; Build, testes e: success; Política do workflow,: success; Regras de alerta: success; Imagem, vulnerabilidades da: success; Compose com PostgreSQL,: success | status=in_progress
+45834861459: Política do workflow,: success; Análise de segurança: success; Build, testes e: success; Testes com PostgreSQL: success; Lint do Dockerfile: success; Vulnerabilidades das dependências: success; Regras de alerta: success; Compose com PostgreSQL,: success; Imagem, vulnerabilidades da: success | status=in_progress</event>
+</task-notification>
+```
+
+## 2026-11-26 11:08:00 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bs5y4bzi6</task-id>
+<summary>Monitor event: "jobs dos pipelines 45834851937 (push) e 45834861459 (PR)"</summary>
+<event>45834851937: Testes com PostgreSQL: success; Vulnerabilidades das dependências: success; Análise de segurança: success; Lint do Dockerfile: success; Build, testes e: success; Política do workflow,: success; Regras de alerta: success; Imagem, vulnerabilidades da: success; Compose com PostgreSQL,: success | status=in_progress
+45834861459: Política do workflow,: success; Análise de segurança: success; Build, testes e: success; Testes com PostgreSQL: success; Lint do Dockerfile: success; Vulnerabilidades das dependências: success; Regras de alerta: success; Compose com PostgreSQL,: success; Teste de carga: success; Imagem, vulnerabilidades da: success | status=completed</event>
+</task-notification>
+```
+
+## 2026-11-26 11:08:50 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bs5y4bzi6</task-id>
+<tool-use-id>toolu_0194Kyu8Ji1LNwX6B4bi81Jp</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bs5y4bzi6.output</output-file>
+<status>completed</status>
+<summary>Monitor "jobs dos pipelines 45834851937 (push) e 45834861459 (PR)" stream ended</summary>
+<event>45834851937: Testes com PostgreSQL: success; Vulnerabilidades das dependências: success; Análise de segurança: success; Lint do Dockerfile: success; Build, testes e: success; Política do workflow,: success; Regras de alerta: success; Imagem, vulnerabilidades da: success; Compose com PostgreSQL,: success; Teste de carga: success | status=completed
+45834861459: Política do workflow,: success; Análise de segurança: success; Build, testes e: success; Testes com PostgreSQL: success; Lint do Dockerfile: success; Vulnerabilidades das dependências: success; Regras de alerta: success; Compose com PostgreSQL,: success; Teste de carga: success; Imagem, vulnerabilidades da: success | status=completed</event>
+</task-notification>
+```
+
+## 2026-11-26 11:17:44 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b46cne5fd</task-id>
+<tool-use-id>toolu_01K6UXip3Q8Ci2ZawtC8LUHc</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\b46cne5fd.output</output-file>
+<status>completed</status>
+<summary>Monitor "pipelines do commit 3d83d07 (registro do T012)" stream ended</summary>
+<event>"conclusion":"success"	"databaseId":45836107162	"event":"pull_request"
+"conclusion":"success"	"databaseId":45836092814	"event":"push"</event>
+</task-notification>
+```
+
+## 2026-11-26 11:26:01 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+export docs/ai/sessoes/13-marco-4-acabamento-operacional.md
+```

@@ -1,0 +1,15 @@
+# Sobreposição do teste de carga (spec 004, FR-013 e FR-018; research R4 e R7). Monta o CSV gerado pelo
+# tools/csv-generator/GenerateMovies.java no serviço app, só leitura, no lugar do arquivo embarcado.
+#
+#   java tools/csv-generator/GenerateMovies.java --output target/generated-data/movies.csv
+#   docker compose -f compose.yaml -f compose.load.yaml up -d --wait
+#   docker compose -f compose.yaml -f compose.load.yaml --profile load run --rm k6
+#
+# O MOVIES_CSV_PATH aceita um caminho comum no sistema de arquivos, sem o prefixo file: (verificado no
+# T016 da spec 004).
+services:
+  app:
+    environment:
+      MOVIES_CSV_PATH: /data/movies.csv
+    volumes:
+      - ./target/generated-data/movies.csv:/data/movies.csv:ro

@@ -277,11 +277,14 @@ máquina e conferir se os dois endpoints estão descritos. Validar as respostas 
   - um campo excede o tamanho da coluna do esquema: título com mais de 500 caracteres, estúdios ou
     produtores com mais de 1000, ou um nome de produtor com mais de 500 (acrescentado pela spec 003 em
     2026-11-24, para que a carga direta e a ingestão por Kafka usem a mesma validação; antes, essa linha
-    interrompia a carga com um erro do banco, sem mensagem clara);
-  - o título, os estúdios ou os produtores contêm o caractere nulo (U+0000), que o PostgreSQL não aceita
-    em texto (acrescentado pela spec 003 em 2026-11-25, a partir de um apontamento do Codex no PR do
-    Marco 3, pelo mesmo motivo: a mesma validação na carga direta e na ingestão por Kafka, e nenhuma
-    recusa do banco no lugar de uma mensagem clara).
+    interrompia a carga com um erro do banco, sem mensagem clara). O tamanho é contado em unidades
+    UTF-16, como o H2 mede as colunas, para que o limite seja o mesmo nos dois bancos: um emoji fora do
+    plano básico conta 2 (decisão de 2026-11-25, a partir do testador adversário da ingestão por Kafka);
+  - o título, os estúdios ou os produtores contêm o caractere nulo (U+0000), em qualquer posição,
+    inclusive nas pontas, que o PostgreSQL não aceita em texto (acrescentado pela spec 003 em 2026-11-25,
+    a partir de um apontamento do Codex no PR do Marco 3, pelo mesmo motivo: a mesma validação na carga
+    direta e na ingestão por Kafka, e nenhuma recusa do banco no lugar de uma mensagem clara). O U+0000
+    nunca é retirado como espaço (decisão de 2026-11-25, testador adversário da ingestão por Kafka).
 - **FR-006e**: Ano, título e produtores são colunas obrigatórias. A coluna de estúdios é opcional: vazia,
   ela não invalida a linha. `winner` vazio significa não vencedor (FR-004).
 - **FR-006a**: Cada linha ignorada MUST gerar um aviso no log com o número da linha no arquivo e o
@@ -299,14 +302,18 @@ máquina e conferir se os dois endpoints estão descritos. Validar as respostas 
 
 - **FR-007**: A coluna de produtores MUST ser dividida em nomes usando como separadores a vírgula, a
   palavra `and` e a combinação `, and`. O `and` só separa quando é uma palavra inteira: antes dele vem
-  espaço, vírgula ou o início do campo, e depois dele vem espaço ou o fim do campo. Por exemplo,
+  espaço, vírgula ou o início do campo, e depois dele vem espaço ou o fim do campo. Aqui, espaço é o
+  espaço, a tabulação, a quebra de linha, a tabulação vertical ou o avanço de página (decisão de
+  2026-11-25). Por exemplo,
   `Producer A and` e `Producer A, and` dão só `Producer A`, e `, and` não dá nenhum nome. Vários `and`
   seguidos são todos separadores: `Producer A and and Producer B` dá `Producer A` e `Producer B`, e
   `and and` não dá nenhum nome. O `and` é reconhecido sem diferenciar maiúsculas: `AND`, `And` e `aNd`
   também são separadores, e `Iris AND Nilo aNd Eva` dá `Iris`, `Nilo` e `Eva`. Essa regra vale só para
   o separador. Os nomes continuam comparados exatamente como escritos (FR-008).
 - **FR-008**: Cada nome MUST ter os espaços em volta removidos e ser comparado exatamente como escrito,
-  sem corrigir grafia, abreviação ou maiúsculas.
+  sem corrigir grafia, abreviação ou maiúsculas. Os espaços em volta, aqui e em todos os campos, são os
+  caracteres de U+0001 a U+0020. NBSP (U+00A0) e U+200B fazem parte do texto
+  e do nome, sem normalização (decisão de 2026-11-25, testador adversário da ingestão por Kafka).
 - **FR-009**: Um `and` que faz parte de uma palavra (por exemplo, `Robbinsand`, `Anderson` ou
   `andrew`) MUST NOT separar nomes.
 - **FR-010**: Nomes vazios resultantes da separação MUST ser descartados, e um mesmo nome repetido no

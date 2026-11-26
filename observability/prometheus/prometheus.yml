@@ -5,6 +5,10 @@ global:
   scrape_interval: 5s
   evaluation_interval: 5s
 
+# Alertas do SLO dos intervalos (spec 004, FR-004 a FR-006; docs/slo.md). Montado só leitura pelo compose.
+rule_files:
+  - /etc/prometheus/rules/slo.yml
+
 scrape_configs:
   - job_name: app
     metrics_path: /actuator/prometheus
