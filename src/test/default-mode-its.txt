@@ -75,3 +75,11 @@ com/outsera/awards/isolation/DefaultModeIsolationIT.java
 
 # Marco 5, no modo padrão (spec 005, FR-027)
 com/outsera/awards/docs/ContractTextIT.java
+
+# Marco 6, no modo padrão (spec 006, FR-001 a FR-006)
+com/outsera/awards/aggregations/AggregationsReferenceIT.java
+com/outsera/awards/aggregations/YearsWithMultipleWinnersIT.java
+com/outsera/awards/aggregations/StudiosWinCountIT.java
+com/outsera/awards/aggregations/AggregationsEmptyIT.java
+com/outsera/awards/aggregations/AggregationsEtagIT.java
+com/outsera/awards/aggregations/AggregationsContractIT.java

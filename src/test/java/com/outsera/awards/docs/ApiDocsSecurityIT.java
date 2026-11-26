@@ -10,8 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.yaml.snakeyaml.Yaml;
 
 /**
- * O contrato publicado é o 1.2.1 (spec 005, FR-027), com a autenticação opcional e a resposta 401 nos
- * dois endpoints de negócio (spec 003, FR-026; contracts/openapi-1.2.0.md). O {@code ApiDocsIT} continua
+ * O contrato publicado é o 1.3.0 (spec 006, FR-004), com a autenticação opcional e a resposta 401 nos
+ * endpoints de negócio, inclusive as duas agregações (spec 003, FR-026; spec 006, FR-003). O {@code ApiDocsIT} continua
  * conferindo que o contrato publicado é idêntico ao da spec.
  */
 class ApiDocsSecurityIT extends ScenarioIT {
@@ -24,11 +24,11 @@ class ApiDocsSecurityIT extends ScenarioIT {
     }
 
     @Test
-    @DisplayName("S003 FR-026 contrato 1.2.1 com bearerAuth opcional e 401 nos endpoints de negócio")
+    @DisplayName("S003 FR-026 S006 FR-004 contrato 1.3.0 com bearerAuth opcional e 401 nos endpoints de negócio")
     @SuppressWarnings("unchecked")
     void contractDocumentsTheAuthentication() {
         Map<String, Object> root = contract();
-        assertThat((Map<String, Object>) root.get("info")).containsEntry("version", "1.2.1");
+        assertThat((Map<String, Object>) root.get("info")).containsEntry("version", "1.3.0");
         Map<String, Object> schemes = (Map<String, Object>) ((Map<String, Object>) root.get("components"))
                 .get("securitySchemes");
         assertThat((Map<String, Object>) schemes.get("bearerAuth"))
@@ -36,7 +36,8 @@ class ApiDocsSecurityIT extends ScenarioIT {
                 .containsEntry("scheme", "bearer");
 
         Map<String, Object> paths = (Map<String, Object>) root.get("paths");
-        for (String path : List.of("/api/producers/intervals", "/api/movies")) {
+        for (String path : List.of("/api/producers/intervals", "/api/movies",
+                "/api/aggregations/years-with-multiple-winners", "/api/aggregations/studios-with-win-count")) {
             Map<String, Object> get = (Map<String, Object>) ((Map<String, Object>) paths.get(path)).get("get");
             assertThat((List<Object>) get.get("security")).as("security de %s", path)
                     .containsExactly(Map.of(), Map.of("bearerAuth", List.of()));

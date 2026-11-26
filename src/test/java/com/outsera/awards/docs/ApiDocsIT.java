@@ -27,8 +27,8 @@ class ApiDocsIT extends ScenarioIT {
 
     private static final String SWAGGER_UI = "/swagger-ui.html";
     private static final String CONTRACT = "/openapi.yaml";
-    /** Contrato 1.2.1 (spec 005, FR-027). Os das specs 001 a 003 ficam como registro. */
-    private static final Path SPEC_CONTRACT = Path.of("specs", "005-deploy-cloud-run", "contracts", "openapi.yaml");
+    /** Contrato 1.3.0 (spec 006, FR-004). Os das specs 001 a 005 ficam como registro. */
+    private static final Path SPEC_CONTRACT = Path.of("specs", "006-frontend-angular", "contracts", "openapi.yaml");
 
     @Test
     @DisplayName("FR-024 Swagger UI disponível")
@@ -76,7 +76,7 @@ class ApiDocsIT extends ScenarioIT {
     }
 
     @Test
-    @DisplayName("FR-024 contrato descreve os dois endpoints")
+    @DisplayName("FR-024 S006 FR-004 contrato descreve os quatro endpoints")
     @SuppressWarnings("unchecked")
     void contractDescribesBothEndpoints() {
         String yaml = text(http.get().uri(CONTRACT).exchange()
@@ -84,7 +84,8 @@ class ApiDocsIT extends ScenarioIT {
                 .expectBody(byte[].class)
                 .returnResult());
         Map<String, Object> paths = (Map<String, Object>) new Yaml().<Map<String, Object>>load(yaml).get("paths");
-        assertThat(paths).containsOnlyKeys("/api/producers/intervals", "/api/movies");
+        assertThat(paths).containsOnlyKeys("/api/producers/intervals", "/api/movies",
+                "/api/aggregations/years-with-multiple-winners", "/api/aggregations/studios-with-win-count");
 
         for (String path : paths.keySet()) {
             Map<String, Object> get = (Map<String, Object>) ((Map<String, Object>) paths.get(path)).get("get");

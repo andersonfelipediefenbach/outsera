@@ -1,5 +1,6 @@
 package com.outsera.awards.movie;
 
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +31,33 @@ public interface MovieRepository extends JpaRepository<Movie, Long> {
             where (:year is null or m.year = :year)
               and (:winner is null or m.winner = :winner)""")
     Page<Movie> findFiltered(@Param("year") Integer year, @Param("winner") Boolean winner, Pageable pageable);
+
+    /**
+     * Anos com dois ou mais filmes vencedores, em ordem crescente (spec 006, FR-001; research R6). JPQL portável
+     * entre H2 e PostgreSQL.
+     */
+    @Query("""
+            select m.year as year, count(m) as winnerCount from Movie m
+            where m.winner = true
+            group by m.year
+            having count(m) > 1
+            order by m.year""")
+    List<WinnerCountByYear> countWinnersByYearWithMoreThanOne();
+
+    /**
+     * Campo de estúdios de cada filme vencedor que tem estúdios (spec 006, FR-002). A separação e a contagem
+     * ficam no serviço das agregações.
+     */
+    @Query("select m.studios from Movie m where m.winner = true and m.studios is not null")
+    List<String> findWinnerStudios();
+
+    /** Projeção de {@link #countWinnersByYearWithMoreThanOne}. */
+    interface WinnerCountByYear {
+
+        int getYear();
+
+        long getWinnerCount();
+    }
 
     /** Quantidade de filmes com os mesmos filtros de {@link #findFiltered}. */
     @Query("""

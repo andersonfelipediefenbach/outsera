@@ -34,7 +34,9 @@ public class SecurityConfiguration {
 
     private static final RequestMatcher BUSINESS = new OrRequestMatcher(
             PathPatternRequestMatcher.withDefaults().matcher("/api/producers/intervals"),
-            PathPatternRequestMatcher.withDefaults().matcher("/api/movies"));
+            PathPatternRequestMatcher.withDefaults().matcher("/api/movies"),
+            PathPatternRequestMatcher.withDefaults().matcher("/api/aggregations/years-with-multiple-winners"),
+            PathPatternRequestMatcher.withDefaults().matcher("/api/aggregations/studios-with-win-count"));
 
     private static final RequestMatcher PROTECTED = new OrRequestMatcher(
             BUSINESS, PathPatternRequestMatcher.withDefaults().matcher("/actuator/prometheus"));

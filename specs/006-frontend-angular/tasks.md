@@ -97,9 +97,9 @@ método `@Test` tem `@DisplayName("S006 FR-00x <o que confere>")` com o requisit
 dos ITs existentes (por exemplo, `"S005 FR-027 bearerAuth descrito como opcional"`), e o javadoc da classe cita a
 spec 006 e os requisitos.
 
-- [ ] T006 [US4] Copiar `specs/006-frontend-angular/contracts/openapi.yaml` para
+- [X] T006 [US4] Copiar `specs/006-frontend-angular/contracts/openapi.yaml` para
   `src/main/resources/static/openapi.yaml` (cópia idêntica, byte a byte; conferir com `diff`).
-- [ ] T007 [P] [US4] Criar os CSVs de cenário em `src/test/resources/scenarios/aggregations/`, com o cabeçalho
+- [X] T007 [P] [US4] Criar os CSVs de cenário em `src/test/resources/scenarios/aggregations/`, com o cabeçalho
   `year;title;studios;producers;winner` e o separador `;`:
   - `years.csv`: 2001 com 1 vencedor e 2 indicados; 2002 com 2 vencedores; 2003 com 3 vencedores; 2004 só com
     indicados; linhas fora de ordem de ano (para provar a ordem crescente);
@@ -110,39 +110,39 @@ spec 006 e os requisitos.
   - `no-winners.csv`: três filmes, nenhum vencedor.
   Os CSVs não levam comentários (o leitor não os aceita). A resposta esperada de cada cenário fica no javadoc do
   IT correspondente (T009 e T010), calculada à mão e conferida.
-- [ ] T008 [P] [US4] Criar `src/test/java/com/outsera/awards/aggregations/AggregationsReferenceIT.java`
+- [X] T008 [P] [US4] Criar `src/test/java/com/outsera/awards/aggregations/AggregationsReferenceIT.java`
   (`ScenarioIT`, arquivo fornecido), com `@DisplayName` citando "S006 FR-001"/"S006 FR-002":
   - anos: corpo exatamente `{"years":[{"year":1986,"winnerCount":2},{"year":1990,"winnerCount":2},{"year":2015,"winnerCount":2}]}`;
   - estúdios: os cinco primeiros `Columbia Pictures 7`, `Paramount Pictures 6`, `Warner Bros. 5`,
     `20th Century Fox 4`, `MGM 3`, e a **lista completa** igual a um oráculo calculado no próprio teste a partir
     de `src/main/resources/movielist.csv` (lido com Commons CSV, separado por vírgula, `strip`, sem vazios, um
     `Set` por filme, ordem `winCount` decrescente e depois `String.compareTo`).
-- [ ] T009 [P] [US4] Criar `src/test/java/com/outsera/awards/aggregations/YearsWithMultipleWinnersIT.java`
+- [X] T009 [P] [US4] Criar `src/test/java/com/outsera/awards/aggregations/YearsWithMultipleWinnersIT.java`
   (`scenarios/aggregations/years.csv`): só 2002 (2) e 2003 (3), nessa ordem; 2001 e 2004 ausentes; indicados não
   contam (FR-001).
-- [ ] T010 [P] [US4] Criar `src/test/java/com/outsera/awards/aggregations/StudiosWinCountIT.java`
+- [X] T010 [P] [US4] Criar `src/test/java/com/outsera/awards/aggregations/StudiosWinCountIT.java`
   (`scenarios/aggregations/studios.csv`): a lista completa esperada, com o estúdio repetido no mesmo filme contado
   uma vez, nomes sem espaços nas pontas, vazios descartados, `MGM` e `Mgm` separados, `Charlie` antes de `Delta`
   no empate e `Z` ausente (FR-002; data-model, "Regras de separação dos estúdios").
-- [ ] T011 [P] [US4] Criar `src/test/java/com/outsera/awards/aggregations/AggregationsEmptyIT.java`
+- [X] T011 [P] [US4] Criar `src/test/java/com/outsera/awards/aggregations/AggregationsEmptyIT.java`
   (`no-winners.csv`): os dois endpoints com 200, `{"years":[]}` e `{"studios":[]}` (FR-003).
-- [ ] T012 [P] [US4] Criar `src/test/java/com/outsera/awards/aggregations/AggregationsEtagIT.java` (arquivo
+- [X] T012 [P] [US4] Criar `src/test/java/com/outsera/awards/aggregations/AggregationsEtagIT.java` (arquivo
   fornecido): `ETag` presente nos dois endpoints; o mesmo pedido com `If-None-Match` igual dá 304 sem corpo; um
   ETag diferente dá 200 (FR-003). Seguir o padrão do `etag/MoviesEtagIT.java`.
-- [ ] T013 [P] [US4] Criar `src/test/java/com/outsera/awards/aggregations/AggregationsContractIT.java`: as
+- [X] T013 [P] [US4] Criar `src/test/java/com/outsera/awards/aggregations/AggregationsContractIT.java`: as
   respostas 200 dos dois endpoints (arquivo fornecido e `no-winners.csv`, em classes aninhadas ou dois métodos com
   o cenário do arquivo fornecido) válidas pelo `support/ContractValidator.assertValidGet` contra o contrato 1.3.0
   (FR-004).
-- [ ] T014 [P] [US4] Criar `src/test/java/com/outsera/awards/aggregations/AggregationsAuthIT.java`
+- [X] T014 [P] [US4] Criar `src/test/java/com/outsera/awards/aggregations/AggregationsAuthIT.java`
   (`TokenScenarioIT`): sem token e com token errado, 401 em `application/problem+json` com `WWW-Authenticate`;
   com `bearer()`, 200, nos dois endpoints (FR-003). Fica **fora** do `default-mode-its.txt` (roda no `extras`).
-- [ ] T015 [P] [US4] Criar `src/test/java/com/outsera/awards/postgres/AggregationsPostgresIT.java`, no padrão do
+- [X] T015 [P] [US4] Criar `src/test/java/com/outsera/awards/postgres/AggregationsPostgresIT.java`, no padrão do
   `ListingOrderPostgresIT` (`PostgresSupport.newSchema`, `@AfterAll` que apaga o esquema): com o arquivo
   fornecido, as duas agregações iguais às do `AggregationsReferenceIT` (research R7). Não roda localmente: o job
   `postgres` do pipeline comprova.
-- [ ] T016 [US4] Acrescentar ao `src/test/default-mode-its.txt` a seção `# Marco 6, no modo padrão (spec 006,
+- [X] T016 [US4] Acrescentar ao `src/test/default-mode-its.txt` a seção `# Marco 6, no modo padrão (spec 006,
   FR-001 a FR-006)` com os seis ITs do modo padrão (T008 a T013), um por linha, relativos a `src/test/java`.
-- [ ] T017 [US4] Atualizar os ITs com exceção já registrada:
+- [X] T017 [US4] Atualizar os ITs com exceção já registrada:
   - `src/test/java/com/outsera/awards/docs/ApiDocsIT.java`: `SPEC_CONTRACT` passa a
     `specs/006-frontend-angular/contracts/openapi.yaml`, com o javadoc "Contrato 1.3.0 (spec 006, FR-004). Os das
     specs 001 a 005 ficam como registro.";
@@ -152,20 +152,20 @@ spec 006 e os requisitos.
   Registrar em `docs/ai/decisoes.md` a entrada "Contrato 1.3.0: agregações do painel (spec 006)", explicando que os
   dois ITs mudam pelas exceções já existentes em `.github/unchanged-tests-exceptions.txt`, sem título novo. Conferir
   que os títulos citados nesse arquivo continuam no `decisoes.md`.
-- [ ] T018 [US4] Rodar `./mvnw verify` e confirmar que os ITs novos **falham** (404 nos endpoints) e que nenhum IT
+- [X] T018 [US4] Rodar `./mvnw verify` e confirmar que os ITs novos **falham** (404 nos endpoints) e que nenhum IT
   antigo quebrou além dos que dependem dos endpoints novos. Registrar o resultado na tarefa.
 
 ### Implementação
 
-- [ ] T019 [P] [US4] Criar os records de resposta em `src/main/java/com/outsera/awards/aggregation/`:
+- [X] T019 [P] [US4] Criar os records de resposta em `src/main/java/com/outsera/awards/aggregation/`:
   `YearWinnerCount(int year, long winnerCount)`, `YearsWithMultipleWinners(List<YearWinnerCount> years)`,
   `StudioWinCount(String name, long winCount)` e `StudiosWithWinCount(List<StudioWinCount> studios)`, com os nomes
   de campo exatos do contrato (`years`, `year`, `winnerCount`, `studios`, `name`, `winCount`) e nenhum campo a mais.
-- [ ] T020 [P] [US4] Criar `src/main/java/com/outsera/awards/aggregation/StudioNameParser.java`: recebe o texto de
+- [X] T020 [P] [US4] Criar `src/main/java/com/outsera/awards/aggregation/StudioNameParser.java`: recebe o texto de
   `studios` (pode ser `null`) e devolve um `Set<String>` em ordem de aparição. Regras do data-model: "`null`
   (coluna vazia no CSV, spec 001 FR-006e) → nenhum estúdio"; "Separa por `,`; cada parte com `strip()`; partes
   vazias saem"; "Um conjunto por filme"; "Sem separar por ` and `"; "Maiúsculas e acentos são mantidos".
-- [ ] T021 [US4] Acrescentar ao `src/main/java/com/outsera/awards/movie/MovieRepository.java` duas consultas JPQL
+- [X] T021 [US4] Acrescentar ao `src/main/java/com/outsera/awards/movie/MovieRepository.java` duas consultas JPQL
   portáveis, com javadoc citando a spec 006, sem depender do pacote `aggregation` (o `movie` não importa classes
   dele):
   - anos: `select m.year as year, count(m) as winnerCount from Movie m where m.winner = true group by m.year
@@ -174,20 +174,20 @@ spec 006 e os requisitos.
     `AggregationService` monta os records `YearWinnerCount` a partir dela;
   - estúdios: `select m.studios from Movie m where m.winner = true and m.studios is not null`, devolvendo
     `List<String>`.
-- [ ] T022 [US4] Criar `src/main/java/com/outsera/awards/aggregation/AggregationService.java` (transação só de
+- [X] T022 [US4] Criar `src/main/java/com/outsera/awards/aggregation/AggregationService.java` (transação só de
   leitura, como o `MovieQueryService`): anos direto da consulta; estúdios com o `StudioNameParser`, contagem num
   mapa e ordem por `winCount` decrescente e depois `String.compareTo` do nome (a mesma ordem de nome do
   `ProducerIntervalService`). Sem cache (research R6).
-- [ ] T023 [US4] Criar `src/main/java/com/outsera/awards/aggregation/AggregationController.java`:
+- [X] T023 [US4] Criar `src/main/java/com/outsera/awards/aggregation/AggregationController.java`:
   `@RequestMapping("/api/aggregations")`, `GET /years-with-multiple-winners` e `GET /studios-with-win-count`, com
   `produces = application/json` e sem parâmetros.
-- [ ] T024 [US4] Registrar os dois caminhos novos no `src/main/java/com/outsera/awards/web/EtagConfiguration.java`
+- [X] T024 [US4] Registrar os dois caminhos novos no `src/main/java/com/outsera/awards/web/EtagConfiguration.java`
   (`addUrlPatterns`) e no `PROTECTED` de `src/main/java/com/outsera/awards/security/SecurityConfiguration.java`,
   atualizando os javadocs (spec 006, FR-003).
-- [ ] T025 [US4] Rodar `./mvnw verify` e `./mvnw -Pextras verify` e informar o resultado real (testes, falhas e
+- [X] T025 [US4] Rodar `./mvnw verify` e `./mvnw -Pextras verify` e informar o resultado real (testes, falhas e
   cobertura do `extras`, que precisa continuar ≥ 90%). Subir `./mvnw spring-boot:run` e conferir com `curl` os dois
   endpoints e o `/api/producers/intervals` (resultado de referência intacto). Parar o processo depois.
-- [ ] T026 [US4] Commit da etapa 2: "Marco 6, etapa 2: agregações de anos e estúdios na API (contrato 1.3.0)".
+- [X] T026 [US4] Commit da etapa 2: "Marco 6, etapa 2: agregações de anos e estúdios na API (contrato 1.3.0)".
 
 ---
 

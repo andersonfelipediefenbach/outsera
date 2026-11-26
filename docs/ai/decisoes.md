@@ -3,6 +3,21 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-26 — Contrato 1.3.0: agregações do painel (spec 006)
+
+- **Origem:** spec 006 (Marco 6), FR-001 a FR-004. O painel do front precisa dos anos com mais de um vencedor e
+  das vitórias por estúdio.
+- **Decisão:** o contrato passa à versão 1.3.0 (MINOR), com dois paths novos
+  (`/api/aggregations/years-with-multiple-winners` e `/api/aggregations/studios-with-win-count`) e quatro esquemas
+  fechados. Paths, parâmetros, respostas e esquemas existentes não mudam (Princípio III). O `info.description`
+  continua com duas frases, então o `ContractTextIT` passa sem mudança.
+- **ITs alterados:** só os dois que já têm exceção em `.github/unchanged-tests-exceptions.txt`, sem título novo:
+  - `ApiDocsIT`: o contrato da spec passa a ser o de `specs/006-frontend-angular/contracts/openapi.yaml`, e a lista
+    de paths do contrato passa a ter os quatro endpoints;
+  - `ApiDocsSecurityIT`: a versão `1.3.0` e os dois caminhos novos na conferência do `security` e da resposta 401.
+- **Alternativa rejeitada:** `?projection=` em `/api/movies`, que mudaria um endpoint existente (spec 006, FR-005;
+  research R6).
+
 ## 2026-11-26 — Emenda 2.1.0 da constituição: comprovação do front-end
 
 - **Origem:** spec 006 (Marco 6), FR-024. O pedido do responsável inclui testes unitários no front e um teste de

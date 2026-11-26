@@ -1,10 +1,11 @@
 openapi: 3.1.0
 info:
   title: Golden Raspberry Awards API
-  version: 1.2.1
+  version: 1.3.0
   description: >
-    Intervalos entre prêmios consecutivos de produtores na categoria Pior Filme e listagem dos filmes
-    indicados e vencedores. Os dados vêm do arquivo CSV carregado na inicialização.
+    Intervalos entre prêmios consecutivos de produtores na categoria Pior Filme, listagem dos filmes
+    indicados e vencedores e totais de vencedores por ano e por estúdio. Os dados vêm do arquivo CSV
+    carregado na inicialização.
 paths:
   /api/producers/intervals:
     get:
@@ -115,6 +116,83 @@ paths:
                 instance: /api/movies
                 invalidParams:
                   - { name: winner, reason: deve ser true ou false }
+  /api/aggregations/years-with-multiple-winners:
+    get:
+      operationId: getYearsWithMultipleWinners
+      summary: Anos com mais de um filme vencedor
+      description: >
+        Só anos com dois ou mais vencedores, em ordem crescente de ano. Sem nenhum ano assim, a lista vem
+        vazia.
+      tags: [aggregations]
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Anos com mais de um vencedor
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YearsWithMultipleWinners'
+              examples:
+                arquivoFornecido:
+                  summary: Resultado com o arquivo fornecido
+                  value:
+                    years:
+                      - { year: 1986, winnerCount: 2 }
+                      - { year: 1990, winnerCount: 2 }
+                      - { year: 2015, winnerCount: 2 }
+                semVencedores:
+                  summary: Nenhum ano com dois vencedores
+                  value: { years: [] }
+        '304':
+          $ref: '#/components/responses/NotModified'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/aggregations/studios-with-win-count:
+    get:
+      operationId: getStudiosWithWinCount
+      summary: Estúdios com a quantidade de filmes vencedores
+      description: >
+        O campo de estúdios de cada vencedor é separado por vírgula, sem espaços nas pontas, e um estúdio
+        repetido no mesmo filme conta uma vez. Só entram estúdios com pelo menos uma vitória, ordenados
+        pela quantidade decrescente e depois pelo nome. Sem vencedores, a lista vem vazia.
+      tags: [aggregations]
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Estúdios com vitórias
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudiosWithWinCount'
+              examples:
+                arquivoFornecido:
+                  summary: Início do resultado com o arquivo fornecido
+                  value:
+                    studios:
+                      - { name: Columbia Pictures, winCount: 7 }
+                      - { name: Paramount Pictures, winCount: 6 }
+                      - { name: Warner Bros., winCount: 5 }
+                semVencedores:
+                  summary: Nenhum filme vencedor
+                  value: { studios: [] }
+        '304':
+          $ref: '#/components/responses/NotModified'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 components:
   securitySchemes:
     bearerAuth:
@@ -211,6 +289,39 @@ components:
           type: string
           description: Texto como no arquivo
         winner: { type: boolean }
+    YearsWithMultipleWinners:
+      type: object
+      additionalProperties: false
+      required: [years]
+      properties:
+        years:
+          type: array
+          items: { $ref: '#/components/schemas/YearWinnerCount' }
+    YearWinnerCount:
+      type: object
+      additionalProperties: false
+      required: [year, winnerCount]
+      properties:
+        year: { type: integer }
+        winnerCount: { type: integer, minimum: 2 }
+    StudiosWithWinCount:
+      type: object
+      additionalProperties: false
+      required: [studios]
+      properties:
+        studios:
+          type: array
+          items: { $ref: '#/components/schemas/StudioWinCount' }
+    StudioWinCount:
+      type: object
+      additionalProperties: false
+      required: [name, winCount]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Nome como no arquivo, sem espaços nas pontas
+        winCount: { type: integer, minimum: 1 }
     ProblemDetail:
       type: object
       description: RFC 9457
