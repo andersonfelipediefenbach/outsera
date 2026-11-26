@@ -16,7 +16,7 @@ Conferência da URL publicada (FR-014 a FR-016; research R6 e R11).
 
 | N | Passo | Aprova quando |
 | --- | --- | --- |
-| 1 | Readiness | `GET /actuator/health/readiness` devolve 200 com `{"status":"UP"}` dentro da espera máxima; tenta a cada 3 s, com tempo limite de 10 s por chamada (partida a frio) |
+| 1 | Readiness | `GET /actuator/health/readiness` devolve 200 com `{"status":"UP"}` dentro da espera máxima; tenta a cada 3 s, com tempo limite de 60 s por chamada, porque o Cloud Run segura a primeira chamada durante a partida a frio, e o tempo dela é o da partida (SC-001); nos demais passos, 10 s |
 | 2 | Resultado de referência | `GET /api/producers/intervals` devolve 200, `application/json`, e o corpo, ordenado com `jq -S`, é igual à `REFERENCE` do `smoke-test.sh` (chaves exatas, sem campos extras) |
 | 3 | Swagger UI e contrato | `GET /swagger-ui.html`, seguindo redirecionamentos, devolve 200, e `GET /openapi.yaml` devolve 200 |
 | 4 | Métricas fechadas (só com `--expect-no-metrics`) | `GET /actuator/prometheus` devolve 404 (FR-004a) |

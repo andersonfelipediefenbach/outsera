@@ -201,7 +201,7 @@ confere de novo na URL pública.
 CSV de cenário (comprovação local rápida, sem Docker). A publicação real é comprovada pelo pipeline depois do
 merge (Phase 6).
 
-- [ ] T020 [P] [US3] Criar `.github/scripts/verify-deployment.sh` (executável, `set -euo pipefail`), conforme
+- [X] T020 [P] [US3] Criar `.github/scripts/verify-deployment.sh` (executável, `set -euo pipefail`), conforme
   [`contracts/verify-deployment.md`](contracts/verify-deployment.md):
   - uso `verify-deployment.sh [--expect-no-metrics] <URL base> [espera máxima, padrão 180]`;
   - o tempo de cada chamada (`curl -w '%{time_total}'`) e o tempo da primeira chamada até a readiness na saída
@@ -217,7 +217,9 @@ merge (Phase 6).
   - em `FALHA`, o status e o corpo truncados em 2 KB;
   - com `GITHUB_STEP_SUMMARY` definido, uma tabela com a URL, os passos e o tempo até a readiness;
   - código 0 ou 1.
-- [ ] T021 [US3] Conferência local rápida do script, sem Docker. O `jq` não está instalado: usar um binário
+- [ ] T021 [US3] **Não executada localmente, por decisão do responsável (2026-11-26):** o script é comprovado
+  pelo job `deploy` depois do merge, nas duas conferências. Feito localmente: `bash -n`. Texto original da
+  tarefa: conferência local rápida do script, sem Docker. O `jq` não está instalado: usar um binário
   baixado para o scratchpad, com versão fixada e SHA-256 conferido. Sequência:
   - `./mvnw -q -DskipTests package` uma vez;
   - subir o JAR com `PORT=18080` em segundo plano e rodar `verify-deployment.sh http://127.0.0.1:18080 120`,
@@ -226,12 +228,14 @@ merge (Phase 6).
   - rodar `verify-deployment.sh http://127.0.0.1:18080 60`, que precisa sair com código 1 e o passo 2 em
     `FALHA`;
   - parar a aplicação e gravar as duas saídas em `specs/005-deploy-cloud-run/evidencias/verify-local.txt`.
-- [ ] T022 [P] [US1] Conferir na versão local do `gcloud` (594.0.1, a que o workflow fixa) que o
+- [X] T022 [P] [US1] Conferir na versão local do `gcloud` (594.0.1, a que o workflow fixa) que o
   `gcloud run deploy --help` tem `--startup-probe`, `--liveness-probe`, `--cpu-boost`, `--no-traffic` e
   `--tag`. Se faltar algum flag de probe, aplicar a alternativa da research R5: criar
   `deploy/gcp/service.yaml` e usar `gcloud run services replace`, ajustando T024 e T025. Registrar o resultado
   em `specs/005-deploy-cloud-run/evidencias/gcloud-flags.txt`.
-- [ ] T023 [US2] Em `.github/workflows/ci.yml`, criar o job `deploy` com o cabeçalho do contrato
+  - *Feito:* todos os flags existem na 594.0.1, inclusive `--set-env-vars` e, no `update-traffic`,
+    `--to-revisions` e `--remove-tags`. O `service.yaml` alternativo não foi necessário.
+- [X] T023 [US2] Em `.github/workflows/ci.yml`, criar o job `deploy` com o cabeçalho do contrato
   [`ci-deploy.md`](contracts/ci-deploy.md):
   - `name`, `if`, `needs` (os 10 checks), `permissions` (`contents: read` e `id-token: write`), `concurrency`
     (`deploy-cloud-run`, sem cancelamento), `timeout-minutes: 15` e `environment` (`name: cloud-run` e
@@ -251,7 +255,7 @@ merge (Phase 6).
       `gcloud auth print-access-token | skopeo login -u oauth2accesstoken --password-stdin southamerica-east1-docker.pkg.dev`,
       depois `skopeo copy --preserve-digests oci-archive:… docker://$GCP_REGISTRY/awards:${{ github.sha }}` e
       conferir o digest no registro com `skopeo inspect --format '{{.Digest}}'`.
-- [ ] T024 [US1] No job `deploy`, passo 7:
+- [X] T024 [US1] No job `deploy`, passo 7:
   - `gcloud run deploy "$GCP_SERVICE" --image="$GCP_REGISTRY/awards@$DIGEST" --region="$GCP_REGION"`,
     com `--service-account="$GCP_RUNTIME_SA" --min-instances=0 --max-instances=1 --cpu=1 --memory=1Gi`,
     `--cpu-boost --port=8080 --no-traffic --tag="c-${GITHUB_SHA::7}"` e os probes da research R5;
@@ -260,19 +264,27 @@ merge (Phase 6).
   - uma única variável de ambiente nova, `--set-env-vars=MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health`
     (FR-004a), que fecha as métricas e mantém os probes;
   - ler o nome da revisão e a URL da tag com `gcloud run services describe --format`.
-- [ ] T025 [US3] No job `deploy`, passos 8 a 11:
+- [X] T025 [US3] No job `deploy`, passos 8 a 11:
   - `verify-deployment.sh --expect-no-metrics "<URL da tag>"`;
   - `gcloud run services update-traffic "$GCP_SERVICE" --to-revisions=<revisão>=100`, com a remoção das tags
     anteriores (`--remove-tags`);
   - `verify-deployment.sh --expect-no-metrics "$SERVICE_URL"`;
   - o resumo com `if: always()`: URL, digest, revisão, resultado das duas conferências e duração (FR-016);
   - nenhum `secrets.` e nenhum build.
-- [ ] T026 [US2] Conferência local rápida da política com o job `deploy`:
+  - *Feito com três ajustes:*
+    - as URLs passam aos scripts por `env`, e não por expressão no `run`;
+    - a readiness espera até 60 s por chamada, para medir a partida a frio (SC-001);
+    - o `environment.url` usa a URL literal.
+- [ ] T026 [US2] **Não executada localmente, por decisão do responsável (2026-11-26):** o workflow real é
+  conferido pelo job `workflow-policy` no PR. Os casos negativos 3 a 5 ficam sem prova registrada. Feito
+  localmente: a leitura do `ci.yml` como YAML válido, com o `if`, os `needs`, a concorrência e as permissões do
+  job `deploy` iguais aos do contrato, e nenhuma referência a `secrets.`. Texto original da tarefa:
+  conferência local rápida da política com o job `deploy`:
   - o `check-workflows.sh` real passa;
   - os casos 3, 4 e 5 de [`contracts/workflow-policy.md`](contracts/workflow-policy.md), numa cópia temporária,
     reprovam com a mensagem da regra 9;
   - a saída é anexada a `specs/005-deploy-cloud-run/evidencias/politica-etapa-3.txt`.
-- [ ] T027 [US2] Rodar `./mvnw verify` e `./mvnw -Pextras verify`, informar o resultado real e fazer o commit
+- [X] T027 [US2] Rodar `./mvnw verify` (o `-Pextras` fica para o pipeline, por decisão do responsável), informar o resultado real e fazer o commit
   "Marco 5, etapa 3: job deploy com conferência pela URL da revisão e pela URL pública".
 
 **Checkpoint**: o pipeline está pronto para publicar na `main`. No PR, o job `deploy` aparece como pulado.
