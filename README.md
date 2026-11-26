@@ -423,12 +423,15 @@ de execução não tem papel nenhum. A decisão completa está no
 
 ## 4. Endpoints
 
-O contrato completo (versão 1.2.0, com ETag e a autenticação opcional) está em
-[`specs/003-modo-docker/contracts/openapi.yaml`](specs/003-modo-docker/contracts/openapi.yaml), publicado
+O contrato completo (versão 1.2.1, com ETag e a autenticação opcional) está em
+[`specs/005-deploy-cloud-run/contracts/openapi.yaml`](specs/005-deploy-cloud-run/contracts/openapi.yaml), publicado
 em <http://localhost:8080/openapi.yaml> e navegável no Swagger UI, em
-<http://localhost:8080/swagger-ui.html>. Os dos Marcos 1 e 2 ficam em
-[`specs/001-producer-intervals-api/contracts/openapi.yaml`](specs/001-producer-intervals-api/contracts/openapi.yaml)
-e [`specs/002-operacao/contracts/openapi.yaml`](specs/002-operacao/contracts/openapi.yaml), como registro.
+<http://localhost:8080/swagger-ui.html>. Os dos Marcos 1 a 3 ficam em
+[`specs/001-producer-intervals-api/contracts/openapi.yaml`](specs/001-producer-intervals-api/contracts/openapi.yaml),
+[`specs/002-operacao/contracts/openapi.yaml`](specs/002-operacao/contracts/openapi.yaml) e
+[`specs/003-modo-docker/contracts/openapi.yaml`](specs/003-modo-docker/contracts/openapi.yaml) (1.2.0), como
+registro. A 1.2.1 muda só textos: a descrição geral em duas frases e a autenticação descrita como opcional
+(spec 005, FR-027).
 
 | Método e caminho | O que faz |
 | --- | --- |
@@ -604,7 +607,7 @@ docker rm -f awards-pg
 | `logging/` | Log em texto sem a variável, JSON ECS com ela, banner desligado e nenhum cabeçalho `Authorization` no log |
 | `isolation/` | Sem perfil, o Kafka não é configurado: nenhuma métrica nem cliente Kafka (Marco 3) |
 | `kafka/` | Ingestão por Kafka com o broker embutido: resultado de referência, equivalência byte a byte com a carga direta, readiness só com o evento de carga concluída, linhas inválidas, falhas estruturais, vencedor novo em até 5 s, atualização, idempotência, cada tipo de evento inválido no tópico de erros (inclusive o caractere nulo, que o PostgreSQL não aceita), tópico de erros fora do ar, broker fora do ar e métricas (Marco 3) |
-| `security/` | Autenticação desligada (guarda do `API_TOKEN`) e ligada: 401 em Problem Details, endpoints públicos, token fora do log, sem senha gerada, cabeçalhos de cache e de proteção e o contrato 1.2.0 (Marco 3) |
+| `security/` | Autenticação desligada (guarda do `API_TOKEN`) e ligada: 401 em Problem Details, endpoints públicos, token fora do log, sem senha gerada, cabeçalhos de cache e de proteção e o contrato publicado (1.2.0 no Marco 3, 1.2.1 desde o Marco 5) |
 | `postgres/` | Só no perfil `postgres-it`: esquema, equivalência e ordem entre o H2 e o PostgreSQL, reinícios, nova tentativa quando a gravação falha e recusa permanente do banco por dado inválido, que vai ao tópico de erros (Marco 3) |
 | `support/` | Base comum (`ScenarioIT`, `KafkaScenarioIT`, `TokenScenarioIT`) e apoios (aplicação real por `SpringApplication`, HTTP, Kafka e PostgreSQL reais, leitura do log, do Prometheus e do contrato), sem testes próprios |
 
@@ -760,6 +763,7 @@ em [`specs/005-deploy-cloud-run/spec.md`](specs/005-deploy-cloud-run/spec.md).
 | Configuração do GCP idempotente, com permissões mínimas | FR-017 a FR-021, SC-004 | As duas execuções do `deploy/gcp/setup.sh` (a segunda com zero mudanças) em [`evidencias/`](specs/005-deploy-cloud-run/evidencias/) e a revisão do script no PR |
 | Modo padrão sem mudança | FR-022, SC-007 | Jobs `build` e `workflow-policy` (`check-unchanged-tests.sh`) |
 | README, ADR 0027, runbook e decisões | FR-023 a FR-025 | Revisão do PR, por [`specs/005-deploy-cloud-run/checklists/revisao.md`](specs/005-deploy-cloud-run/checklists/revisao.md) |
+| Contrato 1.2.1: descrição em duas frases, autenticação opcional e nenhum `<` ou `>` nos textos | FR-027 | `ContractTextIT`, `ApiDocsSecurityIT` (versão) e `ApiDocsIT` (publicado idêntico ao da spec 005) |
 
 ---
 
@@ -1074,9 +1078,10 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 ├── specs/002-operacao/          # Marco 2: spec, plano, research, contratos e tarefas
 │   └── contracts/               # OpenAPI 1.1.0 (registro), endpoints operacionais, imagem e pipeline
 ├── specs/003-modo-docker/       # Marco 3: spec, plano, research, contratos e tarefas
-│   └── contracts/               # OpenAPI 1.2.0 (fonte única), eventos do Kafka, compose e pipeline
+│   └── contracts/               # OpenAPI 1.2.0 (registro), eventos do Kafka, compose e pipeline
 ├── specs/004-acabamento-operacional/ # Marco 4: spec, plano, research, contratos e tarefas
 ├── specs/005-deploy-cloud-run/  # Marco 5: spec, plano, research, contratos, tarefas e evidências do GCP
+│   └── contracts/               # OpenAPI 1.2.1 (fonte única), publicação, script do GCP e política do workflow
 ├── src/main/java/com/outsera/awards/
 │   ├── AwardsApplication.java   # classe principal
 │   ├── ingestion/               # leitura, validação e carga do CSV; kafka/: ingestão por Kafka (perfil kafka)

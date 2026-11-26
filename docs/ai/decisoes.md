@@ -3,6 +3,34 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-26 — Contrato 1.2.1 e exceção do `ApiDocsSecurityIT` à regra dos testes sem alteração
+
+- **Origem:** pedido do responsável no fechamento do Marco 5 (spec 005, FR-027). Com o Swagger UI público na
+  URL do Cloud Run, o contrato passa à versão 1.2.1, com três ajustes de texto:
+  - o `info.description` fica com duas frases. O ETag, o 304 e a autenticação ficam no README;
+  - a descrição do `bearerAuth` passa a "Opcional. Exigido só quando a variável API_TOKEN está definida.";
+  - nenhum texto tem `<` ou `>` sem escape: o `Bearer <token>` do 1.2.0 sumia na renderização do Swagger UI.
+
+  O `security` de cada operação já tinha a alternativa vazia (`{}`) antes do `bearerAuth` desde o 1.2.0, e
+  ficou como estava. Paths, parâmetros, respostas e esquemas não mudam (Princípio III).
+- **Conflito com a regra dos ITs sem alteração:** o `ApiDocsSecurityIT` (Marco 3, tag `v0.3.0`) confere
+  `info.version == "1.2.0"`. Subir a versão obriga a mudá-lo, e o `check-unchanged-tests.sh v0.3.0`
+  reprovaria.
+- **Alternativas apresentadas ao responsável:**
+  - **exceção mínima:** trocar só a versão no `ApiDocsSecurityIT`;
+  - **manter o 1.2.0:** fazer os ajustes de texto sem subir o número;
+  - **não ajustar o contrato agora.**
+- **Decisão do responsável:** exceção mínima.
+  - O `ApiDocsSecurityIT` muda só no literal da versão e nos dois textos que a citam (o `@DisplayName` e o
+    javadoc). Nenhuma outra asserção muda, e ele ganha uma linha em `.github/unchanged-tests-exceptions.txt`
+    com o título desta entrada.
+  - O contrato-fonte passa a `specs/005-deploy-cloud-run/contracts/openapi.yaml`, e o 1.2.0 da spec 003 fica
+    como registro, como os das specs 001 e 002.
+  - O `ApiDocsIT`, que já tinha exceção ("Exceção do `ApiDocsIT` à regra dos testes sem alteração"), troca só
+    a constante `SPEC_CONTRACT`, como no Marco 3.
+- **Teste novo:** o `ContractTextIT` (modo padrão) confere as duas frases do `info.description`, a descrição
+  do `bearerAuth` e que nenhuma `description`, `summary` ou `title` do contrato contém `<` ou `>`.
+
 ## 2026-11-26 — Marco 5: publicação no Cloud Run
 
 Decisões da [spec 005](../../specs/005-deploy-cloud-run/spec.md), do plano e da análise. O resumo de

@@ -27,8 +27,8 @@ class ApiDocsIT extends ScenarioIT {
 
     private static final String SWAGGER_UI = "/swagger-ui.html";
     private static final String CONTRACT = "/openapi.yaml";
-    /** Contrato 1.2.0, com a autenticação opcional (spec 003, FR-026). Os das specs 001 e 002 ficam como registro. */
-    private static final Path SPEC_CONTRACT = Path.of("specs", "003-modo-docker", "contracts", "openapi.yaml");
+    /** Contrato 1.2.1 (spec 005, FR-027). Os das specs 001 a 003 ficam como registro. */
+    private static final Path SPEC_CONTRACT = Path.of("specs", "005-deploy-cloud-run", "contracts", "openapi.yaml");
 
     @Test
     @DisplayName("FR-024 Swagger UI disponível")

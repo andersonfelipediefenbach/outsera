@@ -1,0 +1,65 @@
+# Publicação na main conferida depois do merge (spec 005, T038), 2026-11-26T20:14Z
+
+## Execução da main
+Merge do PR #14, commit 4aeb67e: https://github.com/andersonfelipediefenbach/outsera/actions/runs/45885778155 (conclusão: success)
+Jobs (conclusão e duração, pela API pública do GitHub):
+  Política do workflow, do Dependabot e do compose               success 7s
+  Build, testes e cobertura                                      success 202s
+  Lint do Dockerfile (hadolint)                                  success 7s
+  Análise de segurança do código (CodeQL)                        success 194s
+  Vulnerabilidades das dependências (Trivy)                      success 59s
+  Regras de alerta do SLO (promtool)                             success 9s
+  Testes com PostgreSQL                                          success 80s
+  Teste de carga (k6) e carga inicial com o CSV gerado           success 390s
+  Imagem, vulnerabilidades da imagem e teste de fumaça           success 158s
+  Compose com PostgreSQL, Kafka, Prometheus e Grafana            success 199s
+  Publicação no Cloud Run e conferência da URL                   success 111s
+       1 Set up job: success
+       2 Início da publicação: success
+       3 Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1: success
+       4 Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333: success
+       5 O artefato é a imagem testada no job image: success
+       6 Run google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093: success
+       7 Run google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db: success
+       8 Envio da imagem testada ao Artifact Registry, com o digest preservado: success
+       9 Implantação sem tráfego, com tag própria: success
+      10 Conferência pela URL da revisão, antes do tráfego: success
+      11 Tráfego para a revisão conferida: success
+      12 Conferência pela URL pública: success
+      13 Resumo da publicação: success
+
+## Serviço no Cloud Run (gcloud run services describe)
+imagem: southamerica-east1-docker.pkg.dev/outsera-awards/awards/awards@sha256:2a6e248b0586b07f756920c4da2e14b245d07e4dd41655c5eb743a54f2bb2bf6
+maxScale: 1; minScale: ausente (ausente = 0)
+startup-cpu-boost: true
+env: [{'name': 'MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE', 'value': 'health'}]
+startupProbe: {'failureThreshold': 60, 'httpGet': {'path': '/actuator/health/readiness', 'port': 8080}, 'periodSeconds': 2, 'timeoutSeconds': 1}
+livenessProbe: {'failureThreshold': 3, 'httpGet': {'path': '/actuator/health/liveness', 'port': 8080}, 'periodSeconds': 30, 'timeoutSeconds': 3}
+serviceAccount: awards-runtime@outsera-awards.iam.gserviceaccount.com
+traffic: [('awards-00002-had', 100, 'c-4aeb67e')]
+imagem no registro com a tag do commit: awards:4aeb67ec8ccbdd04994166ab97fd87a328471a90 -> sha256:2a6e248b0586b07f756920c4da2e14b245d07e4dd41655c5eb743a54f2bb2bf6 (o mesmo digest da revisão)
+
+## Partida a frio da revisão nova (Cloud Logging, revisão awards-00002-had) - SC-001
+2026-11-26T19:51:34.787258Z  Starting new instance. Reason: DEPLOYMENT_ROLLOUT - Instance started due to traffic shifting between revisions due to deployment, traffic split adjustment, or deployment health check.
+2026-11-26T19:51:39.258104Z  Starting AwardsApplication v0.1.0-SNAPSHOT using Java 25.0.5.1 with PID 1 (/app/BOOT-INF/classes started by app in /app)  
+2026-11-26T19:51:52.433985Z  Carga do arquivo classpath:movielist.csv conclu?da: 206 linhas lidas, 206 aceitas, 0 rejeitadas  
+2026-11-26T19:51:52.560598Z  Started AwardsApplication in 14.508 seconds (process running for 17.108)  
+2026-11-26T19:51:53.236782Z  STARTUP HTTP probe succeeded after 10 attempts for container "awards-1" on port 8080 path "/actuator/health/readiness".
+Da criação da instância (19:51:34,8) ao probe de startup aprovado (19:51:53,2): cerca de 18,5 s, abaixo dos 30 s do SC-001.
+
+## Conferência local da URL pública (verify-deployment.sh --expect-no-metrics, contêiner alpine:3.22 com bash, curl e jq)
+Conferência de https://awards-2564509384.southamerica-east1.run.app (espera máxima de 180 s)
+--- passo 1: readiness
+    readiness UP em 1 s; primeira chamada em 1.214516 s
+==> passo 1: OK - readiness (readiness UP em 1 s; primeira chamada em 1.214516 s)
+--- passo 2: resultado de referência em /api/producers/intervals
+    HTTP 200 em 0.142705 s, application/json
+==> passo 2: OK - resultado de referência em /api/producers/intervals (HTTP 200 em 0.142705 s; resultado de referência)
+--- passo 3: Swagger UI e contrato OpenAPI
+    swagger-ui.html HTTP 200 em 0.140125 s; openapi.yaml HTTP 200
+==> passo 3: OK - Swagger UI e contrato OpenAPI (swagger-ui.html HTTP 200 em 0.140125 s; openapi.yaml HTTP 200)
+--- passo 4: métricas fechadas na URL publicada
+    actuator/prometheus HTTP 404
+==> passo 4: OK - métricas fechadas na URL publicada (actuator/prometheus HTTP 404)
+verify-deployment.sh: 4 OK, 0 FALHA
+(instância já ativa: intervalos em 0,14 s, abaixo dos 2 s do SC-001)

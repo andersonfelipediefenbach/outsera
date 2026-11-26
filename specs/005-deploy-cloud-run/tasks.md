@@ -346,13 +346,13 @@ merge (Phase 6).
 
 **Purpose**: a comprovação pelo pipeline (FR-001 a FR-016 e SC-001, SC-002, SC-005 e SC-006)
 
-- [ ] T035 [Anderson] Fazer o push do branch `marco/5-deploy` e abrir o PR. O implementador para aqui e
+- [X] T035 [Anderson] Fazer o push do branch `marco/5-deploy` e abrir o PR. O implementador para aqui e
   confere o resultado quando o Anderson avisar: os 10 checks verdes, com o `workflow-policy` e o `image`
   (passo do digest) comprovando a etapa 2, e o job `deploy` pulado.
 - [ ] T036 [Anderson] Opcional, nas configurações do repositório no GitHub: no ambiente `cloud-run` (criado
   automaticamente na primeira execução do job, ou antes, à mão), a regra de branch "só `main`" (research R3).
-- [ ] T037 [Anderson] Fazer o merge do PR na `main`, depois da revisão do Codex e das correções aceitas.
-- [ ] T038 Conferir a execução da `main`:
+- [X] T037 [Anderson] Fazer o merge do PR na `main`, depois da revisão do Codex e das correções aceitas.
+- [X] T038 Conferir a execução da `main`:
   - o job `deploy` verde, com o resumo mostrando o digest, a revisão, as duas conferências e a duração abaixo
     de 10 min;
   - `verify-deployment.sh --expect-no-metrics <URL pública>` rodado localmente (rápido), saindo com código 0,
@@ -363,10 +363,48 @@ merge (Phase 6).
     `maxScale` igual a 1 e `minScale` igual a 0 ou ausente, que significa 0 (SC-006);
   - se o job falhar, parar, diagnosticar e propor a correção num commit novo (research R4, risco de permissão
     de leitura).
-- [ ] T039 Em `specs/005-deploy-cloud-run/spec.md`, passar o `Status` a `Implemented`, com o link da execução
+  - *Feito* ([`evidencias/publicacao-main.txt`](evidencias/publicacao-main.txt)):
+    - a [execução 45885778155](https://github.com/andersonfelipediefenbach/outsera/actions/runs/45885778155)
+      ficou toda verde, e o job `deploy` passou nos 13 passos em 111 s. A permissão de leitura do projeto
+      não fez falta;
+    - a revisão `awards-00002-had` está com 100% do tráfego e a imagem pelo digest do registro, com
+      `maxScale` 1 e `minScale` ausente (0);
+    - a partida a frio levou cerca de 18,5 s, da instância criada ao probe de startup aprovado, pelo Cloud
+      Logging. O resumo do job não é acessível pela API sem autenticação;
+    - o `verify-deployment.sh --expect-no-metrics` passou na URL pública, com os intervalos em 0,14 s e o
+      `/actuator/prometheus` em 404.
+- [X] T039 Em `specs/005-deploy-cloud-run/spec.md`, passar o `Status` a `Implemented`, com o link da execução
   da `main` que comprovou a publicação. Fazer o commit num branch novo, já que commits na `main` não são
   permitidos, e pedir o push ao Anderson [Anderson].
+  - *Feito no próprio `marco/5-deploy`,* avançado por fast-forward até a `main` (`4aeb67e`), como no fechamento
+    do Marco 4. Nenhum commit vai direto para a `main`.
 - [ ] T040 [Anderson] Exportar a sessão (`/export`) para `docs/ai/sessoes/`.
+
+---
+
+## Phase 7: Contrato 1.2.1 (FR-027), no fechamento do marco
+
+**Purpose**: o pedido do responsável depois do merge. Com o Swagger UI público, o contrato muda só em
+textos.
+
+- [X] T041 Spec 005 primeiro: a FR-027, a emenda da FR-022 e a clarificação do fechamento.
+- [X] T042 Criar `specs/005-deploy-cloud-run/contracts/openapi.yaml` (1.2.1), a partir do 1.2.0 da spec 003:
+  - o `info.description` com duas frases;
+  - a descrição do `bearerAuth` igual a "Opcional. Exigido só quando a variável API_TOKEN está definida.";
+  - o `security` de cada operação sem mudança, porque já tinha o `{}` antes do `bearerAuth`;
+  - nenhum `<` ou `>` nos textos.
+
+  Copiar o arquivo, idêntico, para `src/main/resources/static/openapi.yaml`.
+- [X] T043 Testes, com a exceção mínima escolhida pelo responsável:
+  - no `ApiDocsIT`, a constante `SPEC_CONTRACT` passa à spec 005 (ele já tinha exceção);
+  - no `ApiDocsSecurityIT`, só a versão, no literal, no `@DisplayName` e no javadoc, com a linha nova em
+    `.github/unchanged-tests-exceptions.txt` e a entrada em `docs/ai/decisoes.md`;
+  - IT novo `ContractTextIT`, incluído em `src/test/default-mode-its.txt`.
+- [X] T044 README: o contrato 1.2.1 na seção 4, a estrutura e os requisitos do Marco 5.
+- [X] T045 `./mvnw verify` verde (212 testes, os 3 novos do `ContractTextIT`), e o `check-unchanged-tests.sh`
+  verde na `v0.2.0` (59 ITs) e na `v0.3.0` (95 ITs), com 2 exceções.
+- [ ] T046 Depois do merge: conferir na URL pública que `/openapi.yaml` está na versão 1.2.1, com a descrição
+  nova do `bearerAuth` e sem `<` ou `>`.
 
 ---
 
