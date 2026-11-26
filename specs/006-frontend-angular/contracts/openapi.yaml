@@ -1,0 +1,342 @@
+openapi: 3.1.0
+info:
+  title: Golden Raspberry Awards API
+  version: 1.3.0
+  description: >
+    Intervalos entre prêmios consecutivos de produtores na categoria Pior Filme, listagem dos filmes
+    indicados e vencedores e totais de vencedores por ano e por estúdio. Os dados vêm do arquivo CSV
+    carregado na inicialização.
+paths:
+  /api/producers/intervals:
+    get:
+      operationId: getProducerIntervals
+      summary: Produtores com o menor e o maior intervalo entre duas vitórias consecutivas
+      description: >
+        Considera só filmes vencedores e pares de vitórias vizinhas de cada produtor. Todos os empatados
+        entram na lista, ordenados por previousWin e depois por nome. Sem produtor com duas vitórias,
+        as duas listas vêm vazias.
+      tags: [producers]
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Intervalos mínimo e máximo
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProducerIntervals'
+              examples:
+                arquivoFornecido:
+                  summary: Resultado com o arquivo fornecido no enunciado
+                  value:
+                    min:
+                      - { producer: Joel Silver, interval: 1, previousWin: 1990, followingWin: 1991 }
+                    max:
+                      - { producer: Matthew Vaughn, interval: 13, previousWin: 2002, followingWin: 2015 }
+                semDadosSuficientes:
+                  summary: Nenhum produtor com duas vitórias
+                  value: { min: [], max: [] }
+        '304':
+          $ref: '#/components/responses/NotModified'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/movies:
+    get:
+      operationId: listMovies
+      summary: Lista paginada de filmes, com filtros opcionais
+      description: Ordenada por ano e depois por título.
+      tags: [movies]
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: year
+          in: query
+          required: false
+          description: Ano exato (só dígitos)
+          schema: { type: integer, minimum: 0 }
+        - name: winner
+          in: query
+          required: false
+          description: true para só vencedores, false para só não vencedores
+          schema: { type: boolean }
+        - name: page
+          in: query
+          required: false
+          description: Página, começando em 0
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          required: false
+          description: Itens por página
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Página de filmes
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoviePage'
+              example:
+                content:
+                  - year: 1980
+                    title: Can't Stop the Music
+                    studios: Associated Film Distribution
+                    producers: Allan Carr
+                    winner: true
+                page: 0
+                size: 20
+                totalElements: 206
+                totalPages: 11
+        '304':
+          $ref: '#/components/responses/NotModified'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '400':
+          description: Parâmetro inválido
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              example:
+                type: about:blank
+                title: Bad Request
+                status: 400
+                detail: Parâmetro inválido na consulta
+                instance: /api/movies
+                invalidParams:
+                  - { name: winner, reason: deve ser true ou false }
+  /api/aggregations/years-with-multiple-winners:
+    get:
+      operationId: getYearsWithMultipleWinners
+      summary: Anos com mais de um filme vencedor
+      description: >
+        Só anos com dois ou mais vencedores, em ordem crescente de ano. Sem nenhum ano assim, a lista vem
+        vazia.
+      tags: [aggregations]
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Anos com mais de um vencedor
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YearsWithMultipleWinners'
+              examples:
+                arquivoFornecido:
+                  summary: Resultado com o arquivo fornecido
+                  value:
+                    years:
+                      - { year: 1986, winnerCount: 2 }
+                      - { year: 1990, winnerCount: 2 }
+                      - { year: 2015, winnerCount: 2 }
+                semVencedores:
+                  summary: Nenhum ano com dois vencedores
+                  value: { years: [] }
+        '304':
+          $ref: '#/components/responses/NotModified'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/aggregations/studios-with-win-count:
+    get:
+      operationId: getStudiosWithWinCount
+      summary: Estúdios com a quantidade de filmes vencedores
+      description: >
+        O campo de estúdios de cada vencedor é separado por vírgula, sem espaços nas pontas, e um estúdio
+        repetido no mesmo filme conta uma vez. Só entram estúdios com pelo menos uma vitória, ordenados
+        pela quantidade decrescente e depois pelo nome. Sem vencedores, a lista vem vazia.
+      tags: [aggregations]
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Estúdios com vitórias
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudiosWithWinCount'
+              examples:
+                arquivoFornecido:
+                  summary: Início do resultado com o arquivo fornecido
+                  value:
+                    studios:
+                      - { name: Columbia Pictures, winCount: 7 }
+                      - { name: Paramount Pictures, winCount: 6 }
+                      - { name: Warner Bros., winCount: 5 }
+                semVencedores:
+                  summary: Nenhum filme vencedor
+                  value: { studios: [] }
+        '304':
+          $ref: '#/components/responses/NotModified'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Opcional. Exigido só quando a variável API_TOKEN está definida.
+  parameters:
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      description: >
+        ETag recebido numa resposta anterior. Aceita um valor, uma lista separada por vírgulas, a forma
+        fraca (W/"...") ou *. Quando contém o ETag atual, a resposta é 304 sem corpo.
+      schema: { type: string }
+      example: '"0a1b2c3d4e5f60718293a4b5c6d7e8f90"'
+  headers:
+    WWW-Authenticate:
+      description: Esquema exigido, presente só no 401.
+      schema: { type: string }
+      example: 'Bearer realm="awards"'
+    ETag:
+      description: >
+        Identifica a representação. É derivado do conteúdo do corpo: o mesmo corpo tem sempre o mesmo
+        ETag, inclusive entre execuções com o mesmo arquivo.
+      required: true
+      schema: { type: string }
+      example: '"0a1b2c3d4e5f60718293a4b5c6d7e8f90"'
+  responses:
+    Unauthorized:
+      description: Autenticação ligada e token ausente ou inválido
+      headers:
+        WWW-Authenticate:
+          $ref: '#/components/headers/WWW-Authenticate'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: about:blank
+            title: Unauthorized
+            status: 401
+            detail: Token ausente ou inválido
+            instance: /api/producers/intervals
+    NotModified:
+      description: A representação não mudou desde o ETag enviado em If-None-Match. Sem corpo.
+      headers:
+        ETag:
+          $ref: '#/components/headers/ETag'
+  schemas:
+    ProducerIntervals:
+      type: object
+      additionalProperties: false
+      required: [min, max]
+      properties:
+        min:
+          type: array
+          items: { $ref: '#/components/schemas/ProducerInterval' }
+        max:
+          type: array
+          items: { $ref: '#/components/schemas/ProducerInterval' }
+    ProducerInterval:
+      type: object
+      additionalProperties: false
+      required: [producer, interval, previousWin, followingWin]
+      properties:
+        producer: { type: string }
+        interval: { type: integer, minimum: 0 }
+        previousWin: { type: integer }
+        followingWin: { type: integer }
+    MoviePage:
+      type: object
+      additionalProperties: false
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items: { $ref: '#/components/schemas/Movie' }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalElements: { type: integer, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+    Movie:
+      type: object
+      additionalProperties: false
+      required: [year, title, studios, producers, winner]
+      properties:
+        year: { type: integer }
+        title: { type: string }
+        studios:
+          type: [string, 'null']
+          description: Texto como no arquivo; null quando a coluna está vazia
+        producers:
+          type: string
+          description: Texto como no arquivo
+        winner: { type: boolean }
+    YearsWithMultipleWinners:
+      type: object
+      additionalProperties: false
+      required: [years]
+      properties:
+        years:
+          type: array
+          items: { $ref: '#/components/schemas/YearWinnerCount' }
+    YearWinnerCount:
+      type: object
+      additionalProperties: false
+      required: [year, winnerCount]
+      properties:
+        year: { type: integer }
+        winnerCount: { type: integer, minimum: 2 }
+    StudiosWithWinCount:
+      type: object
+      additionalProperties: false
+      required: [studios]
+      properties:
+        studios:
+          type: array
+          items: { $ref: '#/components/schemas/StudioWinCount' }
+    StudioWinCount:
+      type: object
+      additionalProperties: false
+      required: [name, winCount]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Nome como no arquivo, sem espaços nas pontas
+        winCount: { type: integer, minimum: 1 }
+    ProblemDetail:
+      type: object
+      description: RFC 9457
+      required: [title, status]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        invalidParams:
+          type: array
+          items:
+            type: object
+            required: [name, reason]
+            properties:
+              name: { type: string }
+              reason: { type: string }
