@@ -3,6 +3,30 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-26 — Proteção da main depois do Marco 4
+
+O ruleset `main` está ativo para a branch padrão, com a lista de bypass vazia. Para concluir o T064
+(FR-031), foram adicionados os checks de alertas do SLO e de carga aos oito do Marco 3. Os dez checks
+obrigatórios têm o GitHub Actions como origem:
+
+| Job | Check obrigatório no GitHub |
+| --- | --- |
+| `workflow-policy` | Política do workflow, do Dependabot e do compose |
+| `build` | Build, testes e cobertura |
+| `postgres` | Testes com PostgreSQL |
+| `codeql` | Análise de segurança do código (CodeQL) |
+| `dependencies` | Vulnerabilidades das dependências (Trivy) |
+| `dockerfile-lint` | Lint do Dockerfile (hadolint) |
+| `image` | Imagem, vulnerabilidades da imagem e teste de fumaça |
+| `compose` | Compose com PostgreSQL, Kafka, Prometheus e Grafana |
+| `alert-rules` | Regras de alerta do SLO (promtool) |
+| `load` | Teste de carga (k6) e carga inicial com o CSV gerado |
+
+Após salvar o ruleset, os dez apareceram como obrigatórios no
+[PR #12](https://github.com/andersonfelipediefenbach/outsera/pull/12/checks) e passaram no commit
+`3d83d07`, tanto na [execução do PR](https://github.com/andersonfelipediefenbach/outsera/actions/runs/45836107162)
+quanto na [execução do push](https://github.com/andersonfelipediefenbach/outsera/actions/runs/45836092814).
+
 ## 2026-11-26 — T012 não executado: verificação do job de dependências
 
 - **Decisão do Anderson:** o T012 da spec 004 não é executado. Ele previa um branch temporário com o

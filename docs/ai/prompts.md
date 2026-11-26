@@ -1657,3 +1657,1165 @@ C:/Users/ander/AppData/Local/Temp/claude/cd9697c376913fb9/1b0838f5-80da-4eae-ad9
 ```text
 Autorizado. Já fechei o Docker Desktop. Rode o ./mvnw clean verify e o ./mvnw -Pextras verify, um de cada vez. Com os dois verdes, faça os dois commits separados: o do cache e o do load-test.sh. No registro do cache, deixe explícito no ADR que ele vale para uma única instância e que, com várias instâncias (Marco 5, Cloud Run), a invalidação precisa passar a um contador no banco ou a um evento compartilhado. Depois pare no T025.
 ```
+
+## 2026-11-26 08:50:59 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+Crie agora o branch verificacao/trivy-transitivas a partir do marco/4-acabamento, conforme o T012, com um único commit que muda o lz4-java para 1.11.2. Volte para o marco/4-acabamento ao terminar. O push eu faço.
+```
+
+## 2026-11-26 09:35:50 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+
+
+<pasted_content id="7c07">
+O job load falhou nos dois pipelines do commit 127584c (runs 45813784469 e 45814146445), depois de ~23 min, no passo "Gerador, carga direta, carga por Kafka e k6". O job compose falhou só no run 45814146445, em 29 s, no passo 3. Leia os logs com gh run view <run> --log-failed e diagnostique antes de corrigir:
+1. Em que parte do passo o load falhou e quanto tempo cada etapa levou no runner (geração, carga direta, carga por Kafka, k6).
+2. Se a carga por Kafka dos 100 mil não cabe no runner, me mostre os tempos e as opções antes de mudar o tamanho. Não reduza o arquivo para fazer o teste passar sem me consultar.
+3. A causa da falha do compose, e se é passageira ou real.
+Não faça push.
+</pasted_content id="7c07">
+
+```
+
+## 2026-11-26 09:52:39 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+
+
+<pasted_content id="7c07">
+ Image awards:local Skipped Image can be built
+== 0. Imagens (fora da medição do SC-008)
+ Image postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71 Pulling 
+ Image prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06 Pulling 
+ Image apache/kafka-native:4.4.0@sha256:11fde816adf384402de9f3e57aeaf2c3722ba0671610247817688d07441714b4 Pulling 
+ Image grafana/grafana:13.3.2@sha256:81556409ba48b2b922e0adb69a2511337d8ba7578f11962eefa6149a2d815101 Pulling 
+ Image apache/kafka-native:4.4.0@sha256:11fde816adf384402de9f3e57aeaf2c3722ba0671610247817688d07441714b4 Pulled 
+ Image prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06 Pulled 
+ Image postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71 Pulled 
+ Image grafana/grafana:13.3.2@sha256:81556409ba48b2b922e0adb69a2511337d8ba7578f11962eefa6149a2d815101 Pulled 
+ Image apache/kafka:4.4.0@sha256:833b867a9585a141da455dc2b57431c65cbccb27f11c91f694444cca9f777e0f Pulling 
+ Image apache/kafka:4.4.0@sha256:833b867a9585a141da455dc2b57431c65cbccb27f11c91f694444cca9f777e0f Pulled 
+ Image awards:local Building 
+Dockerfile:12
+
+--------------------
+
+  10 |     COPY mvnw pom.xml ./
+
+  11 |     COPY .mvn .mvn
+
+  12 | >>> RUN --mount=type=cache,target=/root/.m2 sh ./mvnw -B -q dependency:go-offline
+
+  13 |     
+
+  14 |     COPY src/main src/main
+
+--------------------
+
+failed to solve: process "/bin/sh -c sh ./mvnw -B -q dependency:go-offline" did not complete successfully: exit code: 1
+
+Error: Process completed with exit code 1.
+</pasted_content id="7c07">
+
+
+
+<pasted_content id="7c07">
+1s
+0s
+10s
+1m 15s
+21m 40s
+Run .github/scripts/load-test.sh awards:ci
+--- passo 1: geração do CSV duas vezes, com os mesmos parâmetros
+/home/runner/work/outsera/outsera/target/generated-data/a.csv: 100000 filmes, SHA-256 c4b741e30f85898ce6a2649554ca2c5b65836a4217a03dae33be243d7880f4a6
+/home/runner/work/outsera/outsera/target/generated-data/movies.csv: 100000 filmes, SHA-256 c4b741e30f85898ce6a2649554ca2c5b65836a4217a03dae33be243d7880f4a6
+    SHA-256: c4b741e30f85898ce6a2649554ca2c5b65836a4217a03dae33be243d7880f4a6 e c4b741e30f85898ce6a2649554ca2c5b65836a4217a03dae33be243d7880f4a6 (100000 filmes)
+==> passo 1: OK - duas gerações com o mesmo SHA-256
+==> passo 1b: OK - SHA-256 igual ao registrado no Windows
+--- passo 2: carga direta do CSV gerado
+    sem readiness 200 em 600 s
+==> passo 2: FALHA - carga direta sem linha rejeitada
+--- passo 3: carga por Kafka no compose
+ Image grafana/grafana:13.3.2@sha256:81556409ba48b2b922e0adb69a2511337d8ba7578f11962eefa6149a2d815101 Pulling 
+ Image postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71 Pulling 
+ Image apache/kafka-native:4.4.0@sha256:11fde816adf384402de9f3e57aeaf2c3722ba0671610247817688d07441714b4 Pulling 
+ Image prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06 Pulling 
+ f6bf6bb569c5 Pulling fs layer 0B
+ 7a8519c01f22 Pulling fs layer 0B
+ d53a350ae5bb Pulling fs layer 0B
+ cfe87db7b7e0 Pulling fs layer 0B
+ 72dcf69f72aa Pulling fs layer 0B
+ 456bdf926fcd Pulling fs layer 0B
+ f4d3d6669d6d Pulling fs layer 0B
+ 492c0d6bf242 Pulling fs layer 0B
+ add0f1445f2b Pulling fs layer 0B
+ 18e62f3eca8a Pulling fs layer 0B
+ c8e24e5ae408 Pulling fs layer 0B
+ b7e7a06300b2 Pulling fs layer 0B
+ 1852dbe34288 Pulling fs layer 0B
+ c6b93ad5979a Pulling fs layer 0B
+ 7eed13b0ab7b Pulling fs layer 0B
+ 68bc385fe873 Pulling fs layer 0B
+ 823ccdff3565 Pulling fs layer 0B
+ 4f4fb700ef54 Pulling fs layer 0B
+ 76b7d90609bc Pulling fs layer 0B
+ 69a08516771f Pulling fs layer 0B
+ 20e2ea9ba9ef Pulling fs layer 0B
+ 3b9ae6ca12fb Pulling fs layer 0B
+ e18067f65fa3 Pulling fs layer 0B
+ cb39808c0ffb Pulling fs layer 0B
+ f5f62becff0c Pulling fs layer 0B
+ 1ec43e655c6c Pulling fs layer 0B
+ 4f4fb700ef54 Already exists 0B
+ 3f4dea45886b Pulling fs layer 0B
+ f2d7cafd5afd Pulling fs layer 0B
+ e69a9c2fdea7 Pulling fs layer 0B
+ bbd27b019c4a Pulling fs layer 0B
+ 1645cfdb7f22 Pulling fs layer 0B
+ 4721f81aac5e Pulling fs layer 0B
+ 45e02dc2fee3 Pulling fs layer 0B
+ d53a350ae5bb Download complete 0B
+ 3b9ae6ca12fb Download complete 0B
+ c8e24e5ae408 Download complete 0B
+ f6bf6bb569c5 Download complete 0B
+ 7a8519c01f22 Downloading 5.243MB
+ 1852dbe34288 Download complete 0B
+ 3f4dea45886b Download complete 0B
+ 1645cfdb7f22 Downloading 1.049MB
+ e18067f65fa3 Download complete 0B
+ 18e62f3eca8a Download complete 0B
+ cb39808c0ffb Download complete 0B
+ f5f62becff0c Downloading 6.291MB
+ 1ec43e655c6c Downloading 2.999kB
+ 69a08516771f Downloading 1.426kB
+ 72dcf69f72aa Download complete 0B
+ 76b7d90609bc Download complete 0B
+ c6b93ad5979a Downloading 139B
+ b7e7a06300b2 Downloading 8.735MB
+ 456bdf926fcd Download complete 0B
+ 492c0d6bf242 Downloading 3.146MB
+ add0f1445f2b Download complete 0B
+ 823ccdff3565 Download complete 0B
+ cfe87db7b7e0 Download complete 0B
+ f4d3d6669d6d Download complete 0B
+ 72dcf69f72aa Extracting 1B
+ 1645cfdb7f22 Downloading 6.291MB
+ 7a8519c01f22 Downloading 11.53MB
+ 492c0d6bf242 Downloading 9.437MB
+ f2d7cafd5afd Download complete 0B
+ e69a9c2fdea7 Download complete 0B
+ 44136fa355b3 Already exists 0B
+ 20e2ea9ba9ef Downloading 6.291MB
+ c6b93ad5979a Download complete 0B
+ 68bc385fe873 Downloading 5.243MB
+ bbd27b019c4a Download complete 0B
+ f5f62becff0c Download complete 0B
+ 4721f81aac5e Download complete 0B
+ b7e7a06300b2 Download complete 0B
+ 7eed13b0ab7b Downloading 5.243MB
+ 1ec43e655c6c Download complete 0B
+ 45e02dc2fee3 Download complete 0B
+ 69a08516771f Download complete 0B
+ 72dcf69f72aa Extracting 1B
+ c8e24e5ae408 Extracting 1B
+ e69a9c2fdea7 Extracting 1B
+ f5f62becff0c Extracting 1B
+ c6b93ad5979a Pull complete 0B
+ 1645cfdb7f22 Downloading 10.49MB
+ 68bc385fe873 Downloading 9.437MB
+ 7eed13b0ab7b Downloading 9.437MB
+ 492c0d6bf242 Downloading 13.63MB
+ 94ec85689262 Download complete 0B
+ 7a8519c01f22 Downloading 16.78MB
+ c8e24e5ae408 Extracting 1B
+ e69a9c2fdea7 Pull complete 0B
+ b6e258833b3c Download complete 0B
+ 20e2ea9ba9ef Downloading 10.49MB
+ 72dcf69f72aa Extracting 1B
+ 4721f81aac5e Extracting 1B
+ f5f62becff0c Extracting 1B
+ 20e2ea9ba9ef Downloading 14.68MB
+ 492c0d6bf242 Downloading 16.78MB
+ 7a8519c01f22 Downloading 20.97MB
+ 68bc385fe873 Downloading 13.63MB
+ 7eed13b0ab7b Downloading 13.63MB
+ 59826502041d Download complete 0B
+ 1645cfdb7f22 Downloading 14.68MB
+ c8e24e5ae408 Extracting 1B
+ 3f4dea45886b Extracting 1B
+ 72dcf69f72aa Pull complete 0B
+ f5f62becff0c Extracting 1B
+ 456bdf926fcd Extracting 1B
+ 4721f81aac5e Pull complete 0B
+ 1645cfdb7f22 Downloading 19.92MB
+ a89ecea4e9c1 Download complete 0B
+ 492c0d6bf242 Downloading 20.97MB
+ 7a8519c01f22 Downloading 25.17MB
+ 68bc385fe873 Downloading 17.83MB
+ 7eed13b0ab7b Downloading 17.83MB
+ 20e2ea9ba9ef Downloading 18.87MB
+ c8e24e5ae408 Extracting 1B
+ 3f4dea45886b Pull complete 0B
+ 456bdf926fcd Extracting 1B
+ f5f62becff0c Pull complete 0B
+ 1ec43e655c6c Pull complete 0B
+ 7a8519c01f22 Downloading 32.51MB
+ 1645cfdb7f22 Downloading 27.26MB
+ 492c0d6bf242 Downloading 28.31MB
+ 20e2ea9ba9ef Downloading 26.21MB
+ 7eed13b0ab7b Downloading 26.21MB
+ 68bc385fe873 Downloading 24.12MB
+ 456bdf926fcd Pull complete 0B
+ c8e24e5ae408 Pull complete 0B
+ b7e7a06300b2 Extracting 1B
+ 7a8519c01f22 Downloading 39.85MB
+ 492c0d6bf242 Downloading 35.65MB
+ 1645cfdb7f22 Downloading 34.6MB
+ 20e2ea9ba9ef Downloading 33.55MB
+ 68bc385fe873 Downloading 33.55MB
+ 7eed13b0ab7b Downloading 34.6MB
+ b7e7a06300b2 Extracting 1B
+ 1645cfdb7f22 Downloading 41.94MB
+ 20e2ea9ba9ef Downloading 41.94MB
+ 7a8519c01f22 Downloading 49.28MB
+ 492c0d6bf242 Downloading 42.99MB
+ 68bc385fe873 Downloading 41.94MB
+ 7eed13b0ab7b Downloading 44.04MB
+ b7e7a06300b2 Extracting 1B
+ 1645cfdb7f22 Downloading 50.33MB
+ 7a8519c01f22 Download complete 0B
+ 492c0d6bf242 Downloading 51.38MB
+ 20e2ea9ba9ef Download complete 0B
+ 68bc385fe873 Downloading 50.33MB
+ 7eed13b0ab7b Downloading 52.43MB
+ b7e7a06300b2 Extracting 1B
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Downloading 62.91MB
+ 1645cfdb7f22 Downloading 60.82MB
+ 68bc385fe873 Downloading 59.77MB
+ 7eed13b0ab7b Downloading 62.91MB
+ 18e62f3eca8a Pull complete 0B
+ 20e2ea9ba9ef Extracting 1B
+ b7e7a06300b2 Pull complete 0B
+ 1645cfdb7f22 Downloading 71.3MB
+ 68bc385fe873 Downloading 72.35MB
+ 7eed13b0ab7b Downloading 74.45MB
+ 492c0d6bf242 Download complete 0B
+ 76b7d90609bc Pull complete 0B
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 1645cfdb7f22 Downloading 83.89MB
+ 7eed13b0ab7b Downloading 87.03MB
+ 68bc385fe873 Downloading 83.89MB
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 1645cfdb7f22 Downloading 94.37MB
+ 68bc385fe873 Downloading 95.42MB
+ 7eed13b0ab7b Downloading 98.57MB
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 1645cfdb7f22 Downloading 104.9MB
+ 68bc385fe873 Downloading 109.1MB
+ 7eed13b0ab7b Downloading 110.1MB
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 68bc385fe873 Downloading 122.7MB
+ 7eed13b0ab7b Downloading 125.8MB
+ 1645cfdb7f22 Downloading 115.5MB
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 68bc385fe873 Downloading 138.4MB
+ 7eed13b0ab7b Downloading 139.5MB
+ 1645cfdb7f22 Download complete 0B
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 68bc385fe873 Downloading 153.1MB
+ 7eed13b0ab7b Downloading 155.2MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 68bc385fe873 Downloading 167.8MB
+ 7eed13b0ab7b Downloading 167.8MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 7eed13b0ab7b Downloading 184.5MB
+ 68bc385fe873 Downloading 184.5MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 7eed13b0ab7b Downloading 201.3MB
+ 68bc385fe873 Downloading 193.4MB
+ 1645cfdb7f22 Extracting 1B
+ 7eed13b0ab7b Downloading 205.5MB
+ 68bc385fe873 Downloading 193.4MB
+ 492c0d6bf242 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 492c0d6bf242 Extracting 1B
+ 68bc385fe873 Download complete 0B
+ 7eed13b0ab7b Downloading 221.2MB
+ 1645cfdb7f22 Extracting 1B
+ 492c0d6bf242 Extracting 2B
+ 20e2ea9ba9ef Extracting 2B
+ 7eed13b0ab7b Downloading 241.2MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 261.1MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 281MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 296.3MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Pull complete 0B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 296.3MB
+ 1645cfdb7f22 Extracting 2B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 296.3MB
+ 1645cfdb7f22 Extracting 2B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 296.3MB
+ 1645cfdb7f22 Extracting 2B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 296.3MB
+ cb39808c0ffb Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7a8519c01f22 Extracting 1B
+ 492c0d6bf242 Pull complete 0B
+ 3b9ae6ca12fb Pull complete 0B
+ e18067f65fa3 Pull complete 0B
+ cb39808c0ffb Pull complete 0B
+ 69a08516771f Pull complete 0B
+ Image apache/kafka-native:4.4.0@sha256:11fde816adf384402de9f3e57aeaf2c3722ba0671610247817688d07441714b4 Pulled 
+ 7eed13b0ab7b Download complete 0B
+ 7a8519c01f22 Extracting 1B
+ 7eed13b0ab7b Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7a8519c01f22 Extracting 1B
+ 7eed13b0ab7b Extracting 1B
+ 1645cfdb7f22 Extracting 3B
+ 7a8519c01f22 Extracting 1B
+ 7eed13b0ab7b Extracting 1B
+ 7eed13b0ab7b Extracting 1B
+ 1645cfdb7f22 Extracting 3B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 3B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ d53a350ae5bb Pull complete 0B
+ f6bf6bb569c5 Pull complete 0B
+ add0f1445f2b Pull complete 0B
+ cfe87db7b7e0 Pull complete 0B
+ f4d3d6669d6d Pull complete 0B
+ 7a8519c01f22 Pull complete 0B
+ Image prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06 Pulled 
+ 1645cfdb7f22 Extracting 3B
+ 7eed13b0ab7b Extracting 1B
+ 1645cfdb7f22 Extracting 3B
+ 7eed13b0ab7b Extracting 1B
+ 1645cfdb7f22 Extracting 3B
+ 7eed13b0ab7b Extracting 2B
+ 1645cfdb7f22 Extracting 3B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 1645cfdb7f22 Pull complete 0B
+ f2d7cafd5afd Pull complete 0B
+ bbd27b019c4a Pull complete 0B
+ 45e02dc2fee3 Pull complete 0B
+ Image postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71 Pulled 
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 6B
+ 7eed13b0ab7b Extracting 6B
+ 68bc385fe873 Extracting 1B
+ 7eed13b0ab7b Pull complete 0B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 3B
+ 68bc385fe873 Extracting 3B
+ 68bc385fe873 Extracting 3B
+ 68bc385fe873 Extracting 3B
+ 68bc385fe873 Extracting 3B
+ 68bc385fe873 Extracting 3B
+ 4f4fb700ef54 Pull complete 0B
+ 1852dbe34288 Pull complete 0B
+ 823ccdff3565 Pull complete 0B
+ 68bc385fe873 Pull complete 0B
+ Image grafana/grafana:13.3.2@sha256:81556409ba48b2b922e0adb69a2511337d8ba7578f11962eefa6149a2d815101 Pulled 
+ Network awards_default Creating 
+ Network awards_default Created 
+ Volume awards_pgdata Creating 
+ Volume awards_pgdata Created 
+ Volume awards_kafkadata Creating 
+ Volume awards_kafkadata Created 
+ Container awards-kafka-1 Creating 
+ Container awards-postgres-1 Creating 
+ Container awards-postgres-1 Created 
+ Container awards-kafka-1 Created 
+ Container awards-app-1 Creating 
+ Container awards-app-1 Created 
+ Container awards-prometheus-1 Creating 
+ Container awards-prometheus-1 Created 
+ Container awards-grafana-1 Creating 
+ Container awards-grafana-1 Created 
+ Container awards-kafka-1 Starting 
+ Container awards-postgres-1 Starting 
+ Container awards-postgres-1 Started 
+ Container awards-kafka-1 Started 
+ Container awards-postgres-1 Waiting 
+ Container awards-kafka-1 Waiting 
+ Container awards-kafka-1 Healthy 
+ Container awards-postgres-1 Healthy 
+ Container awards-app-1 Starting 
+ Container awards-app-1 Started 
+ Container awards-prometheus-1 Starting 
+ Container awards-prometheus-1 Started 
+ Container awards-grafana-1 Starting 
+ Container awards-grafana-1 Started 
+    sem readiness 200 em 600 s
+==> passo 3: FALHA - carga por Kafka sem linha rejeitada
+--- passo 4: k6
+ Container awards-kafka-1 Running 
+ Container awards-postgres-1 Running 
+ Container awards-kafka-1 Waiting 
+ Container awards-postgres-1 Waiting 
+ Container awards-postgres-1 Healthy 
+ Container awards-kafka-1 Healthy 
+ Container awards-app-1 Starting 
+ Container awards-app-1 Started 
+ Image grafana/k6:2.4.0@sha256:d41bb79cd8de5a7ad619b53570e3712633e8bff0937010a5c6c57a4747e7a276 Pulling 
+ 4f4fb700ef54 Pulling fs layer 0B
+ b46f6d67c0bc Pulling fs layer 0B
+ 2fdc73d4d0db Pulling fs layer 0B
+ 4f4fb700ef54 Already exists 0B
+ b46f6d67c0bc Download complete 0B
+ 2fdc73d4d0db Downloading 14.68MB
+ b46f6d67c0bc Extracting 1B
+ 2fdc73d4d0db Download complete 0B
+ b46f6d67c0bc Extracting 1B
+ 44136fa355b3 Already exists 0B
+ b46f6d67c0bc Pull complete 0B
+ 2fdc73d4d0db Extracting 1B
+ 598ab8121a35 Download complete 0B
+ 2fdc73d4d0db Extracting 1B
+ 2fdc73d4d0db Extracting 1B
+ 2fdc73d4d0db Extracting 1B
+ 2fdc73d4d0db Extracting 1B
+ 2fdc73d4d0db Extracting 1B
+ 4f4fb700ef54 Pull complete 0B
+ 2fdc73d4d0db Pull complete 0B
+ Image grafana/k6:2.4.0@sha256:d41bb79cd8de5a7ad619b53570e3712633e8bff0937010a5c6c57a4747e7a276 Pulled 
+ Container awards-app-1 Waiting 
+ Container awards-app-1 Error dependency app failed to start
+dependency failed to start: container awards-app-1 exited (1)
+    o k6 saiu com 1 (99 = limite ultrapassado)
+==> passo 4: FALHA - k6 dentro dos limites
+load-test.sh: FALHA em 3 passo(s).
+Error: Process completed with exit code 1.
+</pasted_content id="7c07">
+
+
+
+<pasted_content id="7c07">
+0s
+8s
+1m 24s
+21m 33s
+Run .github/scripts/load-test.sh awards:ci
+--- passo 1: geração do CSV duas vezes, com os mesmos parâmetros
+/home/runner/work/outsera/outsera/target/generated-data/a.csv: 100000 filmes, SHA-256 c4b741e30f85898ce6a2649554ca2c5b65836a4217a03dae33be243d7880f4a6
+/home/runner/work/outsera/outsera/target/generated-data/movies.csv: 100000 filmes, SHA-256 c4b741e30f85898ce6a2649554ca2c5b65836a4217a03dae33be243d7880f4a6
+    SHA-256: c4b741e30f85898ce6a2649554ca2c5b65836a4217a03dae33be243d7880f4a6 e c4b741e30f85898ce6a2649554ca2c5b65836a4217a03dae33be243d7880f4a6 (100000 filmes)
+==> passo 1: OK - duas gerações com o mesmo SHA-256
+==> passo 1b: OK - SHA-256 igual ao registrado no Windows
+--- passo 2: carga direta do CSV gerado
+    sem readiness 200 em 600 s
+==> passo 2: FALHA - carga direta sem linha rejeitada
+--- passo 3: carga por Kafka no compose
+ Image grafana/grafana:13.3.2@sha256:81556409ba48b2b922e0adb69a2511337d8ba7578f11962eefa6149a2d815101 Pulling 
+ Image postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71 Pulling 
+ Image apache/kafka-native:4.4.0@sha256:11fde816adf384402de9f3e57aeaf2c3722ba0671610247817688d07441714b4 Pulling 
+ Image prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06 Pulling 
+ f5f62becff0c Pulling fs layer 0B
+ 69a08516771f Pulling fs layer 0B
+ e18067f65fa3 Pulling fs layer 0B
+ cb39808c0ffb Pulling fs layer 0B
+ 3b9ae6ca12fb Pulling fs layer 0B
+ 20e2ea9ba9ef Pulling fs layer 0B
+ 1ec43e655c6c Pulling fs layer 0B
+ 1852dbe34288 Pulling fs layer 0B
+ 7eed13b0ab7b Pulling fs layer 0B
+ 823ccdff3565 Pulling fs layer 0B
+ 68bc385fe873 Pulling fs layer 0B
+ 76b7d90609bc Pulling fs layer 0B
+ 4f4fb700ef54 Pulling fs layer 0B
+ c6b93ad5979a Pulling fs layer 0B
+ c8e24e5ae408 Pulling fs layer 0B
+ b7e7a06300b2 Pulling fs layer 0B
+ 18e62f3eca8a Pulling fs layer 0B
+ 4f4fb700ef54 Already exists 0B
+ 7a8519c01f22 Pulling fs layer 0B
+ f6bf6bb569c5 Pulling fs layer 0B
+ 72dcf69f72aa Pulling fs layer 0B
+ d53a350ae5bb Pulling fs layer 0B
+ 492c0d6bf242 Pulling fs layer 0B
+ 456bdf926fcd Pulling fs layer 0B
+ cfe87db7b7e0 Pulling fs layer 0B
+ f4d3d6669d6d Pulling fs layer 0B
+ add0f1445f2b Pulling fs layer 0B
+ 45e02dc2fee3 Pulling fs layer 0B
+ 3f4dea45886b Pulling fs layer 0B
+ e69a9c2fdea7 Pulling fs layer 0B
+ 1645cfdb7f22 Pulling fs layer 0B
+ 4721f81aac5e Pulling fs layer 0B
+ bbd27b019c4a Pulling fs layer 0B
+ f2d7cafd5afd Pulling fs layer 0B
+ e69a9c2fdea7 Downloading 993B
+ 1ec43e655c6c Download complete 0B
+ 69a08516771f Download complete 0B
+ 44136fa355b3 Already exists 0B
+ e18067f65fa3 Download complete 0B
+ 7a8519c01f22 Downloading 2.097MB
+ 7eed13b0ab7b Downloading 6.291MB
+ f6bf6bb569c5 Download complete 0B
+ e69a9c2fdea7 Download complete 0B
+ cb39808c0ffb Download complete 0B
+ f5f62becff0c Downloading 4.194MB
+ 76b7d90609bc Download complete 0B
+ add0f1445f2b Download complete 0B
+ 3b9ae6ca12fb Download complete 0B
+ f2d7cafd5afd Download complete 0B
+ 1852dbe34288 Download complete 0B
+ b6e258833b3c Download complete 0B
+ 45e02dc2fee3 Download complete 0B
+ e69a9c2fdea7 Extracting 1B
+ 68bc385fe873 Downloading 3.146MB
+ 3f4dea45886b Download complete 0B
+ 1645cfdb7f22 Downloading 1.049MB
+ f5f62becff0c Download complete 0B
+ 20e2ea9ba9ef Downloading 5.243MB
+ 72dcf69f72aa Download complete 0B
+ 18e62f3eca8a Download complete 0B
+ 4721f81aac5e Download complete 0B
+ 823ccdff3565 Download complete 0B
+ d53a350ae5bb Download complete 0B
+ 7a8519c01f22 Downloading 8.389MB
+ 492c0d6bf242 Downloading 2.097MB
+ 7eed13b0ab7b Downloading 12.58MB
+ bbd27b019c4a Download complete 0B
+ 456bdf926fcd Download complete 0B
+ c6b93ad5979a Download complete 0B
+ b7e7a06300b2 Downloading 1.049MB
+ cfe87db7b7e0 Download complete 0B
+ f4d3d6669d6d Download complete 0B
+ e69a9c2fdea7 Pull complete 0B
+ 94ec85689262 Download complete 0B
+ f5f62becff0c Extracting 1B
+ 4721f81aac5e Pull complete 0B
+ 72dcf69f72aa Extracting 1B
+ c6b93ad5979a Pull complete 0B
+ 20e2ea9ba9ef Downloading 10.49MB
+ 7a8519c01f22 Downloading 12.58MB
+ 492c0d6bf242 Downloading 6.291MB
+ 59826502041d Download complete 0B
+ 1645cfdb7f22 Downloading 6.291MB
+ 68bc385fe873 Downloading 7.34MB
+ 7eed13b0ab7b Downloading 16.78MB
+ c8e24e5ae408 Downloading 4.194MB
+ b7e7a06300b2 Downloading 5.243MB
+ 3f4dea45886b Pull complete 0B
+ 72dcf69f72aa Pull complete 0B
+ 456bdf926fcd Extracting 1B
+ f5f62becff0c Extracting 1B
+ 7a8519c01f22 Downloading 17.83MB
+ 492c0d6bf242 Downloading 10.49MB
+ 20e2ea9ba9ef Downloading 15.73MB
+ 7eed13b0ab7b Downloading 22.02MB
+ a89ecea4e9c1 Download complete 0B
+ 1645cfdb7f22 Downloading 10.49MB
+ c8e24e5ae408 Download complete 0B
+ b7e7a06300b2 Download complete 0B
+ 68bc385fe873 Downloading 12.58MB
+ 456bdf926fcd Pull complete 0B
+ f5f62becff0c Pull complete 0B
+ c8e24e5ae408 Extracting 1B
+ 20e2ea9ba9ef Downloading 22.02MB
+ 1645cfdb7f22 Downloading 16.78MB
+ 7a8519c01f22 Downloading 25.17MB
+ 492c0d6bf242 Downloading 15.73MB
+ 68bc385fe873 Downloading 18.87MB
+ 7eed13b0ab7b Downloading 29.36MB
+ 1ec43e655c6c Pull complete 0B
+ c8e24e5ae408 Extracting 1B
+ 1645cfdb7f22 Downloading 24.12MB
+ 20e2ea9ba9ef Downloading 31.46MB
+ 7a8519c01f22 Downloading 32.51MB
+ 492c0d6bf242 Downloading 22.02MB
+ 68bc385fe873 Downloading 26.21MB
+ 7eed13b0ab7b Downloading 36.7MB
+ c8e24e5ae408 Extracting 1B
+ 1645cfdb7f22 Downloading 31.46MB
+ 7a8519c01f22 Downloading 40.89MB
+ 492c0d6bf242 Downloading 29.36MB
+ 20e2ea9ba9ef Downloading 38.8MB
+ 7eed13b0ab7b Downloading 45.09MB
+ 68bc385fe873 Downloading 34.6MB
+ c8e24e5ae408 Pull complete 0B
+ b7e7a06300b2 Extracting 1B
+ 1645cfdb7f22 Downloading 39.85MB
+ 7a8519c01f22 Downloading 49.28MB
+ 492c0d6bf242 Downloading 36.7MB
+ 68bc385fe873 Downloading 41.94MB
+ 7eed13b0ab7b Downloading 51.38MB
+ 20e2ea9ba9ef Downloading 47.19MB
+ b7e7a06300b2 Extracting 1B
+ 1645cfdb7f22 Downloading 49.28MB
+ 68bc385fe873 Downloading 50.33MB
+ 7eed13b0ab7b Downloading 59.77MB
+ 7a8519c01f22 Download complete 0B
+ 492c0d6bf242 Downloading 44.04MB
+ 20e2ea9ba9ef Download complete 0B
+ 20e2ea9ba9ef Extracting 1B
+ b7e7a06300b2 Extracting 1B
+ 1645cfdb7f22 Downloading 58.72MB
+ 492c0d6bf242 Downloading 54.53MB
+ 7eed13b0ab7b Downloading 70.25MB
+ 68bc385fe873 Downloading 61.87MB
+ b7e7a06300b2 Pull complete 0B
+ 20e2ea9ba9ef Extracting 1B
+ 1645cfdb7f22 Downloading 69.21MB
+ 68bc385fe873 Downloading 73.4MB
+ 492c0d6bf242 Downloading 63.16MB
+ 7eed13b0ab7b Downloading 82.84MB
+ 76b7d90609bc Pull complete 0B
+ 20e2ea9ba9ef Extracting 1B
+ 18e62f3eca8a Pull complete 0B
+ 1645cfdb7f22 Downloading 81.79MB
+ 492c0d6bf242 Download complete 0B
+ 7eed13b0ab7b Downloading 96.47MB
+ 68bc385fe873 Downloading 85.98MB
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 1645cfdb7f22 Downloading 95.42MB
+ 7eed13b0ab7b Downloading 110.1MB
+ 68bc385fe873 Downloading 98.57MB
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 1645cfdb7f22 Downloading 107MB
+ 7eed13b0ab7b Downloading 122.7MB
+ 68bc385fe873 Downloading 111.1MB
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 68bc385fe873 Downloading 125.8MB
+ 7eed13b0ab7b Downloading 137.4MB
+ 1645cfdb7f22 Download complete 0B
+ 20e2ea9ba9ef Extracting 1B
+ 1645cfdb7f22 Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 7eed13b0ab7b Downloading 149.9MB
+ 68bc385fe873 Downloading 139.5MB
+ 20e2ea9ba9ef Extracting 1B
+ 1645cfdb7f22 Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 7eed13b0ab7b Downloading 162.5MB
+ 68bc385fe873 Downloading 153.1MB
+ 20e2ea9ba9ef Extracting 1B
+ 1645cfdb7f22 Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 7eed13b0ab7b Downloading 176.2MB
+ 68bc385fe873 Downloading 166.7MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 68bc385fe873 Downloading 180.4MB
+ 7eed13b0ab7b Downloading 191.9MB
+ 20e2ea9ba9ef Extracting 2B
+ 1645cfdb7f22 Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 68bc385fe873 Downloading 193.4MB
+ 7eed13b0ab7b Downloading 206.6MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 492c0d6bf242 Extracting 1B
+ 7eed13b0ab7b Downloading 226.5MB
+ 68bc385fe873 Downloading 193.4MB
+ 1645cfdb7f22 Extracting 1B
+ 492c0d6bf242 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 68bc385fe873 Download complete 0B
+ 7eed13b0ab7b Downloading 244.3MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 492c0d6bf242 Extracting 1B
+ 7eed13b0ab7b Downloading 263.2MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 282.1MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 296.3MB
+ 1645cfdb7f22 Extracting 1B
+ 20e2ea9ba9ef Extracting 2B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 296.3MB
+ 1645cfdb7f22 Extracting 2B
+ 20e2ea9ba9ef Pull complete 0B
+ 492c0d6bf242 Extracting 2B
+ 7eed13b0ab7b Downloading 296.3MB
+ cb39808c0ffb Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 492c0d6bf242 Pull complete 0B
+ 7eed13b0ab7b Downloading 296.3MB
+ cb39808c0ffb Pull complete 0B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Download complete 0B
+ e18067f65fa3 Pull complete 0B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 69a08516771f Pull complete 0B
+ 3b9ae6ca12fb Pull complete 0B
+ Image apache/kafka-native:4.4.0@sha256:11fde816adf384402de9f3e57aeaf2c3722ba0671610247817688d07441714b4 Pulled 
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 2B
+ 7eed13b0ab7b Extracting 1B
+ 7a8519c01f22 Extracting 1B
+ 1645cfdb7f22 Extracting 3B
+ 7a8519c01f22 Extracting 1B
+ 7eed13b0ab7b Extracting 1B
+ 1645cfdb7f22 Extracting 3B
+ 7a8519c01f22 Pull complete 0B
+ 7eed13b0ab7b Extracting 1B
+ f6bf6bb569c5 Pull complete 0B
+ add0f1445f2b Pull complete 0B
+ d53a350ae5bb Pull complete 0B
+ cfe87db7b7e0 Pull complete 0B
+ f4d3d6669d6d Pull complete 0B
+ Image prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06 Pulled 
+ 1645cfdb7f22 Extracting 3B
+ 7eed13b0ab7b Extracting 1B
+ 1645cfdb7f22 Extracting 3B
+ 7eed13b0ab7b Extracting 1B
+ f2d7cafd5afd Pull complete 0B
+ bbd27b019c4a Pull complete 0B
+ 1645cfdb7f22 Pull complete 0B
+ 7eed13b0ab7b Extracting 2B
+ 45e02dc2fee3 Pull complete 0B
+ Image postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71 Pulled 
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 2B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 3B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 4B
+ 7eed13b0ab7b Extracting 5B
+ 7eed13b0ab7b Extracting 5B
+ 68bc385fe873 Extracting 1B
+ 7eed13b0ab7b Pull complete 0B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 1B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 2B
+ 68bc385fe873 Extracting 3B
+ 68bc385fe873 Extracting 3B
+ 68bc385fe873 Extracting 3B
+ 68bc385fe873 Extracting 3B
+ 4f4fb700ef54 Extracting 1B
+ 823ccdff3565 Pull complete 0B
+ 68bc385fe873 Pull complete 0B
+ 4f4fb700ef54 Pull complete 0B
+ 1852dbe34288 Pull complete 0B
+ Image grafana/grafana:13.3.2@sha256:81556409ba48b2b922e0adb69a2511337d8ba7578f11962eefa6149a2d815101 Pulled 
+ Network awards_default Creating 
+ Network awards_default Created 
+ Volume awards_pgdata Creating 
+ Volume awards_pgdata Created 
+ Volume awards_kafkadata Creating 
+ Volume awards_kafkadata Created 
+ Container awards-kafka-1 Creating 
+ Container awards-postgres-1 Creating 
+ Container awards-postgres-1 Created 
+ Container awards-kafka-1 Created 
+ Container awards-app-1 Creating 
+ Container awards-app-1 Created 
+ Container awards-prometheus-1 Creating 
+ Container awards-prometheus-1 Created 
+ Container awards-grafana-1 Creating 
+ Container awards-grafana-1 Created 
+ Container awards-kafka-1 Starting 
+ Container awards-postgres-1 Starting 
+ Container awards-postgres-1 Started 
+ Container awards-kafka-1 Started 
+ Container awards-postgres-1 Waiting 
+ Container awards-kafka-1 Waiting 
+ Container awards-kafka-1 Healthy 
+ Container awards-postgres-1 Healthy 
+ Container awards-app-1 Starting 
+ Container awards-app-1 Started 
+ Container awards-prometheus-1 Starting 
+ Container awards-prometheus-1 Started 
+ Container awards-grafana-1 Starting 
+ Container awards-grafana-1 Started 
+    sem readiness 200 em 600 s
+==> passo 3: FALHA - carga por Kafka sem linha rejeitada
+--- passo 4: k6
+ Container awards-kafka-1 Running 
+ Container awards-postgres-1 Running 
+ Container awards-kafka-1 Waiting 
+ Container awards-postgres-1 Waiting 
+ Container awards-postgres-1 Healthy 
+ Container awards-kafka-1 Healthy 
+ Container awards-app-1 Starting 
+ Container awards-app-1 Started 
+ Image grafana/k6:2.4.0@sha256:d41bb79cd8de5a7ad619b53570e3712633e8bff0937010a5c6c57a4747e7a276 Pulling 
+ 2fdc73d4d0db Pulling fs layer 0B
+ b46f6d67c0bc Pulling fs layer 0B
+ 4f4fb700ef54 Pulling fs layer 0B
+ 4f4fb700ef54 Already exists 0B
+ b46f6d67c0bc Download complete 0B
+ b46f6d67c0bc Extracting 1B
+ 2fdc73d4d0db Downloading 5.243MB
+ b46f6d67c0bc Pull complete 0B
+ 2fdc73d4d0db Downloading 24.12MB
+ 44136fa355b3 Already exists 0B
+ 598ab8121a35 Download complete 0B
+ 2fdc73d4d0db Download complete 0B
+ 2fdc73d4d0db Extracting 1B
+ 2fdc73d4d0db Extracting 1B
+ 2fdc73d4d0db Extracting 1B
+ 2fdc73d4d0db Extracting 1B
+ 4f4fb700ef54 Extracting 1B
+ 2fdc73d4d0db Pull complete 0B
+ 4f4fb700ef54 Pull complete 0B
+ Image grafana/k6:2.4.0@sha256:d41bb79cd8de5a7ad619b53570e3712633e8bff0937010a5c6c57a4747e7a276 Pulled 
+ Container awards-app-1 Waiting 
+ Container awards-app-1 Error dependency app failed to start
+dependency failed to start: container awards-app-1 exited (1)
+    o k6 saiu com 1 (99 = limite ultrapassado)
+==> passo 4: FALHA - k6 dentro dos limites
+load-test.sh: FALHA em 3 passo(s).
+</pasted_content id="7c07">
+
+```
+
+## 2026-11-26 10:37:42 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+O job load passou nos pipelines do push e do PR, e numa reexecução no run 45826811997: 3 medições no total. Com o cache, o p99 dos intervalos ficou em ~2 ms, contra um objetivo de 112 ms, e a folga torna desnecessárias as 5 medições previstas na R5. Leia as 3 execuções com o gh, fixe os limites do k6 com folga de 2× sobre a pior, registre no decisoes.md e na R5 por que 3 bastaram, e siga para a etapa 3.
+```
+
+## 2026-11-26 10:45:52 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+Não use 2× a pior medição nos limites do k6: com medianas abaixo de 1 ms, isso só mede o ruído do runner. Amarre os limites ao objetivo do SLO: intervalos com p99 abaixo de 112 ms (o mesmo bucket do alerta), listagem com p99 abaixo de 100 ms, erro abaixo de 1%. Registre na R5 e no decisoes.md o motivo: o job de carga existe para pegar regressões reais, como a perda do cache, e não variações de milissegundos. Abri o Docker Desktop: termine a etapa 3 (T027, T028, T030, T035 a T037). Depois siga com o escopo reduzido que combinamos: etapas 4, 5 e 6 adiadas, README com a seção do Marco 4 e o roteiro, push e me avise com o pipeline verde.
+```
+
+## 2026-11-26 10:52:56 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+subi o docker
+```
+
+## 2026-11-26 10:56:17 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+Para fechar logo: não rode o -Pextras nem o compose-test.sh localmente. O pipeline roda os dois (jobs build e compose), e é ele a comprovação. Interrompa o -Pextras se ainda estiver rodando. Rode só o ./mvnw verify padrão, faça o commit da etapa 3, aplique o escopo reduzido (etapas 4, 5 e 6 adiadas, README com a seção do Marco 4 e o roteiro), faça o push e me avise. Se algo falhar no pipeline, você lê o log com o gh e corrige.
+```
+
+## 2026-11-26 10:56:21 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>baqiswft2</task-id>
+<tool-use-id>toolu_01ABiBQpPWhwnpcNh6kfKeHr</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\baqiswft2.output</output-file>
+<status>completed</status>
+<summary>Background command "Run clean verify then extras verify for etapa 3" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-26 10:58:08 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bt59ut99v</task-id>
+<tool-use-id>toolu_01MR3Y2Le5HXA9JgTeP3XDMi</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bt59ut99v.output</output-file>
+<status>completed</status>
+<summary>Background command "Run default verify before etapa 3 commit" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-26 11:02:19 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bs5y4bzi6</task-id>
+<summary>Monitor event: "jobs dos pipelines 45834851937 (push) e 45834861459 (PR)"</summary>
+<event>45834851937: Lint do Dockerfile: success; Política do workflow,: success; Regras de alerta: success | status=in_progress
+45834861459: Política do workflow,: success; Lint do Dockerfile: success; Regras de alerta: success | status=in_progress</event>
+</task-notification>
+```
+
+## 2026-11-26 11:03:50 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bs5y4bzi6</task-id>
+<summary>Monitor event: "jobs dos pipelines 45834851937 (push) e 45834861459 (PR)"</summary>
+<event>45834851937: Testes com PostgreSQL: success; Vulnerabilidades das dependências: success; Lint do Dockerfile: success; Política do workflow,: success; Regras de alerta: success | status=in_progress
+45834861459: Política do workflow,: success; Testes com PostgreSQL: success; Lint do Dockerfile: success; Vulnerabilidades das dependências: success; Regras de alerta: success | status=in_progress</event>
+</task-notification>
+```
+
+## 2026-11-26 11:04:40 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bs5y4bzi6</task-id>
+<summary>Monitor event: "jobs dos pipelines 45834851937 (push) e 45834861459 (PR)"</summary>
+<event>45834851937: Testes com PostgreSQL: success; Vulnerabilidades das dependências: success; Análise de segurança: success; Lint do Dockerfile: success; Política do workflow,: success; Regras de alerta: success; Imagem, vulnerabilidades da: success | status=in_progress
+45834861459: Política do workflow,: success; Testes com PostgreSQL: success; Lint do Dockerfile: success; Vulnerabilidades das dependências: success; Regras de alerta: success; Imagem, vulnerabilidades da: success | status=in_progress</event>
+</task-notification>
+```
+
+## 2026-11-26 11:05:03 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+O T012 não vai ser executado, como decidi antes. Nao precise apagar a branch local verificacao/trivy-transitivas, marque o T012 como não executado com referência à prova local do T003 e do T007, registre no decisoes.md e faça o commit. Push só depois que os pipelines atuais terminarem.
+```
+
+## 2026-11-26 11:05:42 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bs5y4bzi6</task-id>
+<summary>Monitor event: "jobs dos pipelines 45834851937 (push) e 45834861459 (PR)"</summary>
+<event>45834851937: Testes com PostgreSQL: success; Vulnerabilidades das dependências: success; Análise de segurança: success; Lint do Dockerfile: success; Política do workflow,: success; Regras de alerta: success; Imagem, vulnerabilidades da: success; Compose com PostgreSQL,: success | status=in_progress
+45834861459: Política do workflow,: success; Análise de segurança: success; Build, testes e: success; Testes com PostgreSQL: success; Lint do Dockerfile: success; Vulnerabilidades das dependências: success; Regras de alerta: success; Compose com PostgreSQL,: success; Imagem, vulnerabilidades da: success | status=in_progress</event>
+</task-notification>
+```
+
+## 2026-11-26 11:06:21 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bs5y4bzi6</task-id>
+<summary>Monitor event: "jobs dos pipelines 45834851937 (push) e 45834861459 (PR)"</summary>
+<event>45834851937: Testes com PostgreSQL: success; Vulnerabilidades das dependências: success; Análise de segurança: success; Lint do Dockerfile: success; Build, testes e: success; Política do workflow,: success; Regras de alerta: success; Imagem, vulnerabilidades da: success; Compose com PostgreSQL,: success | status=in_progress
+45834861459: Política do workflow,: success; Análise de segurança: success; Build, testes e: success; Testes com PostgreSQL: success; Lint do Dockerfile: success; Vulnerabilidades das dependências: success; Regras de alerta: success; Compose com PostgreSQL,: success; Imagem, vulnerabilidades da: success | status=in_progress</event>
+</task-notification>
+```
+
+## 2026-11-26 11:08:00 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bs5y4bzi6</task-id>
+<summary>Monitor event: "jobs dos pipelines 45834851937 (push) e 45834861459 (PR)"</summary>
+<event>45834851937: Testes com PostgreSQL: success; Vulnerabilidades das dependências: success; Análise de segurança: success; Lint do Dockerfile: success; Build, testes e: success; Política do workflow,: success; Regras de alerta: success; Imagem, vulnerabilidades da: success; Compose com PostgreSQL,: success | status=in_progress
+45834861459: Política do workflow,: success; Análise de segurança: success; Build, testes e: success; Testes com PostgreSQL: success; Lint do Dockerfile: success; Vulnerabilidades das dependências: success; Regras de alerta: success; Compose com PostgreSQL,: success; Teste de carga: success; Imagem, vulnerabilidades da: success | status=completed</event>
+</task-notification>
+```
+
+## 2026-11-26 11:08:50 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bs5y4bzi6</task-id>
+<tool-use-id>toolu_0194Kyu8Ji1LNwX6B4bi81Jp</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bs5y4bzi6.output</output-file>
+<status>completed</status>
+<summary>Monitor "jobs dos pipelines 45834851937 (push) e 45834861459 (PR)" stream ended</summary>
+<event>45834851937: Testes com PostgreSQL: success; Vulnerabilidades das dependências: success; Análise de segurança: success; Lint do Dockerfile: success; Build, testes e: success; Política do workflow,: success; Regras de alerta: success; Imagem, vulnerabilidades da: success; Compose com PostgreSQL,: success; Teste de carga: success | status=completed
+45834861459: Política do workflow,: success; Análise de segurança: success; Build, testes e: success; Testes com PostgreSQL: success; Lint do Dockerfile: success; Vulnerabilidades das dependências: success; Regras de alerta: success; Compose com PostgreSQL,: success; Teste de carga: success; Imagem, vulnerabilidades da: success | status=completed</event>
+</task-notification>
+```
+
+## 2026-11-26 11:17:44 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b46cne5fd</task-id>
+<tool-use-id>toolu_01K6UXip3Q8Ci2ZawtC8LUHc</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\b46cne5fd.output</output-file>
+<status>completed</status>
+<summary>Monitor "pipelines do commit 3d83d07 (registro do T012)" stream ended</summary>
+<event>"conclusion":"success"	"databaseId":45836107162	"event":"pull_request"
+"conclusion":"success"	"databaseId":45836092814	"event":"push"</event>
+</task-notification>
+```
+
+## 2026-11-26 11:26:01 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+export docs/ai/sessoes/13-marco-4-acabamento-operacional.md
+```

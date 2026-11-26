@@ -116,7 +116,8 @@ verdes no `./mvnw verify`.
 
   Registrar em `docs/ai/decisoes.md`, numa entrada "Verificação do job de dependências com lz4-java 1.11.2", o nome do branch, o link da execução, o job vermelho, o resultado esperado e o obtido, e a confirmação de que o branch foi apagado. O registro entra no commit da etapa 6.
 
-**Checkpoint**: US7 completa, salvo T012 (push) e a proteção da `main` (T064).
+**Checkpoint**: US7 concluída no escopo reduzido. O T012 ficou como não executado por decisão registrada,
+e a proteção da `main` foi conferida no T064.
 
 ---
 
@@ -382,11 +383,10 @@ os arquivos de `docs/` e o README.
   - no `compose`: o passo 4b `OK` (SC-003).
 
   Copiar os números para o README (T062).
-- [ ] T064 **Escopo reduzido: 10 checks (os 8 do Marco 3, `alert-rules` e `load`).** **Pedido ao Anderson, depois da primeira execução do pipeline no PR e antes do merge** (FR-031, R14; T093 da spec 003). Configurar a proteção da `main` (Settings → Branches, ou o ruleset da `main`):
-  - os **12** checks do T063 como *required status checks*;
-  - o **bypass para administradores desligado** ("Do not allow bypassing the above settings", ou nenhum *bypass actor* no ruleset).
-
-  Conferir na página do PR que os 12 aparecem como obrigatórios. Registrar em `docs/ai/decisoes.md`, numa entrada "Proteção da main depois do Marco 4", a lista configurada e a confirmação do bypass desligado, sem nenhum dado pessoal.
+- [X] T064 **Concluído em 2026-11-26 no escopo reduzido** (FR-031, R14; T093 da spec 003). O ruleset
+  `main` está ativo, com **10 checks obrigatórios** (os oito do Marco 3, `alert-rules` e `load`) e a
+  lista de bypass vazia. Os dez passaram no PR #12. A lista e a evidência estão na entrada
+  [Proteção da main depois do Marco 4](../../docs/ai/decisoes.md#2026-11-26--proteção-da-main-depois-do-marco-4).
 - [ ] T065 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** Rodar as seções 1 a 5 e 7 de `specs/004-acabamento-operacional/quickstart.md`, num clone limpo do branch: só com o JDK, a seção 1 e a 2; com o Docker, as demais. Anotar os resultados e os `PULADO` na descrição do commit.
 - [ ] T066 **ADIADO (escopo reduzido, 2026-11-26; spec, Clarifications).** Registrar em `docs/ai/decisoes.md` o fechamento do bolt: o resultado do T012 (entrada própria), do T063 e do T065, os `PULADO`, o estado do T005 e as pendências. Marcar na seção "Revisão da documentação" de `specs/004-acabamento-operacional/checklists/requirements.md` os itens conferidos, inclusive o das portas encaminhadas do dev container (FR-029), a partir do T058 ou de uma abertura manual no VS Code.
 - [X] T067 **Escopo reduzido: Status da spec 004 atualizado; o da spec 003 fica para o fechamento do marco.** Rodar `./mvnw verify` e `./mvnw -Pextras verify`: verdes, sem Docker. Informar o resultado real. Atualizar o **Status** de `specs/004-acabamento-operacional/spec.md` para `Implemented`, listando o que ainda depende de push ou do Anderson. Atualizar o **Status** de `specs/003-modo-docker/spec.md`, retirando as pendências fechadas (T050 e T093 da spec 003).
