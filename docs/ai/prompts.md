@@ -2917,3 +2917,20 @@ Siga direto pelas etapas 2, 3 e 4, sem parar entre elas. Pare só na T035 (push 
 ```text
 Antes do push, rode os casos negativos da política (T018 e T026) e o check-workflows.sh no HEAD num contêiner com o yq, como no Marco 3 (alpine com yq v4). Cada caso negativo precisa reprovar, e o HEAD precisa passar. São segundos, e é a proteção que impede outro job de obter a identidade do GCP. Registre o resultado no decisoes.md, corrigindo a entrada que diz que ficaram sem prova, e faça o commit. Depois me avise.
 ```
+
+## 2026-11-26 17:03:39 -03:00
+
+- Sessao: `673a0a37-7d72-488d-8a3d-ed87641cc041`
+
+```text
+
+
+<pasted_content id="4633">
+Junto com a T039, ajuste o contrato (openapi.yaml), subindo para 1.2.1:
+1. Encurte o info.description para duas frases: o que a API faz e que os dados vêm do CSV carregado na inicialização. O ETag/304 e a autenticação ficam no README, que já os explica.
+2. Declare a autenticação como opcional: security com uma alternativa vazia ({}) além do bearer, para o Swagger não sugerir que o login é obrigatório. Na descrição do esquema de segurança, uma frase: "Opcional. Exigido só quando a variável API_TOKEN está definida."
+3. Confira que nenhum texto do contrato usa < > sem escape (o "Bearer <token>" sumiu na renderização).
+Rode o ./mvnw verify (o ApiDocsIT valida o contrato) e o check-unchanged-tests.sh. O deploy da main depois do merge publica a versão nova; confira na URL pública.
+</pasted_content id="4633">
+
+```
