@@ -66,7 +66,8 @@ docker run --rm -d -p 127.0.0.1:8081:8080 --add-host host.docker.internal:host-g
 cd frontend && npx playwright test       # projetos desktop e celular
 ```
 
-No Windows, os comandos funcionam no Git Bash com o Docker Desktop. Se o Docker não estiver disponível, os passos 5 ficam para
+No Windows, os comandos funcionam no Git Bash com o Docker Desktop, onde `host.docker.internal` está no DNS. No Linux,
+troque-o pelo IP do gateway da rede `bridge`: o nginx ignora o `/etc/hosts`. Se o Docker não estiver disponível, os passos 5 ficam para
 o job `web` do pipeline.
 
 Esperado: o teste de fumaça com os 10 passos aprovados e o Playwright verde nos dois projetos.

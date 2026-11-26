@@ -441,18 +441,32 @@ jobs:
           echo "::error::a API não ficou pronta em 90 s"
           tail -n 50 "$RUNNER_TEMP/api.log"
           exit 1
+      - name: Endereço do host visto pelos containers (IP, e não nome)
+        # O nginx resolve o API_URL pelo DNS (resolver), que ignora o /etc/hosts. No runner Linux, o
+        # host.docker.internal do --add-host só existe no /etc/hosts e dava 502 no repasse (PR #16). O IP do
+        # gateway da rede bridge é o host-gateway do Docker e dispensa a resolução.
+        run: |
+          set -euo pipefail
+          host_ip="$(docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}')"
+          if [[ ! "$host_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::gateway da rede bridge inválido: '$host_ip'"
+            exit 1
+          fi
+          curl -sf "http://$host_ip:8080/actuator/health/readiness" >/dev/null \
+            || { echo "::error::a API não responde em $host_ip:8080"; exit 1; }
+          echo "HOST_IP=$host_ip" >> "$GITHUB_ENV"
+          echo "API vista pelos containers em http://$host_ip:8080"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: frontend/.nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Teste de fumaça da imagem do front (10 passos)
-        run: .github/scripts/web-smoke-test.sh awards-web:ci http://host.docker.internal:8080
+        run: .github/scripts/web-smoke-test.sh awards-web:ci "http://$HOST_IP:8080"
       - name: Front no ar para o ponta a ponta (a imagem testada, com o repasse de /api)
         run: |
           set -euo pipefail
-          docker run -d --name e2e-web -p 127.0.0.1:8081:8080 --add-host host.docker.internal:host-gateway \
-            -e API_URL=http://host.docker.internal:8080 awards-web:ci
+          docker run -d --name e2e-web -p 127.0.0.1:8081:8080 -e "API_URL=http://$HOST_IP:8080" awards-web:ci
           for _ in $(seq 1 30); do
             if curl -sf http://127.0.0.1:8081/healthz >/dev/null; then exit 0; fi
             sleep 1
@@ -472,8 +486,7 @@ jobs:
           done
           curl -sf http://127.0.0.1:8082/actuator/health/readiness >/dev/null \
             || { echo "::error::a API do caso 26 não ficou pronta"; tail -n 50 "$RUNNER_TEMP/api-caso-26.log"; exit 1; }
-          docker run -d --name e2e-web-caso-26 -p 127.0.0.1:8083:8080 --add-host host.docker.internal:host-gateway \
-            -e API_URL=http://host.docker.internal:8082 awards-web:ci
+          docker run -d --name e2e-web-caso-26 -p 127.0.0.1:8083:8080 -e "API_URL=http://$HOST_IP:8082" awards-web:ci
           for _ in $(seq 1 30); do
             if curl -sf http://127.0.0.1:8083/healthz >/dev/null; then exit 0; fi
             sleep 1

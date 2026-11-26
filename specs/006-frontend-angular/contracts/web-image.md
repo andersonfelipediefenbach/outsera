@@ -16,7 +16,7 @@ Comprovado pelo `web-smoke-test.sh` e pelo Playwright no job `web`, e pelo `veri
 | Variável | Padrão | Uso |
 | --- | --- | --- |
 | `PORT` | `8080` | porta do `listen` (o Cloud Run define) |
-| `API_URL` | nenhum: obrigatória | origem da API sem barra final (por exemplo, `https://awards-….run.app` ou `http://127.0.0.1:8080`) |
+| `API_URL` | nenhum: obrigatória | origem da API sem barra final (por exemplo, `https://awards-….run.app` ou `http://172.17.0.1:8080`). O host precisa estar no DNS ou ser um IP: o `resolver` do nginx ignora o `/etc/hosts`, então um nome criado só por `--add-host` dá 502 no repasse |
 | `LOG_FORMAT` | `json` (definido no `Dockerfile`) | formato do log de acesso: `json` ou `main` (texto padrão do nginx) |
 
 Sem `API_URL`, o contêiner termina na subida com a mensagem "API_URL não definida" (script em
@@ -65,7 +65,8 @@ Se o build de produção do Angular precisar de estilo em linha (CSS crítico), 
 
 1. Sobe a imagem com `-p 127.0.0.1::8080` (porta aleatória do host), `--add-host host.docker.internal:host-gateway`
    e o `API_URL` dado (por exemplo `http://host.docker.internal:8080`, a API no host); espera `/healthz` em até 30 s.
-   O mesmo comando funciona no runner Linux e no Docker Desktop, sem `--network host`.
+   No runner Linux, o `API_URL` usa o IP do gateway da rede `bridge` (o `host.docker.internal` do `--add-host` só
+   existe no `/etc/hosts`, que o nginx não consulta); no Docker Desktop, `host.docker.internal` também funciona.
 2. `/` → 200, HTML com `<app-root` e `lang="pt-BR"`, CSP presente.
 3. `/filmes?ano=1990` → 200, mesmo `index.html`.
 4. `/api/producers/intervals` → 200 e corpo idêntico à `REFERENCE` do `smoke-test.sh`, com `ETag`.

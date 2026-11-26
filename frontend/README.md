@@ -32,6 +32,10 @@ docker run --rm -d -p 127.0.0.1:8081:8080 --add-host host.docker.internal:host-g
 cd frontend && npx playwright install chromium && npm run e2e
 ```
 
+No Docker Desktop, `host.docker.internal` está no DNS e funciona no `API_URL`. No Linux, use o IP do gateway
+(`docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}'`): o nginx resolve o `API_URL` pelo DNS e
+ignora o `/etc/hosts`, então um nome criado só por `--add-host` dá 502 no repasse.
+
 ## Estrutura
 
 - `src/app/api/`: chamadas à API, por caminho relativo, e a tradução do filtro da URL para a API.

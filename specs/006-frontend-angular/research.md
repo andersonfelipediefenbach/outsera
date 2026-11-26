@@ -79,7 +79,8 @@ requisitos são da [spec](spec.md).
   runner, com `/api` repassado à API real:
   1. a API sobe com `java -jar` do JAR construído no job (modo padrão, arquivo fornecido), na porta 8080;
   2. a imagem do front sobe com `-p 127.0.0.1:8081:8080`, `--add-host host.docker.internal:host-gateway` e
-     `API_URL=http://host.docker.internal:8080` (funciona no runner Linux e no Docker Desktop);
+     `API_URL` com o IP do gateway da rede `bridge` no runner Linux (o nginx resolve pelo DNS e ignora o
+     `/etc/hosts`; PR #16), ou `http://host.docker.internal:8080` no Docker Desktop;
   3. o Playwright espera a readiness da API e roda contra `http://127.0.0.1:8081`.
 - **Cenários (`frontend/e2e/`):** Dashboard com os valores de referência (US1, SC-002); busca por 1990 e por um
   ano sem vencedor; validação do campo; lista com o total, a paginação e o filtro 1990 + vencedores; link com

@@ -4,8 +4,9 @@
 #
 # Uso: .github/scripts/web-smoke-test.sh <imagem> <api_url>
 #
-# <api_url> é a origem da API vista de dentro do container, por exemplo http://host.docker.internal:8080 para uma
-# API rodando no host (o container recebe --add-host host.docker.internal:host-gateway). Roda no job `web` do
+# <api_url> é a origem da API vista de dentro do container. O host precisa estar no DNS ou ser um IP: o nginx resolve o
+# API_URL pelo resolver, que ignora o /etc/hosts. No runner Linux, use o IP do gateway da rede bridge (job `web`); no
+# Docker Desktop, http://host.docker.internal:8080 também funciona, porque ele está no DNS. Roda no job `web` do
 # pipeline e, localmente, no Linux e no Git Bash do Windows com Docker Desktop. Precisa de docker, curl e node.
 # Cada passo imprime OK ou FALHA; o resumo vai para o GITHUB_STEP_SUMMARY quando existe.
 set -euo pipefail

@@ -3,6 +3,34 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-26 — PR #16: o repasse do front no pipeline usa o IP do host, e não `host.docker.internal`
+
+- **Origem:** job `web` vermelho nos dois runs do commit 830401c. O passo 9 ("Teste de fumaça da imagem do front")
+  falhou: os passos 4 a 6 do `web-smoke-test.sh` receberam 502 no repasse de `/api`, e o passo 9 do script falhou
+  em consequência, sem a linha de `/api/producers/intervals` com 200 no log.
+- **Diagnóstico** (reproduzido localmente): o nginx usa `proxy_pass` por variável, então resolve o host do
+  `API_URL` pelo `resolver`, que consulta o DNS e ignora o `/etc/hosts`. O `--add-host host.docker.internal:host-gateway`
+  só escreve no `/etc/hosts`. No Docker Desktop, onde os testes locais passaram, `host.docker.internal` também
+  está no DNS; no runner Linux, não. Com um nome que só existe no `/etc/hosts`, o log de erro do nginx mostra
+  `could not be resolved (3: Host not found)`, e o repasse dá 502. A publicação não é afetada: lá o `API_URL` é a
+  URL pública do `awards`, que está no DNS.
+- **Decisão:** o job `web` lê o IP do gateway da rede `bridge` (`docker network inspect`), confere que a API
+  responde nele e o passa no `API_URL` do teste de fumaça, do front do ponta a ponta e do front do caso 26. Um IP
+  não precisa de resolução. O contrato da imagem passa a dizer que o host do `API_URL` precisa estar no DNS ou ser
+  um IP. A imagem não muda: o `resolver` por variável continua necessário no Cloud Run, onde o IP do `awards` pode
+  mudar.
+- **Comprovação local:** com um nome criado só por `--add-host`, o repasse dá 502, como no pipeline. Com o IP do
+  host visto pelo container, o `web-smoke-test.sh` passa nos 10 passos.
+
+## 2026-11-26 — PR #16: falha do job `dependencies` no run 45905598152 (sem correção)
+
+- **Diagnóstico:** não foi o download da base do Trivy. O passo 4 (`./mvnw dependency:copy-dependencies`) passou 4
+  minutos tentando e terminou em `No plugin found for prefix 'dependency'`: o Maven não resolveu o plugin no
+  Central. Os passos do Trivy falharam só depois, porque o `target/runtime-deps` não existia. A janela de horário é
+  a mesma do 429 do Central no job `image`, e o mesmo commit passou no run 45905788282.
+- **Decisão:** falha externa e intermitente do Maven Central, sem mudança no código nem no workflow. Se voltar a
+  acontecer, o caminho é reexecutar o job e, se for frequente, avaliar novas tentativas do resolvedor do Maven.
+
 ## 2026-11-26 — PR #16: build da imagem da API sem depender do Maven Central no cache
 
 - **Origem:** job `image` vermelho nos runs 45905788282 e 45905598152 (commit 830401c). O passo "Build da imagem"
