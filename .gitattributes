@@ -4,3 +4,6 @@ mvnw text eol=lf
 *.csv text eol=lf -diff
 # Cenário com o caractere nulo de propósito (spec 001, FR-006): fica fora do check-text-files.sh.
 src/test/resources/scenarios/nul-character.csv binary
+# Imagens do front (spec 006).
+*.ico binary
+*.png binary
