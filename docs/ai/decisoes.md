@@ -3,6 +3,47 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-25 — Carga direta: flush automático a cada consulta, com custo quadrático
+
+- **Falha encontrada pelo T016 da spec 004:** com o CSV gerado de 100 mil filmes, a carga direta
+  (`./mvnw spring-boot:run`) passou de 20 minutos sem terminar, com a CPU ocupada o tempo todo.
+- **Causa:** a carga grava o arquivo inteiro numa única transação (`MovieImportService.importMovies`), e
+  cada linha faz um `findByYearAndTitle`. Com o modo de flush padrão (`AUTO`), o Hibernate sincroniza o
+  contexto de persistência antes de cada consulta e confere todas as entidades já carregadas. Com o
+  contexto crescendo a cada linha, o custo total é quadrático no número de filmes. Os 206 filmes do
+  `movielist.csv` não deixavam isso aparecer.
+- **Correção, feita pelo Anderson:** durante a carga direta, o flush passa a `FlushModeType.COMMIT`, e o
+  modo anterior volta no fim. A consulta por linha não sincroniza mais o contexto, e tudo é gravado no
+  commit da transação.
+- **Por que a correção é segura:**
+  - a duplicata do arquivo não depende do banco. O `MovieCsvReader` a descarta antes, pelo mapa em memória
+    das chaves aceitas (spec 001, FR-006d), então a consulta nunca precisa ver um filme ainda não gravado
+    da mesma carga;
+  - os produtores criados na carga ficam no mapa `byName` da transação;
+  - num reinício sobre o PostgreSQL, os filmes de antes já estão no banco, e a consulta continua os vendo;
+  - o caminho do Kafka grava cada evento na sua transação, com o flush padrão, e não muda.
+- **Comprovação:**
+  - `DuplicateLinesIT` (nas duas execuções do Failsafe), `DuplicateWinnerIT`, `ReferenceFileIT`,
+    `KafkaIdempotencyIT`, `KafkaUpdateIT`, `KafkaEquivalenceIT`, `KafkaReferenceFileIT` e
+    `KafkaAdversarialEventsIT`: verdes;
+  - `./mvnw -Ppostgres-it verify`, contra um PostgreSQL 18 local descartável: 9 testes verdes, com o
+    `RestartDirectPostgresIT` e o caso 29;
+  - `./mvnw verify` completo: verde.
+- **Medição local** (do início da JVM ao fim da carga, JAR já construído, mesma semente do gerador):
+
+  | Filmes | Antes | Depois |
+  | --- | --- | --- |
+  | 5 mil | 15,2 s | 11,9 s |
+  | 10 mil | 40,7 s | 11,8 s |
+  | 20 mil | 199,8 s | 13,1 s |
+  | 100 mil | mais de 20 min (interrompida) | 19 s até a readiness 200; 24,5 s no container |
+
+  Com os 100 mil filmes, a carga deu 100000 lidas, 100000 aceitas e 0 rejeitadas, com `min` e `max`
+  exatamente iguais aos casos plantados pelo gerador.
+- **Por que mexer em `src/main` no Marco 4:** o plano só previa mudanças em `src/main` pelo testador
+  adversário. Esta é uma falha de desempenho que o T016 encontrou, e sem a correção o teste de carga do
+  Marco 4 não roda. O comportamento observável não muda.
+
 ## 2026-11-25 — Job de dependências: causa da lacuna das transitivas do kafka-clients
 
 Investigação da spec 004 (FR-032, research R12, T003), feita num `git worktree` temporário fora do
