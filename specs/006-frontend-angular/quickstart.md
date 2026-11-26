@@ -61,15 +61,15 @@ npm run build
 ```bash
 ./mvnw -DskipTests package && java -jar target/awards-*.jar &
 docker build -t awards-web:local frontend
-.github/scripts/web-smoke-test.sh awards-web:local http://127.0.0.1:8080
-docker run --rm -d --network host -e PORT=8081 -e API_URL=http://127.0.0.1:8080 awards-web:local
+.github/scripts/web-smoke-test.sh awards-web:local http://host.docker.internal:8080
+docker run --rm -d -p 127.0.0.1:8081:8080 --add-host host.docker.internal:host-gateway -e API_URL=http://host.docker.internal:8080 awards-web:local
 cd frontend && npx playwright test       # projetos desktop e celular
 ```
 
-No Windows, o `--network host` exige o Docker Desktop com a rede de host ligada; sem ela, os passos 5 ficam para
+No Windows, os comandos funcionam no Git Bash com o Docker Desktop. Se o Docker não estiver disponível, os passos 5 ficam para
 o job `web` do pipeline.
 
-Esperado: o teste de fumaça com os 8 passos aprovados e o Playwright verde nos dois projetos.
+Esperado: o teste de fumaça com os 10 passos aprovados e o Playwright verde nos dois projetos.
 
 ## 6. Configuração do GCP (FR-028)
 

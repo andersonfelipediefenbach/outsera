@@ -32,3 +32,24 @@ updates:
     directory: /
     schedule:
       interval: weekly
+
+  # Front-end (spec 006, FR-019 e FR-025): dependências do npm e imagens base do frontend/Dockerfile.
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    groups:
+      angular:
+        patterns:
+          - "@angular/*"
+          - "@angular-devkit/*"
+          - "angular-eslint"
+      npm-minor-e-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: docker
+    directory: /frontend
+    schedule:
+      interval: weekly

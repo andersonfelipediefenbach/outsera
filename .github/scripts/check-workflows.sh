@@ -13,7 +13,8 @@
 #   5. não há publicação de imagem (`push: true` no build-push-action ou `docker push`), e o `skopeo`, que
 #      envia a imagem testada ao registro, só aparece no job `deploy` (spec 005, FR-012);
 #   6. o dependabot.yml tem version 2 e os ecossistemas maven, github-actions, docker e docker-compose,
-#      com directory "/" e schedule.interval (docker-compose: spec 003, FR-034);
+#      com directory "/" e schedule.interval (docker-compose: spec 003, FR-034), e npm e docker com directory
+#      "/frontend" (spec 006);
 #   7. toda imagem do compose.yaml e dos service containers dos workflows está fixada por digest
 #      (@sha256: com 64 caracteres hexadecimais; spec 003, FR-034; research R17);
 #   8. nenhum service container de workflow declara POSTGRES_PASSWORD: o job postgres usa trust, e a
@@ -52,9 +53,10 @@ PINNED='^[^@[:space:]]+@[0-9a-f]{40}$'
 DIGEST='^[^@[:space:]]+@sha256:[0-9a-f]{64}$'
 
 # Regra 9 (spec 005; contracts/ci-deploy.md). A lista acompanha os checks obrigatórios da main (Marco 4,
-# T064): um check obrigatório novo entra aqui e nos `needs` do job deploy, no mesmo commit (FR-008).
+# T064; spec 006, frontend e web): um check obrigatório novo entra aqui e nos `needs` do job deploy, no mesmo
+# commit (FR-008).
 DEPLOY_IF="github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'andersonfelipediefenbach/outsera'"
-REQUIRED_CHECKS=(workflow-policy build postgres codeql dependencies dockerfile-lint image alert-rules load compose)
+REQUIRED_CHECKS=(workflow-policy build postgres codeql dependencies dockerfile-lint image alert-rules load compose frontend web)
 
 # Normaliza uma expressão de `if`: sem ${{ }}, sem espaços nas pontas e com espaços repetidos reduzidos.
 normalize_if() {
@@ -158,6 +160,11 @@ else
   for eco in maven github-actions docker docker-compose; do
     found="$(yqr -r ".updates[]? | select(.\"package-ecosystem\" == \"$eco\" and .directory == \"/\" and (.schedule.interval // \"\") != \"\") | .\"package-ecosystem\"" "$DEPENDABOT")"
     [[ -n "$found" ]] || violation ".github/dependabot.yml" "falta o ecossistema $eco com directory \"/\" e schedule.interval"
+  done
+  # Front-end (spec 006, FR-019 e FR-025).
+  for eco in npm docker; do
+    found="$(yqr -r ".updates[]? | select(.\"package-ecosystem\" == \"$eco\" and .directory == \"/frontend\" and (.schedule.interval // \"\") != \"\") | .\"package-ecosystem\"" "$DEPENDABOT")"
+    [[ -n "$found" ]] || violation ".github/dependabot.yml" "falta o ecossistema $eco com directory \"/frontend\" e schedule.interval"
   done
 fi
 

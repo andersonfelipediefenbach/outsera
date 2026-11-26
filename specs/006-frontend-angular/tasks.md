@@ -300,7 +300,7 @@ filtros e a paginação.
 **Teste independente**: no pipeline do PR, os jobs `frontend` e `web` verdes. Localmente, só as conferências rápidas
 (`bash -n`, YAML válido, `check-workflows.sh`).
 
-- [ ] T045 [P] [US5] Criar `frontend/Dockerfile` e `frontend/.dockerignore` conforme contracts/web-image.md
+- [X] T045 [P] [US5] Criar `frontend/Dockerfile` e `frontend/.dockerignore` conforme contracts/web-image.md
   ("Construção"): `node:26-alpine@sha256:<digest>` com `npm ci` e `npm run build`;
   `nginxinc/nginx-unprivileged:1.29-alpine@sha256:<digest>` com o `dist/frontend/browser` em
   `/usr/share/nginx/html`; `NGINX_ENVSUBST_FILTER` restrito a `PORT`, `API_URL` e `LOG_FORMAT`; `ENV PORT=8080`
@@ -308,7 +308,7 @@ filtros e a paginação.
   sem `USER root` na etapa final. Os digests vêm de `docker buildx imagetools inspect` ou da API do Docker Hub,
   com a tag no comentário. `.dockerignore` em lista de permissão (`*` e depois `!src/`, `!public/`,
   `!package.json`, `!package-lock.json`, `!angular.json`, `!tsconfig*.json`, `!nginx/`).
-- [ ] T046 [P] [US5] Criar `frontend/nginx/default.conf.template` e `frontend/nginx/10-require-api-url.sh` (copiado
+- [X] T046 [P] [US5] Criar `frontend/nginx/default.conf.template` e `frontend/nginx/10-require-api-url.sh` (copiado
   para `/docker-entrypoint.d/`) conforme contracts/web-image.md ("Rotas servidas" e "Cabeçalhos"): `listen
   ${PORT}`; `/healthz`; `location /api/` com `resolver` lido do `/etc/resolv.conf` (gerado por um script de
   entrypoint), `proxy_pass` por variável, `proxy_ssl_server_name on`, `Host` do destino e `proxy_read_timeout
@@ -318,14 +318,14 @@ filtros e a paginação.
   campos (`time`, `method`, `path`, `query`, `status`, `bytes`, `duration`, `upstream_duration`, `user_agent`,
   `remote_addr`; `status`, `bytes` e `duration` sem aspas, como números), `access_log /dev/stdout ${LOG_FORMAT};`,
   `access_log off` no `/healthz`, e nenhum cabeçalho `Authorization` ou `Cookie` no formato.
-- [ ] T047 [P] [US5] Criar `.github/scripts/web-smoke-test.sh <imagem> <api_url>` com os 10 passos de
+- [X] T047 [P] [US5] Criar `.github/scripts/web-smoke-test.sh <imagem> <api_url>` com os 10 passos de
   contracts/web-image.md ("Teste de fumaça"), no estilo do `smoke-test.sh` (resultado por passo e resumo), lendo a
   `REFERENCE` do próprio `smoke-test.sh` em vez de copiá-la. Os passos 9 e 10 conferem o formato do log: cada linha
   de stdout do `docker logs` passa por `node -e` com `JSON.parse`, com os dez campos presentes, `status` e `bytes`
   numéricos, a linha do `/api/producers/intervals` com 200, nenhuma linha do `/healthz` e nenhum `Authorization`
   (o passo 4 envia um `Authorization: Bearer teste` para provar que ele não aparece no log); com `LOG_FORMAT=main`,
   a linha não é JSON; com `LOG_FORMAT=xml`, a subida falha. Conferir `bash -n`.
-- [ ] T048 [P] [US1] Criar `frontend/playwright.config.ts` (projetos `desktop` 1280×800 e `celular` 360×740 com
+- [X] T048 [P] [US1] Criar `frontend/playwright.config.ts` (projetos `desktop` 1280×800 e `celular` 360×740 com
   toque; `baseURL` de `E2E_BASE_URL`, padrão `http://127.0.0.1:8081`; uma nova tentativa só com `CI`; trace e
   relatório guardados na falha) e os cenários em `frontend/e2e/`:
   - `dashboard.spec.ts`: valores de referência dos quatro painéis (US1-1 a US1-4, SC-002); busca por 1979 (US1-5);
@@ -340,7 +340,7 @@ filtros e a paginação.
     "Buscar" e "Próxima" (US3-3).
   Sem `page.route` nem respostas simuladas: regra `no-restricted-syntax` no `eslint.config.js` para
   `e2e/**/*.ts` (research R5). Scripts `e2e` no `package.json`.
-- [ ] T049 [US5] Alterar `.github/workflows/ci.yml` conforme contracts/ci-frontend.md:
+- [X] T049 [US5] Alterar `.github/workflows/ci.yml` conforme contracts/ci-frontend.md:
   - job novo `frontend` ("Front-end: lint, unitários, build e auditoria"), com `actions/setup-node` fixado por hash
     de commit (versão estável atual, conferida no repositório da action) e `node-version-file: frontend/.nvmrc`;
   - `dockerfile-lint` com um segundo passo do hadolint para `frontend/Dockerfile`;
@@ -354,7 +354,7 @@ filtros e a paginação.
     `.github/scripts/check-unchanged-tests.sh v0.5.0` precisa aprovar com o `ApiDocsIT` e o `ApiDocsSecurityIT`
     alterados (exceções existentes).
   Conferir o YAML com `npx --yes js-yaml@4.1.0 .github/workflows/ci.yml`.
-- [ ] T050 [US5] Alterar `.github/scripts/check-workflows.sh`:
+- [X] T050 [US5] Alterar `.github/scripts/check-workflows.sh`:
   - `REQUIRED_CHECKS=(workflow-policy build postgres codeql dependencies dockerfile-lint image alert-rules load
     compose frontend web)`, com o comentário da regra 9 citando a spec 006;
   - a regra 1 (todo `uses:` por hash de 40 caracteres) já cobre o `setup-node`: não há lista de actions
@@ -366,12 +366,12 @@ filtros e a paginação.
   descrição do PR cita isso. Rodar o script num contêiner (`docker run --rm -v "$PWD":/repo -w /repo
   alpine:3.22 sh -c 'apk add --no-cache bash yq >/dev/null && bash .github/scripts/check-workflows.sh'`) e
   confirmar que aprova. (O `deploy-web` entra na etapa 6, T057.)
-- [ ] T051 [P] [US5] Acrescentar ao `.github/dependabot.yml` o ecossistema `npm` no diretório `/frontend` e o
+- [X] T051 [P] [US5] Acrescentar ao `.github/dependabot.yml` o ecossistema `npm` no diretório `/frontend` e o
   `docker` no diretório `/frontend`, com a mesma frequência e o mesmo agrupamento dos existentes.
-- [ ] T052 [US5] Rodar os três comandos do front (os cenários de `e2e/` ficam fora do Vitest; conferir que o `npm
+- [X] T052 [US5] Rodar os três comandos do front (os cenários de `e2e/` ficam fora do Vitest; conferir que o `npm
   test` não os pega) e o `check-workflows.sh`. Não construir a imagem nem rodar o Playwright localmente: o job `web`
   comprova (FR-023, FR-025 e FR-026).
-- [ ] T053 [US5] Commit da etapa 5: "Marco 6, etapa 5: imagem nginx do front, ponta a ponta e jobs frontend e web".
+- [X] T053 [US5] Commit da etapa 5: "Marco 6, etapa 5: imagem nginx do front, ponta a ponta e jobs frontend e web".
 
 ---
 

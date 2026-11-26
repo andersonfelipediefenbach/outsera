@@ -78,7 +78,8 @@ requisitos são da [spec](spec.md).
   Projetos: `desktop` (1280×800) e `celular` (360×740, toque). O alvo é a **imagem do front** (nginx) rodando no
   runner, com `/api` repassado à API real:
   1. a API sobe com `java -jar` do JAR construído no job (modo padrão, arquivo fornecido), na porta 8080;
-  2. a imagem do front sobe com `--network host`, `PORT=8081` e `API_URL=http://127.0.0.1:8080`;
+  2. a imagem do front sobe com `-p 127.0.0.1:8081:8080`, `--add-host host.docker.internal:host-gateway` e
+     `API_URL=http://host.docker.internal:8080` (funciona no runner Linux e no Docker Desktop);
   3. o Playwright espera a readiness da API e roda contra `http://127.0.0.1:8081`.
 - **Cenários (`frontend/e2e/`):** Dashboard com os valores de referência (US1, SC-002); busca por 1990 e por um
   ano sem vencedor; validação do campo; lista com o total, a paginação e o filtro 1990 + vencedores; link com

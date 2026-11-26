@@ -63,7 +63,9 @@ Se o build de produção do Angular precisar de estilo em linha (CSS crítico), 
 
 ## Teste de fumaça (`.github/scripts/web-smoke-test.sh <imagem> <api_url>`)
 
-1. Sobe a imagem com `--network host`, `PORT=8081` e o `API_URL` dado; espera `/healthz` em até 30 s.
+1. Sobe a imagem com `-p 127.0.0.1::8080` (porta aleatória do host), `--add-host host.docker.internal:host-gateway`
+   e o `API_URL` dado (por exemplo `http://host.docker.internal:8080`, a API no host); espera `/healthz` em até 30 s.
+   O mesmo comando funciona no runner Linux e no Docker Desktop, sem `--network host`.
 2. `/` → 200, HTML com `<app-root` e `lang="pt-BR"`, CSP presente.
 3. `/filmes?ano=1990` → 200, mesmo `index.html`.
 4. `/api/producers/intervals` → 200 e corpo idêntico à `REFERENCE` do `smoke-test.sh`, com `ETag`.
