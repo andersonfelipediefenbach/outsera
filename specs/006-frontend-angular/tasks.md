@@ -40,7 +40,7 @@ Python, `jq` nem `yq` na máquina; para conferir YAML, usar `npx --yes js-yaml@4
 
 **Objetivo**: confirmar o ponto de partida.
 
-- [ ] T001 Confirmar o branch `marco/6-frontend` com a árvore limpa, a não ser por `specs/006-frontend-angular/` e
+- [X] T001 Confirmar o branch `marco/6-frontend` com a árvore limpa, a não ser por `specs/006-frontend-angular/` e
   `docs/ai/prompts.md`. Fazer o commit da spec e do plano: `specs/006-frontend-angular/` com spec, checklist,
   plan, research, data-model, contracts, quickstart e este tasks.md (mensagem
   "Marco 6: spec, plano e tarefas"). Não incluir o `docs/ai/prompts.md`, que é do hook.
@@ -54,7 +54,7 @@ Python, `jq` nem `yq` na máquina; para conferir YAML, usar `npx --yes js-yaml@4
 **Teste independente**: revisão no PR. Nenhum comando Maven muda; não é preciso rodar o `./mvnw` nesta etapa,
 porque só texto muda.
 
-- [ ] T002 Emendar `.specify/memory/constitution.md` para a **2.1.0** (MINOR), com o "Sync Impact Report (2.1.0)"
+- [X] T002 Emendar `.specify/memory/constitution.md` para a **2.1.0** (MINOR), com o "Sync Impact Report (2.1.0)"
   no topo, no formato dos anteriores (versão, justificativa, origem: spec 006 FR-024; princípios modificados;
   impacto com ✅):
   - **Princípio II:** novo item: "O front-end (`frontend/`) fica fora do `./mvnw`: nenhum comando Maven MUST
@@ -68,17 +68,17 @@ porque só texto muda.
     conforme o Princípio VI";
   - **Portão de merge:** acrescentar "e os jobs do front-end verdes no pipeline";
   - rodapé: `**Version**: 2.1.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-26`.
-- [ ] T003 [P] Alinhar o `AGENTS.md`:
+- [X] T003 [P] Alinhar o `AGENTS.md`:
   - "Regras invioláveis": item novo sobre o front fora do `./mvnw` (constituição 2.1.0, Princípio II);
   - "Testes": o front tem testes unitários (Vitest, 80% de linhas) e de ponta a ponta (Playwright) no pipeline;
   - tabela "Stack e convenções": linha "Front-end" com Angular 22.3.0, Node 26 LTS e nginx sem root;
   - "Pontos em aberto": tirar a versão do Angular e movê-la para a lista dos decididos, citando
     `specs/006-frontend-angular/` (research R1). Se não restar nenhum ponto em aberto, escrever "Nenhum no
     momento.".
-- [ ] T004 [P] Registrar a emenda em `docs/ai/decisoes.md`, numa entrada nova no formato das anteriores, com o
+- [X] T004 [P] Registrar a emenda em `docs/ai/decisoes.md`, numa entrada nova no formato das anteriores, com o
   título "Emenda 2.1.0 da constituição: comprovação do front-end", o motivo (spec 006, FR-024) e o impacto (AGENTS.md
   e spec 006).
-- [ ] T005 Commit da etapa 1: "Marco 6, etapa 1: emenda 2.1.0 da constituição para o front-end".
+- [X] T005 Commit da etapa 1: "Marco 6, etapa 1: emenda 2.1.0 da constituição para o front-end".
 
 ---
 

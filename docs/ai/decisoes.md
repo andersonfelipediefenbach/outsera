@@ -3,6 +3,22 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-26 — Emenda 2.1.0 da constituição: comprovação do front-end
+
+- **Origem:** spec 006 (Marco 6), FR-024. O pedido do responsável inclui testes unitários no front e um teste de
+  ponta a ponta no pipeline, mas o Princípio VI só conhecia três tipos de comprovação (IT, revisão e pipeline), e o
+  Princípio II não dizia nada sobre o Node.
+- **Decisão (responsável):** emenda MINOR, aprovada no PR do Marco 6, como primeiro commit do bolt:
+  - Princípio II: o front fica fora do `./mvnw`; nenhum comando Maven pode exigir Node nem construir o front;
+  - Princípio VI: novo tipo de comprovação, comportamento do front-end, por testes unitários com cobertura mínima
+    de 80% das linhas e teste de ponta a ponta contra a aplicação real, sem respostas simuladas, no pipeline;
+  - Princípio I: sem regra nova; os testes unitários continuam só no front, agora citando o Princípio VI;
+  - portão de merge: inclui os jobs do front.
+- **Motivo:** sem a emenda, os requisitos de comportamento do front ficariam sem forma de comprovação válida, ou
+  exigiriam IT no back-end para algo que só existe no navegador.
+- **Impacto:** `AGENTS.md` (regras invioláveis, testes, stack e pontos em aberto) e spec 006. As specs 001 a 005
+  não mudam.
+
 ## 2026-11-26 — Contrato 1.2.1 e exceção do `ApiDocsSecurityIT` à regra dos testes sem alteração
 
 - **Origem:** pedido do responsável no fechamento do Marco 5 (spec 005, FR-027). Com o Swagger UI público na

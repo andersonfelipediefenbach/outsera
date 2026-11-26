@@ -24,6 +24,7 @@ Se a tarefa contradiz uma fonte de prioridade maior, pare e pergunte ao Anderson
   - O resultado é verificado preferencialmente por HTTP. Log ou banco só valem enquanto o comportamento não tem endpoint exposto.
   - Quando o teste precisa controlar o ciclo de vida da aplicação real, ele a roda com `SpringApplication` (Princípio I, constituição 1.5.0). Os casos são falha de inicialização, múltiplas execuções, ordem da subida e saída completa da subida. Continua sem mocks, e o resultado é verificado por HTTP real sempre que o HTTP o observa.
   - Testes unitários só existem no front-end.
+- **O front-end fica fora do `./mvnw`** (constituição 2.1.0, Princípio II). Nenhum comando Maven exige Node nem constrói o `frontend/`, e o front não é pré-requisito para subir a API nem para rodar os testes dela.
 - **Um extra só entra completo.** Extra pela metade não é mergeado. O marco 1 nunca é reduzido.
 
 ## Fluxo de trabalho
@@ -78,6 +79,7 @@ O trabalho é Spec-Driven Development com o GitHub Spec Kit, no modo *spec-ancho
 | CSV | Apache Commons CSV |
 | Contrato | OpenAPI com Swagger UI. O contrato é a fonte da documentação e da validação das respostas nos testes |
 | Erros | Problem Details (RFC 9457) |
+| Front-end | Angular 22.3.0 em `frontend/`, Node 26 LTS só no front e no pipeline, servido por nginx sem root (spec 006) |
 | Logs | Texto padrão do framework na execução local (`./mvnw`). JSON estruturado no container e em ambientes operacionais, ligado por variável de ambiente que a imagem define. Liveness e readiness a partir do Marco 2 (constituição 1.3.0) |
 
 - **Isolamento por perfil:** Kafka, PostgreSQL e o que for do modo Docker só são configurados com o perfil ativo. Nenhuma dependência desses extras pode ser exigida no modo padrão.
@@ -102,6 +104,7 @@ O detalhe fica na spec. Estas regras não mudam sem decisão registrada.
 - Os testes do modo padrão rodam com `./mvnw verify`, e os do que vem desligado por padrão com `./mvnw -Pextras verify`, os dois **sem Docker** (constituição 2.0.0). Kafka usa o broker embutido do Spring, não Testcontainers.
 - Um IT novo entra em `src/test/default-mode-its.txt` se testa o modo padrão (sem nenhuma configuração); se depende de algo desligado por padrão, fica fora da lista e roda no perfil `extras`.
 - A cobertura mínima de 90% é conferida no `./mvnw -Pextras verify`, sobre a soma das execuções do Failsafe.
+- O front-end (`frontend/`) tem testes unitários (Vitest, com cobertura mínima de 80% das linhas) e teste de ponta a ponta (Playwright) contra a API real e a imagem do front, sem respostas simuladas. Os dois rodam no pipeline (jobs `frontend` e `web`), não no `./mvnw` (constituição 2.1.0, Princípio VI).
 - Testes que exigem PostgreSQL ficam em um perfil Maven separado, executado obrigatoriamente no pipeline (Princípio VI). Eles cobrem só o que depende do PostgreSQL. O comportamento comum aos dois bancos é testado também sem Docker, com H2.
 - CSVs de cenário ficam em `src/test/`.
 - Um teste que verifica por log ou banco, porque o endpoint ainda não existe, ganha a verificação por HTTP no bolt em que o endpoint surgir (Princípio I).
@@ -133,13 +136,14 @@ O detalhe fica na spec. Estas regras não mudam sem decisão registrada.
 
 Os pontos abaixo não estão decididos. Não escolha sozinho: pergunte ou siga o que a spec definir.
 
-- Versão exata do Angular (marco 6).
+- Nenhum no momento.
 
-Pontos que estavam em aberto e já foram decididos (detalhe em `specs/001-producer-intervals-api/` e em `docs/ai/decisoes.md`):
+Pontos que estavam em aberto e já foram decididos (detalhe nas specs citadas e em `docs/ai/decisoes.md`):
 
 - **Linha inválida dentro de um CSV válido:** a linha é ignorada, com aviso no log (número da linha e motivo) e resumo da carga. Erros estruturais continuam impedindo a inicialização (spec 001, FR-005 e FR-006).
 - **Acesso a dados:** JPA (plano 001).
 - **Spring Boot:** 4.1.2 (plano 001, research R1).
+- **Angular:** 22.3.0, a estável mais recente na data do plano, com Node 26 LTS (`specs/006-frontend-angular/`, research R1).
 
 ## Definição de pronto
 
