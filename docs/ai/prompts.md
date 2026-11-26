@@ -989,3 +989,671 @@ export docs/ai/sessoes/12-marco-4.md
 ```text
 export docs/ai/sessoes/12-marco-4-planejamento.md
 ```
+
+## 2026-11-25 14:42:06 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+/speckit-implement Execute o bolt único do marco 4, etapa por etapa, fazendo um commit ao fim de cada etapa. Não faça push. Pare quando chegar a uma tarefa que depende de mim. Na etapa 1, registre em docs/ai/decisoes.md a proteção da main já configurada: ruleset ativo na branch padrão, sem bypass, PR obrigatório com 0 aprovações, resolução das conversas obrigatória, os 8 checks do Marco 3 obrigatórios, sem exigir branch atualizado, sem force push e sem exclusão.
+```
+
+## 2026-11-25 15:24:08 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+liberei espaço, pode tocar ficha
+```
+
+## 2026-11-25 15:24:55 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bnmuuayru</task-id>
+<tool-use-id>toolu_01DrBN3s2YnTCLuCJUqXfG9i</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bnmuuayru.output</output-file>
+<status>completed</status>
+<summary>Background command "Run baseline Maven verify and time it" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 15:29:29 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bj9sfhzv8</task-id>
+<tool-use-id>toolu_01EXbyEeDwzGJ7PnQHVaNHu8</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bj9sfhzv8.output</output-file>
+<status>completed</status>
+<summary>Background command "Run baseline Maven verify and time it" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 15:37:59 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+ok, aguardo o commit da etapa 1
+```
+
+## 2026-11-25 15:38:24 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b9ord70zq</task-id>
+<tool-use-id>toolu_01GpAWgjVjpBh7NEs4WtQKTW</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\b9ord70zq.output</output-file>
+<status>completed</status>
+<summary>Background command "Run Maven verify for etapa 1" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 15:38:29 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bfuk7hcjp</task-id>
+<tool-use-id>toolu_0111K2KYfGcWKuwCroyd8YLT</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bfuk7hcjp.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim do ./mvnw verify da etapa 1" stream ended</summary>
+<event>rc=0 elapsed=233s
+[INFO] Tests run: 261, Failures: 0, Errors: 0, Skipped: 5
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] Total time:  03:48 min
+[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-25 15:39:58 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+
+
+<pasted_content id="7c07">
+Você é um testador adversário. Seu objetivo é encontrar eventos Kafka que façam a aplicação se comportar de forma diferente do que a especificação promete. Você não tem acesso ao código, só a estes documentos: spec-003.md (modo Docker e ingestão por Kafka), kafka-events.md (contrato dos eventos), spec-001.md e data-model-001.md (regras de validação dos filmes), openapi.yaml e enunciado.md.
+
+Para cada ataque, crie em casos/ um arquivo NN-nome-curto.md com:
+- a sequência exata de eventos publicados (chave e valor, byte a byte quando importar), incluindo o marcador de carga concluída quando fizer parte do ataque;
+- o resultado esperado segundo a spec, citando o requisito (FR ou SC): o que vai para o banco, o que vai para o tópico de erros e com qual motivo, a resposta do GET de intervalos e o estado da readiness;
+- por que você acha que a implementação pode errar.
+
+Explore principalmente: JSON malformado ou com tipos errados, campos ausentes, extras ou duplicados, unicode (BOM, NUL, emojis, normalização, espaços invisíveis), limites de tamanho, ano nos limites, winner em formatos ambíguos, separadores de produtores ("and", vírgulas, espaços), duplicatas e reenvio do mesmo evento (idempotência), atualização de um filme já carregado, ordem dos eventos, eventos depois do marcador, marcador duplicado ou ausente, e empates no cálculo dos intervalos.
+
+No fim, crie casos/README.md com uma tabela: caso, requisito atacado e por que é arriscado. Não invente comportamento: se a spec for ambígua num ponto, registre isso como achado, em vez de escolher uma resposta.
+</pasted_content id="7c07">
+
+```
+
+## 2026-11-25 15:49:08 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+O testador adversário gerou os casos em D:\Repo\PESSOAIS\outsera-test\adversario-kafka\casos. Siga o T005: para cada caso, escreva o IT em src/test/java/com/outsera/awards/kafka/adversario/, confirme se falha, e corrija só os que falharem (spec antes do código, quando mudar comportamento). Casos que apontam ambiguidade na spec: me mostre antes de decidir. Registre tudo em docs/ai/decisoes.md, inclusive os ataques que passaram. Commit ao fim, sem push.
+```
+
+## 2026-11-25 15:56:25 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+Opção 2. E documente no kafka-events.md que o marcador antecipado (caso 25) só acontece com escrita indevida no tópico, que a readiness é um sinal operacional e não uma barreira de segurança, e que a proteção do tópico é responsabilidade do broker (ACLs), fora do escopo.
+```
+
+## 2026-11-25 16:08:48 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bzts0m3x8</task-id>
+<tool-use-id>toolu_015eUYb9KEUHjGHFGMf276oA</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bzts0m3x8.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the new adversarial Kafka ITs before fixes" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 16:21:30 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+rodou já o verify?
+```
+
+## 2026-11-25 16:23:41 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+Antes do commit do T005, consolide os ITs adversários como fizemos no Marco 3 com os 16 eventos inválidos: agrupe os casos que não mudam a readiness nem dependem de estado próprio numa única aplicação e num único broker, com chaves e títulos distintos por caso e uma asserção com mensagem própria para cada um (assertAll ou SoftAssertions). Mantenha contexto próprio só para os casos que mexem com o marcador, a readiness ou a subida. Nenhum caso pode ser cortado. Meça o verify antes e depois e confirme que fica dentro do limite de 2× da R15. Registre a medição no decisoes.md.
+```
+
+## 2026-11-25 16:27:45 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bwu1mf3hr</task-id>
+<tool-use-id>toolu_016DFgvaAGyUGq3eK3Bo3smc</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bwu1mf3hr.output</output-file>
+<status>completed</status>
+<summary>Background command "Run full Maven verify after fixes" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 16:27:45 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>btdsf3mxf</task-id>
+<tool-use-id>toolu_01LuyNMmGy999bgVeZbC2Dyh</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\btdsf3mxf.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim do ./mvnw verify completo depois das correções" stream ended</summary>
+<event>rc=0 elapsed=563s
+[INFO] Tests run: 292, Failures: 0, Errors: 0, Skipped: 5
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] Total time:  09:16 min
+[INFO] All coverage checks have been met.
+[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-25 16:34:32 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+Não meça a v0.2.0 localmente. A referência do tempo é o job de build no pipeline. Assim que o verify "depois" e o caso 29 no postgres-it terminarem verdes, registre as medições locais no decisoes.md, faça o commit do T005 e siga direto para a etapa 2, sem me esperar. Só pare em tarefas que dependem de mim (T012, T025, T063 e T064) ou se algo falhar.
+```
+
+## 2026-11-25 16:35:45 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b37mcomwt</task-id>
+<tool-use-id>toolu_01G2s8MZZLU1NtLZAWyntfMZ</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\b37mcomwt.output</output-file>
+<status>completed</status>
+<summary>Background command "Measure full verify after consolidation" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 16:35:46 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bw2ffpdao</task-id>
+<tool-use-id>toolu_0173nEhw7t2jzEXk4v3qBk3b</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bw2ffpdao.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim do verify depois da consolidação" stream ended</summary>
+<event>rc=0 elapsed=260s
+[INFO] Tests run: 269, Failures: 0, Errors: 0, Skipped: 5
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] Total time:  04:16 min
+[INFO] All coverage checks have been met.
+39.12 s KafkaAdversarialEventsIT
+6.449 s KafkaCase22MarkerWithheldIT
+3.896 s KafkaCase23OldAndDuplicateMarkerIT
+4.042 s KafkaCase24MarkerWithoutRunIdIT
+3.436 s KafkaCase25EarlyMarkerIT
+3.711 s KafkaCase26aMarkerCountInconsistentIT
+4.070 s KafkaCase26bMarkerCountMissingIT
+4.095 s KafkaCase26cMarkerCountTextIT
+[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-25 16:40:53 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+redefini meu limite, pode continuar
+```
+
+## 2026-11-25 17:04:01 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bwp91awy2</task-id>
+<tool-use-id>toolu_01AbTNeo9rKwpd1AX2w5Nuss</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bwp91awy2.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim da carga direta de 100 mil filmes" stream ended</summary>
+<event>LIMITE de 20 min atingido sem fim da carga</event>
+</task-notification>
+```
+
+## 2026-11-25 20:30:14 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+fiz alguns ajustes a nivel de código, o problema maior era o flush. verique agora
+```
+
+## 2026-11-25 20:43:45 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b9bs6wkbq</task-id>
+<tool-use-id>toolu_011qawPed6B1VkdqL1LNgER9</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\b9bs6wkbq.output</output-file>
+<status>completed</status>
+<summary>Background command "Bring up compose with generated CSV and measure Kafka load" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 20:43:56 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b4lk03rvo</task-id>
+<tool-use-id>toolu_01UweUxCzNui7wYSpFWQdpF7</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\b4lk03rvo.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim da carga por Kafka de 100 mil filmes no compose" stream ended</summary>
+<event>[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-25 21:01:25 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+
+
+<pasted_content id="7c07">
+A correção do FlushModeType.COMMIT na carga direta é minha. Antes do commit:
+1. Confirme que a detecção de duplicatas não depende de consulta ao banco dentro da transação. Com COMMIT, uma consulta não enxerga os filmes ainda não gravados. Rode os ITs de duplicata do CSV e do Kafka e o perfil postgres-it.
+2. Registre no decisoes.md a causa (flush automático a cada consulta, custo quadrático), a tabela antes/depois e o motivo de mexer em src/main no Marco 4: é uma falha de desempenho que o T016 encontrou.
+3. Publicador Kafka: troque o send().get() por evento por envio assíncrono, com o produtor idempotente (enable.idempotence=true, acks=all), para manter a ordem. Junte os futures, espere todos e só então publique o marcador, que continua sendo enviado por último e de forma síncrona. Se algum envio falhar, o publicador falha e não publica o marcador. Ajuste linger.ms e batch.size só no publicador.
+Meça a carga por Kafka dos 100 mil no compose antes e depois e me mostre o resultado. Commits separados para a carga direta e para o publicador. Não faça push.
+</pasted_content id="7c07">
+
+```
+
+## 2026-11-25 21:10:18 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bpeheh05c</task-id>
+<tool-use-id>toolu_01HDWygttJCETAmrEJxTWNQF</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bpeheh05c.output</output-file>
+<status>completed</status>
+<summary>Background command "Full verify with direct-load flush fix" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 21:10:22 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>budvrhesr</task-id>
+<tool-use-id>toolu_01EYQMauSQXyihdv1oKWm37A</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\budvrhesr.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim do verify com a correção da carga direta" stream ended</summary>
+<event>rc=0 elapsed=266s
+[INFO] Tests run: 269, Failures: 0, Errors: 0, Skipped: 5
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-25 21:12:12 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<pasted_content id="7c07">
+A primeira execução do Failsafe terminou verde (269 testes, 0 falhas). Quando a segunda terminar:
+1. Rode o perfil postgres-it completo, com o PostgreSQL descartável na porta 55432. O último relatório do KafkaCase29RestartReappliesCsvPostgresIT é das 19:08 e tem erro na criação do schema, de uma execução em que o banco não estava de pé. Ele precisa passar agora.
+2. Com o verify e o postgres-it verdes, faça o commit da carga direta (MovieImportService e o registro no decisoes.md).
+3. Siga para a correção do publicador Kafka, como combinado: envio assíncrono com produtor idempotente, o marcador por último e síncrono, a medição dos 100 mil no compose antes e depois, e um commit separado.
+4. Depois, continue a etapa 2 até o T025 e pare para eu fazer o push.
+Não me espere entre esses passos, a não ser que algo falhe.
+</pasted_content id="7c07">
+```
+
+## 2026-11-25 21:26:54 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+Depois do commit do publicador, antes de voltar ao T021: o ./mvnw verify padrão leva ~8 min e é o que o avaliador roda para o core. Proponha e aplique uma emenda MINOR do Princípio VI: o ./mvnw verify padrão roda só os ITs do enunciado (Marco 1), numa única execução do Failsafe; os ITs dos extras e a execução com log em JSON vão para um perfil Maven extras, que o job build roda obrigatoriamente no pipeline. A cobertura mínima de 90% é verificada no pipeline sobre a soma das duas execuções. Atualize o AGENTS.md, a spec 004 e o README (seção "Avalie em 2 minutos", com o tempo medido e o comando dos extras). O check-unchanged-tests.sh continua valendo, porque nenhum IT muda, só o perfil em que roda. Meça o ./mvnw verify padrão num clone limpo e me mostre. Um commit, sem push.
+```
+
+## 2026-11-25 21:32:26 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bxca3uzt8</task-id>
+<tool-use-id>toolu_01P8CcjpNZVCeGJn2VvZugTp</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bxca3uzt8.output</output-file>
+<status>completed</status>
+<summary>Background command "Full verify with async publisher" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 21:32:27 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bwglohqdu</task-id>
+<tool-use-id>toolu_011t6NUSQ9JZjjb5r4B17xEg</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bwglohqdu.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim do verify com o publicador assíncrono" stream ended</summary>
+<event>rc=0 elapsed=540s
+[INFO] Tests run: 269, Failures: 0, Errors: 0, Skipped: 5
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-25 21:39:03 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bupjl0fn6</task-id>
+<tool-use-id>toolu_0188nkqPgLtkWqB319ysHUEo</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bupjl0fn6.output</output-file>
+<status>completed</status>
+<summary>Background command "Run verify with extras profile and coverage" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 21:39:08 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bi6yuxvau</task-id>
+<tool-use-id>toolu_01AzLC8N9kARsCSvMHXnnfAG</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bi6yuxvau.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim do ./mvnw -Pextras verify" stream ended</summary>
+<event>rc=0 elapsed=236s
+[INFO] Tests run: 142, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 127, Failures: 0, Errors: 0, Skipped: 5
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+[INFO] Total time:  03:53 min
+cobertura de linhas: 95.36%
+[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-25 21:53:14 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+Ajuste o critério do recorte: o perfil padrão roda os ITs de todo comportamento do modo padrão (H2, carga do CSV, endpoints, Swagger), inclusive as regras do CSV acrescentadas pela spec 003 (FIELD_TOO_LONG, NUL e os demais que testam o modo padrão). O perfil extras fica com o que vem desligado por padrão: Kafka, autenticação, PostgreSQL, log em JSON e observabilidade que dependa de configuração. Atualize a constituição (o texto da 2.0.0), o README e a spec 004 com esse critério, meça o ./mvnw verify padrão de novo num clone limpo e faça o amend do commit da emenda. Depois siga para o T021 e pare no T025.
+```
+
+## 2026-11-25 22:01:03 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bmd6r8vg0</task-id>
+<tool-use-id>toolu_01HxRf6uJ678xRNMHjpLd3NG</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bmd6r8vg0.output</output-file>
+<status>completed</status>
+<summary>Background command "Run extras profile with new criterion" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 22:01:15 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bar6uukaw</task-id>
+<tool-use-id>toolu_01B8hGCE4dpsvqiTHPAKwCSX</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bar6uukaw.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim do -Pextras com o critério novo" stream ended</summary>
+<event>rc=0 elapsed=247s
+[INFO] Tests run: 209, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 60, Failures: 0, Errors: 0, Skipped: 5
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+[INFO] Total time:  04:03 min
+cobertura de linhas: 95.36%
+[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-25 22:17:06 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b3c2kymfl</task-id>
+<summary>Monitor event: "resultados da carga direta com 500 mil, 1 milhão e 2 milhões"</summary>
+<event>memória da VM do Docker: 15.5 GiB
+500000 filmes: pronta em 42 s; 500000 linhas lidas, 500000 aceitas, 0 rejeitadas; 4.338GiB / 15.55GiB</event>
+</task-notification>
+```
+
+## 2026-11-25 22:18:36 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b3c2kymfl</task-id>
+<summary>Monitor event: "resultados da carga direta com 500 mil, 1 milhão e 2 milhões"</summary>
+<event>1000000 filmes: pronta em 89 s; 1000000 linhas lidas, 1000000 aceitas, 0 rejeitadas; 6.457GiB / 15.55GiB</event>
+</task-notification>
+```
+
+## 2026-11-25 22:22:18 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b3c2kymfl</task-id>
+<tool-use-id>toolu_013hafPeGJ8YH8QEv9j7BhTm</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\b3c2kymfl.output</output-file>
+<status>completed</status>
+<summary>Monitor "resultados da carga direta com 500 mil, 1 milhão e 2 milhões" stream ended</summary>
+<event>2000000 filmes: pronta em 222 s; 2000000 linhas lidas, 2000000 aceitas, 0 rejeitadas; 11.77GiB / 15.55GiB</event>
+</task-notification>
+```
+
+## 2026-11-25 22:22:31 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bfgn7prz5</task-id>
+<tool-use-id>toolu_01NuAbs8hoZxrFtMx52FtN53</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bfgn7prz5.output</output-file>
+<status>completed</status>
+<summary>Background command "Measure direct load memory limits with large files" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 22:27:28 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b4pwy3iqd</task-id>
+<tool-use-id>toolu_018EQv1or7cmRkoc8BWYEn6v</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\b4pwy3iqd.output</output-file>
+<status>completed</status>
+<summary>Background command "Run default and extras verify for etapa 2" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-25 22:27:33 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>b9x1bonda</task-id>
+<tool-use-id>toolu_01WjYwPDNhdVs3N2gfsWQ7ht</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\b9x1bonda.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim do verify e do -Pextras da etapa 2" stream ended</summary>
+<event>verify: rc=0 71s
+[INFO] Tests run: 209, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+extras: rc=0 225s
+[INFO] Tests run: 209, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 60, Failures: 0, Errors: 0, Skipped: 5
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-25 23:07:22 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+
+
+<pasted_content id="7c07">
+Não aceite nenhuma das três opções do SLO. Corrija o endpoint: o resultado dos intervalos só muda quando os dados mudam. Guarde o resultado calculado e invalide a cada gravação (carga do CSV, evento do Kafka gravado ou atualizado), por exemplo com um contador de versão incrementado na mesma transação da gravação. A consistência precisa ser imediata: depois de uma gravação confirmada, a próxima leitura já vê o resultado novo. O ETag continua funcionando. Comprove com os ITs que já atualizam dados (KafkaUpdateIT, KafkaNewWinnerIT) e acrescente um IT que lê, grava e lê de novo, conferindo que o resultado mudou. Registre a decisão no decisoes.md (causa, medição antes e depois). Meça de novo o p95 e o p99 com os 100 mil filmes. Rode o ./mvnw verify e o -Pextras. Um commit, sem push. Depois pare no T025.
+</pasted_content id="7c07">
+
+```
+
+## 2026-11-26 07:36:52 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<pasted_content id="7c07">
+Não aceite nenhuma das três opções do SLO. Corrija o endpoint: o resultado dos intervalos só muda quando os dados mudam. Guarde o resultado calculado e invalide a cada gravação (carga do CSV, evento do Kafka gravado ou atualizado), por exemplo com um contador de versão incrementado na mesma transação da gravação. A consistência precisa ser imediata: depois de uma gravação confirmada, a próxima leitura já vê o resultado novo. O ETag continua funcionando. Comprove com os ITs que já atualizam dados (KafkaUpdateIT, KafkaNewWinnerIT) e acrescente um IT que lê, grava e lê de novo, conferindo que o resultado mudou. Registre a decisão no decisoes.md (causa, medição antes e depois). Meça de novo o p95 e o p99 com os 100 mil filmes. Rode o ./mvnw verify e o -Pextras. Um commit, sem push. Depois pare no T025.
+</pasted_content id="7c07">
+```
+
+## 2026-11-26 08:00:10 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bdvpooeex</task-id>
+<tool-use-id>toolu_01SFbfzhP5z26WN57rodGH92</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bdvpooeex.output</output-file>
+<status>completed</status>
+<summary>Background command "Run default and extras verify with cache" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-26 08:00:15 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bn5d4018v</task-id>
+<tool-use-id>toolu_01GZrA7Ka81rr9mpxK5BDTJD</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bn5d4018v.output</output-file>
+<status>completed</status>
+<summary>Monitor "fim do verify e do -Pextras com o cache" stream ended</summary>
+<event>verify: rc=0 87s
+[INFO] Tests run: 209, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+extras: rc=1 268s
+[INFO] Tests run: 209, Failures: 0, Errors: 0, Skipped: 0
+[ERROR] Tests run: 61, Failures: 7, Errors: 0, Skipped: 5
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD FAILURE
+C:/Users/ander/AppData/Local/Temp/claude/cd9697c376913fb9/1b0838f5-80da-4eae-ad98-f5e4b9887483/scratchpad/cache-b.log:[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 50.53 s &lt;&lt;&lt; FAILURE! -- in com.outsera.awards.kafka.adversario.KafkaAdversarialEventsIT
+C:/Users/ander/AppData/Local/Temp/claude/cd9697c376913fb9/1b0838f5-80da-4eae-ad98-f5e4b9887483/scratchpad/cache-b.log:[ERROR] com.outsera.awards.kafka.adversario.KafkaAdversarialEventsIT.adversarialEventCases(CapturedOutput) -- Time elapsed: 34.07 s &lt;&lt;&lt; FAILURE!
+C:/Users/ander/AppData/Local/Temp/claude/cd9697c376913fb9/1b0838f5-80da-4eae-ad98-f5e4b9887483/scratchpad/cache-b.log:[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 3.465 s &lt;&lt;&lt; FAILURE! -- in com.outsera.awards.kafka.adversario.KafkaCase23OldAndDuplicateMarkerIT
+C:/Users/ander/AppData/Local/Temp/claude/cd9697c376913fb9/1b0838f5-80da-4eae-ad98-f5e4b9887483/scratchpad/cache-b.log:[ERROR] com.outsera.awards.kafka.adversario.KafkaCase23OldAndDuplicateMarkerIT.oldMarkerIsIgnoredAndCurrentReplayIsHarmless(CapturedOutput) -- Time elapsed: 1.864 s &lt;&lt;&lt; FAILURE!
+C:/Users/ander/AppData/Local/Temp/claude/cd9697c376913fb9/1b0838f5-80da-4eae-ad98-f5e4b9887483/scratchpad/cache-b.log:[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 4.001 s &lt;&lt;&lt; FAILURE! -- in com.outsera.awards.kafka.adversario.KafkaCase24MarkerWithoutRunIdIT
+[exited with code 0]</event>
+</task-notification>
+```
+
+## 2026-11-26 08:17:27 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+<task-notification>
+<task-id>bw5nz6upx</task-id>
+<tool-use-id>toolu_01CbzLx7A3KNvKFonHXTGcE3</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\9758a314-ea7b-4e67-ad6f-3c0b7ac28236\tasks\bw5nz6upx.output</output-file>
+<status>killed</status>
+<summary>Background command "Clean verify and extras verify with cache" was stopped because the system is running low on memory</summary>
+<note>This is not a failure of the command. Claude Code stopped it because the system was critically low on memory while the session was idle, which says nothing about the command or its own memory use, so there is nothing in it to debug. Do not start it again on your own, even if the work seems to need it: memory may still be short. Report what was stopped and why, and start it again only when asked. The user can turn this behavior off by starting Claude Code with CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP=1 in its environment; setting it from a shell command has no effect.</note>
+</task-notification>
+```
+
+## 2026-11-26 08:29:34 -03:00
+
+- Sessao: `1b0838f5-80da-4eae-ad98-f5e4b9887483`
+
+```text
+Autorizado. Já fechei o Docker Desktop. Rode o ./mvnw clean verify e o ./mvnw -Pextras verify, um de cada vez. Com os dois verdes, faça os dois commits separados: o do cache e o do load-test.sh. No registro do cache, deixe explícito no ADR que ele vale para uma única instância e que, com várias instâncias (Marco 5, Cloud Run), a invalidação precisa passar a um contador no banco ou a um evento compartilhado. Depois pare no T025.
+```
