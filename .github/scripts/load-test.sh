@@ -206,6 +206,14 @@ if [[ "$ONLY_DIRECT" == 0 ]]; then
   # O k6 escreve o relatório em target/load/ com o usuário de quem roda (compose.yaml, serviço k6).
   K6_USER="$(id -u):$(id -g)"
   export K6_USER
+  # O k6 depende do app healthy. Uma carga longa passa do start-period do HEALTHCHECK, o Docker marca o
+  # app como unhealthy no meio dela, e ele só volta a healthy na verificação seguinte à readiness (até
+  # 10 s depois). Sem esta espera, o compose recusa subir o k6.
+  app_id="$("${COMPOSE[@]}" ps -q app 2>/dev/null || true)"
+  for _ in $(seq 1 60); do
+    [[ -n "$app_id" && "$(docker inspect -f '{{.State.Health.Status}}' "$app_id" 2>/dev/null)" == "healthy" ]] && break
+    sleep 1
+  done
   set +e
   "${COMPOSE[@]}" --profile load run --rm k6
   K6_EXIT=$?
