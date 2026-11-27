@@ -3095,3 +3095,11 @@ No run 45909553455 (PR, commit e4d10ee), o job web falhou em 1 de 104 testes: e2
 <summary>Background command "GH="/c/Program Files/GitHub CLI/gh.exe"; R=andersonfelipediefenbach/outsera; sleep 20; for ev in pull_request push; do id=$("$GH" run list --repo $R --branch marco/6-frontend --event $ev --limit 1 --json databaseId,headSha --jq '.[0] | select(.headSha|startswith("d2fd08c")) | .databaseId'); "$GH" run watch $id --repo $R --interval 30 &gt; /dev/null 2&gt;&amp;1; "$GH" run view $id --repo $R --json conclusion,jobs --jq "\"$ev $id: \(.conclusion)\", (.jobs[] | \"  \(.conclusion // .status)\t\(.name)\")"; done" completed (exit code 0)</summary>
 </task-notification>
 ```
+
+## 2026-11-27 09:54:53 -03:00
+
+- Sessao: `84861b0e-c071-4f95-a859-a0f2d3e055cb`
+
+```text
+O deploy do front falhou no run 45917723129: o verify-web.sh reprovou só o passo 1, com /healthz devolvendo um 404 do próprio Google Front End ("Error 404 (Not Found)!!1"), não do nginx. O Cloud Run reserva caminhos terminados em "z", que nunca chegam ao contêiner. Os outros 5 passos passaram. Renomeie o endpoint de saúde do nginx para /health (no nginx, na sonda do Cloud Run, no teste de fumaça, no verify-web.sh e nos contratos), registre a causa no decisoes.md e abra um PR curto. Depois do merge, o deploy roda de novo.
+```
