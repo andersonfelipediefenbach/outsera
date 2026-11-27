@@ -3136,3 +3136,11 @@ Confira se todos os números e links do README batem com o repositório. Commit,
 <summary>Background command "Run default and extras Maven verify" completed (exit code 0)</summary>
 </task-notification>
 ```
+
+## 2026-11-27 11:28:14 -03:00
+
+- Sessao: `f20c8568-741a-44a5-9051-b15bd136b0e6`
+
+```text
+No roteiro, mantenha o modo Docker publicado e o front no compose, e reescreva o login como condicional: "login com um provedor de identidade, caso a aplicação passe a ter dados privados", coerente com a seção de Segurança. Passe a spec 006 para Implemented neste mesmo PR, como foi feito com a 005. Commit e push.
+```
