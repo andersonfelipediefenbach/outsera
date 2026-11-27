@@ -1,10 +1,65 @@
 # Golden Raspberry Awards API
 
+## Sumário
+
+1. [Visão geral](#1-visão-geral): [o enunciado](#o-enunciado) e [além do enunciado](#além-do-enunciado)
+2. [Avalie em 2 minutos](#2-avalie-em-2-minutos)
+3. [Como executar](#3-como-executar), com os extras dos [Marcos 3](#modo-docker-completo-postgresql-kafka-prometheus-e-grafana-opcional),
+   [4](#marco-4-slo-alertas-teste-de-carga-e-dados-gerados-opcional),
+   [5](#marco-5-publicação-no-cloud-run-opcional) e [6](#marco-6-front-end-em-angular-opcional)
+4. [Endpoints](#4-endpoints)
+5. [Testes](#5-testes) e [pipeline](#pipeline)
+6. [Requisitos do enunciado](#6-requisitos-do-enunciado), com os dos Marcos 2 a 6
+7. [Regras de negócio](#7-regras-de-negócio)
+8. [Arquitetura](#8-arquitetura)
+9. [Segurança](#9-segurança)
+10. [Decisões](#10-decisões)
+11. [Metodologia e uso de IA](#11-metodologia-e-uso-de-ia)
+12. [Estrutura do repositório](#12-estrutura-do-repositório)
+13. [Roteiro](#13-roteiro)
+
+---
+
 ## 1. Visão geral
 
-API REST que lê o CSV de indicados e vencedores da categoria Pior Filme do Golden Raspberry Awards ao
-subir. Ela informa os produtores com o **menor** e o **maior** intervalo entre duas vitórias
-consecutivas e lista os filmes com paginação e filtros.
+> **Publicado, para ver sem instalar nada:**
+> - **Front (painel e lista de filmes):** <https://awards-web-2564509384.southamerica-east1.run.app>
+> - **Swagger UI da API:** <https://awards-2564509384.southamerica-east1.run.app/swagger-ui.html>
+>
+> Os dois serviços ficam com zero instâncias quando ninguém os usa, então a primeira chamada pode levar alguns
+> segundos.
+
+### O enunciado
+
+O enunciado da Outsera pede uma API REST que lê, ao subir, o CSV de indicados e vencedores da categoria Pior
+Filme do Golden Raspberry Awards e informa os produtores com o **menor** e o **maior** intervalo entre duas
+vitórias consecutivas, no formato da página 2. Tudo o que ele exige roda só com o JDK e o `./mvnw`, sem Docker.
+
+| O que foi pedido | Onde está |
+| --- | --- |
+| Carga do CSV na inicialização, num banco embarcado (item 4.3: H2 em memória) | [Regras de negócio](#7-regras-de-negócio) e [arquitetura](#fluxo-da-carga-até-a-resposta) |
+| `GET /api/producers/intervals`, com `min` e `max` no formato exato da página 2 | [Endpoints](#get-apiproducersintervals) |
+| API no nível 2 de Richardson (item 4.1) | [Endpoints](#4-endpoints) e [códigos HTTP](#códigos-http) |
+| Somente testes de integração (item 4.2) | [Testes](#5-testes) |
+| Como executar e testar (item 4.4) | [Avalie em 2 minutos](#2-avalie-em-2-minutos) e [como executar](#3-como-executar) |
+| Código num repositório git (item 4.5) | Este repositório ([estrutura](#12-estrutura-do-repositório)) |
+| Uso de IA e registro das interações (itens 5.1 e 5.2) | [Metodologia e uso de IA](#11-metodologia-e-uso-de-ia) |
+
+A listagem paginada de filmes (`GET /api/movies`) também faz parte do Marco 1, pela leitura da seção 1 do
+enunciado. A matriz de cada item com o teste que o comprova está na [seção 6](#6-requisitos-do-enunciado).
+
+### Além do enunciado
+
+Os extras vieram em marcos, cada um com a sua spec, e **nenhum muda o modo padrão**: o `./mvnw verify` e o
+`./mvnw spring-boot:run` continuam iguais, sem Docker e sem Node.
+
+| Marco | O que entrega | Como ver ou rodar | Seção |
+| --- | --- | --- | --- |
+| 2 | ETag e 304, liveness e readiness, métricas do Prometheus, log em JSON por variável, imagem Docker não root e pipeline com portas de segurança | `curl -si .../api/producers/intervals`, `/actuator/health/readiness`, `docker build -t awards:local .` | [Formato do log](#formato-do-log), [imagem](#imagem-docker-opcional), [ETag](#etag-e-304), [pipeline](#pipeline) |
+| 3 | Modo Docker com PostgreSQL, ingestão por Kafka, Prometheus e Grafana; autenticação por token, desligada por padrão | `docker compose up -d --build --wait`; `API_TOKEN=... ./mvnw spring-boot:run` | [Modo Docker](#modo-docker-completo-postgresql-kafka-prometheus-e-grafana-opcional), [autenticação](#autenticação-opcional) |
+| 4 | SLO com alertas e runbook, teste de carga com k6 e gerador de CSV grande e determinístico (escopo reduzido) | Jobs `alert-rules` e `load`; `java tools/csv-generator/GenerateMovies.java` | [Marco 4](#marco-4-slo-alertas-teste-de-carga-e-dados-gerados-opcional), [roteiro](#13-roteiro) |
+| 5 | Publicação da API no Cloud Run a cada merge na `main`, pela imagem testada e sem chaves | [Swagger UI publicado](https://awards-2564509384.southamerica-east1.run.app/swagger-ui.html) | [Marco 5](#marco-5-publicação-no-cloud-run-opcional) |
+| 6 | Front em Angular (painel e lista de filmes), duas agregações novas na API e publicação do front | [Front publicado](https://awards-web-2564509384.southamerica-east1.run.app); `cd frontend && npm ci && npm start` | [Marco 6](#marco-6-front-end-em-angular-opcional), [agregações](#agregações-do-painel) |
 
 ---
 
@@ -373,16 +428,9 @@ O resultado dos intervalos fica guardado entre as leituras e é invalidado a cad
 consistência imediata, numa única instância ([ADR 0026](docs/adr/0026-intervalos-guardados-entre-leituras.md)).
 Antes disso, com os 100 mil filmes, o p99 dos intervalos era de 927 ms.
 
-**Roteiro: o que o Marco 4 deixou para depois.** O escopo do marco foi reduzido por decisão do responsável
-(spec 004, Status). Ficaram adiados, com a spec e as tarefas guardadas:
-
-| Item | Spec 004 | Situação |
-| --- | --- | --- |
-| Cache AOT da JVM na imagem e medição da subida | US4, FR-020 a FR-023 (etapa 4) | adiado |
-| SBOM da imagem e assinatura keyless com cosign | US5, FR-024 a FR-027 (etapa 5) | adiado |
-| Dev container | US6, FR-028 a FR-030 (etapa 6) | adiado |
-| ADRs 0020 a 0025 das decisões do Marco 4 | FR-037 (etapa 6) | adiado; as decisões estão em [`docs/ai/decisoes.md`](docs/ai/decisoes.md) |
-| Várias instâncias da aplicação | ADR 0026 | o cache dos intervalos precisa passar a um contador no banco ou a um evento compartilhado |
+**O que o Marco 4 deixou para depois.** O escopo do marco foi reduzido por decisão do responsável (spec 004,
+Status): o cache AOT, o SBOM com a assinatura, o dev container e os ADRs 0020 a 0025 ficaram adiados, com a spec
+e as tarefas guardadas. A lista está no [roteiro](#13-roteiro).
 
 ### Marco 5: publicação no Cloud Run (opcional)
 
@@ -397,7 +445,7 @@ local nem no `./mvnw verify` (spec 005, FR-022).
 - As métricas ficam fechadas na URL pública: `/actuator/prometheus` responde 404. A publicação liga só o
   `health`, que os probes usam.
 
-**Como a publicação acontece.** O job `deploy` roda só em push na `main` deste repositório, depois dos 10
+**Como a publicação acontece.** O job `deploy` roda só em push na `main` deste repositório, depois dos 12
 checks obrigatórios:
 
 1. Baixa a imagem testada do job `image` e confere o digest.
@@ -655,9 +703,9 @@ histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{u
 Todos são **testes de integração**, executados pelo Maven Failsafe na fase `verify`, **sem Docker**
 (constituição 2.0.0, Princípios II e VI):
 
-- **`./mvnw verify`:** uma execução, com os **209 testes do modo padrão**, listados em
-  [`src/test/default-mode-its.txt`](src/test/default-mode-its.txt): os do enunciado (Marco 1) e os dos Marcos 2
-  e 3 que valem sem nenhuma configuração. Leva cerca de 1 minuto num clone limpo (63 s medidos, com a compilação);
+- **`./mvnw verify`:** uma execução, com os **243 testes do modo padrão**, listados em
+  [`src/test/default-mode-its.txt`](src/test/default-mode-its.txt): os do enunciado (Marco 1) e os dos Marcos 2,
+  3 e 6 que valem sem nenhuma configuração. Leva cerca de 1 minuto num clone limpo (63 s medidos, com a compilação);
 - **`./mvnw -Pextras verify`:** a mesma execução e mais duas:
   - **`extras`:** os testes do que vem desligado por padrão (Kafka, inclusive os do testador adversário,
     e a autenticação ligada), com o log em texto. Os 5 do `JsonLogFormatIT` ficam
@@ -692,7 +740,7 @@ docker rm -f awards-pg
 | `SmokeIT` | A aplicação sobe com o arquivo padrão |
 | `ingestion/` | Carga do CSV: falhas de inicialização, variações inofensivas, BOM, linhas inválidas, duplicatas, estúdios vazios, resumo da carga e arquivos sem filmes válidos |
 | `intervals/` | Cálculo e formato dos intervalos: resultado de referência, empates em `min` e `max`, três ou mais vitórias, linhas fora de ordem, vitórias no mesmo ano, separação de produtores, arquivo com anos diferentes dos do enunciado e um oráculo independente com arquivos gerados |
-| `adversario/` | Os 13 casos do testador adversário ([seção 10](#10-uso-de-ia)), um IT por caso, com o CSV e o resultado esperado em `src/test/resources/scenarios/adversario/` |
+| `adversario/` | Os 13 casos do testador adversário ([seção 11](#11-metodologia-e-uso-de-ia)), um IT por caso, com o CSV e o resultado esperado em `src/test/resources/scenarios/adversario/` |
 | `movies/` | Listagem: paginação, filtros, ordem, parâmetros inválidos e tempo de resposta abaixo de 1 s |
 | `docs/` | As respostas reais dos dois endpoints validadas contra o `openapi.yaml`, inclusive o `ETag` e o 304, mais o Swagger UI e o contrato publicado |
 | `web/` | Verbos não suportados nos dois endpoints respondem 405 |
@@ -701,8 +749,9 @@ docker rm -f awards-pg
 | `metrics/` | Métricas no formato do Prometheus: contagem, status, rota sem parâmetros, rotas inexistentes, 304, histograma e rótulo `application` |
 | `logging/` | Log em texto sem a variável, JSON ECS com ela, banner desligado e nenhum cabeçalho `Authorization` no log |
 | `isolation/` | Sem perfil, o Kafka não é configurado: nenhuma métrica nem cliente Kafka (Marco 3) |
-| `kafka/` | Ingestão por Kafka com o broker embutido: resultado de referência, equivalência byte a byte com a carga direta, readiness só com o evento de carga concluída, linhas inválidas, falhas estruturais, vencedor novo em até 5 s, atualização, idempotência, cada tipo de evento inválido no tópico de erros (inclusive o caractere nulo, que o PostgreSQL não aceita), tópico de erros fora do ar, broker fora do ar e métricas (Marco 3) |
+| `kafka/` | Ingestão por Kafka com o broker embutido: resultado de referência, equivalência byte a byte com a carga direta, readiness só com o evento de carga concluída, linhas inválidas, falhas estruturais, vencedor novo em até 5 s, atualização, idempotência, cada tipo de evento inválido no tópico de erros (inclusive o caractere nulo, que o PostgreSQL não aceita), tópico de erros fora do ar, broker fora do ar e métricas (Marco 3), mais os 30 casos do testador adversário em `kafka/adversario/` (Marco 4) |
 | `security/` | Autenticação desligada (guarda do `API_TOKEN`) e ligada: 401 em Problem Details, endpoints públicos, token fora do log, sem senha gerada, cabeçalhos de cache e de proteção e o contrato publicado (1.2.0 no Marco 3, 1.2.1 desde o Marco 5) |
+| `aggregations/` | As duas agregações do painel: resultado de referência, ordem, listas vazias, ETag, contrato e autenticação ligada (só no perfil `extras`), mais os casos do testador adversário do front em `aggregations/adversario/` (Marco 6) |
 | `postgres/` | Só no perfil `postgres-it`: esquema, equivalência e ordem entre o H2 e o PostgreSQL, reinícios, nova tentativa quando a gravação falha e recusa permanente do banco por dado inválido, que vai ao tópico de erros (Marco 3) |
 | `support/` | Base comum (`ScenarioIT`, `KafkaScenarioIT`, `TokenScenarioIT`) e apoios (aplicação real por `SpringApplication`, HTTP, Kafka e PostgreSQL reais, leitura do log, do Prometheus e do contrato), sem testes próprios |
 
@@ -759,7 +808,7 @@ Os checks obrigatórios da `main` são 12: os 10 do Marco 4, mais `frontend` e `
 | `web` | Imagem do front (no Docker e em tar OCI, do mesmo build), digest, a API pelo JAR, [`web-smoke-test.sh`](.github/scripts/web-smoke-test.sh) (10 passos, inclusive o log em JSON), Playwright nos projetos `desktop` e `celular` contra a API real, e Trivy. Em push na `main`, guarda o tar para o `deploy-web` | Imagem que não sobe, repasse ou rota interna quebrados, cabeçalho ou log fora do contrato, cenário de ponta a ponta falhando, ou vulnerabilidade `HIGH` ou `CRITICAL` com correção |
 | `dockerfile-lint` | hadolint no `Dockerfile` e no `frontend/Dockerfile` | Aviso ou erro |
 | `image` | Contexto de build, imagem (no Docker e em tar OCI, do mesmo build), digest, teste de fumaça (13 passos) e Trivy na imagem. Em push na `main`, guarda o tar para o `deploy` | Contexto fora do `.dockerignore`, tar com mais de um manifesto ou fora de `linux/amd64`, imagem do Docker diferente da do tar, imagem que não sobe ou não responde o resultado de referência, ou vulnerabilidade `HIGH` ou `CRITICAL` com correção na imagem |
-| `deploy` | Só em push na `main`, depois dos 10 checks: envia a imagem testada ao Artifact Registry pelo digest, implanta sem tráfego, confere pela URL da revisão, passa o tráfego e confere a URL pública ([Marco 5](#marco-5-publicação-no-cloud-run-opcional)). Não é check obrigatório, porque só roda depois do merge | Digest diferente do testado, falha de identidade ou de permissão, revisão que não sobe, ou conferência reprovada (readiness, resultado de referência, Swagger ou métricas abertas) |
+| `deploy` | Só em push na `main`, depois dos 12 checks: envia a imagem testada ao Artifact Registry pelo digest, implanta sem tráfego, confere pela URL da revisão, passa o tráfego e confere a URL pública ([Marco 5](#marco-5-publicação-no-cloud-run-opcional)). Não é check obrigatório, porque só roda depois do merge | Digest diferente do testado, falha de identidade ou de permissão, revisão que não sobe, ou conferência reprovada (readiness, resultado de referência, Swagger ou métricas abertas) |
 | `deploy-web` | Só em push na `main`, depois dos 12 checks e do `deploy`: envia a imagem do front testada pelo digest, implanta no `awards-web` sem tráfego, confere pela URL da revisão com o [`verify-web.sh`](.github/scripts/verify-web.sh), passa o tráfego e confere a URL pública ([Marco 6](#marco-6-front-end-em-angular-opcional)). Não é check obrigatório | Digest diferente do testado, falha de identidade ou de permissão, ou conferência reprovada (página, rota interna, repasse de `/api` com o resultado de referência e as agregações) |
 
 Achados médios e baixos, e vulnerabilidades sem correção, aparecem no relatório sem reprovar. O
@@ -789,8 +838,8 @@ requisito da spec, está em
 | Somente testes de integração (item 4.2) | FR-027, Princípio I | Todos os testes são `*IT`, sem mocks, executados pelo Failsafe, com `@SpringBootTest` ou com a aplicação real por `SpringApplication` nos quatro casos de controle do ciclo de vida da [seção 5](#5-testes) |
 | Execução só com o wrapper, sem Docker e sem instalar banco: SGBD **H2 em memória**, embarcado na aplicação (item 4.3) | FR-026 | O H2 é dependência do `pom.xml`, e nenhuma URL de banco é configurada, então o Spring Boot cria um H2 em memória a cada execução. Todos os testes sobem a aplicação assim, e o `SmokeIT` confirma que ela sobe com o arquivo padrão. Além disso, `./mvnw verify` e `./mvnw spring-boot:run` foram executados em clone limpo, no Linux e no Windows |
 | Documentação de como executar e testar (item 4.4) | — | Este README: [seção 2](#2-avalie-em-2-minutos) (avaliação rápida), [seção 3](#3-como-executar) (execução) e [seção 5](#5-testes) (testes) |
-| Código em repositório git (item 4.5) | — | Este repositório, com um ou mais commits por bolt e a estrutura descrita na [seção 11](#11-estrutura-do-repositório) |
-| Uso de IA no desenvolvimento (item 5.1) | — | Spec Kit, Claude Code e Codex, com o fluxo por bolts e os papéis descritos na [seção 10](#10-uso-de-ia) |
+| Código em repositório git (item 4.5) | — | Este repositório, com um ou mais commits por bolt e a estrutura descrita na [seção 12](#12-estrutura-do-repositório) |
+| Uso de IA no desenvolvimento (item 5.1) | — | Spec Kit, Claude Code e Codex, com o fluxo por bolts e os papéis descritos na [seção 11](#11-metodologia-e-uso-de-ia) |
 | Registro das interações com a IA (item 5.2) | — | [`docs/ai/README.md`](docs/ai/README.md): prompts com data e hora, sessões exportadas e decisões aceitas ou rejeitadas |
 
 Cada método de teste tem um `@DisplayName` que começa pelos IDs dos requisitos que comprova (por
@@ -836,7 +885,7 @@ em [`specs/003-modo-docker/plan.md`](specs/003-modo-docker/plan.md#rastreabilida
 
 ### Requisitos do Marco 4 (SLO, alertas, carga e dados gerados)
 
-Também fora do enunciado, com o escopo reduzido descrito no roteiro da seção 3. A matriz completa está em
+Também fora do enunciado, com o escopo reduzido descrito no [roteiro](#13-roteiro). A matriz completa está em
 [`specs/004-acabamento-operacional/plan.md`](specs/004-acabamento-operacional/plan.md#rastreabilidade-princípio-vi).
 Os `@DisplayName` dos testes novos começam por `S004`.
 
@@ -988,8 +1037,9 @@ flowchart LR
 2. O `MovieFileLoader` roda depois de todos os beans estarem prontos e **antes** de o Tomcat aceitar
    conexões. Ele lê o arquivo, registra os avisos, grava os filmes e loga o resumo. Um erro estrutural
    interrompe a inicialização.
-3. A cada requisição de intervalos, uma consulta JPQL traz os pares (produtor, ano) dos vencedores, e o
-   serviço calcula os intervalos. Não há cache.
+3. Na primeira requisição de intervalos, uma consulta JPQL traz os pares (produtor, ano) dos vencedores, e o
+   serviço calcula os intervalos. O resultado fica guardado até a próxima gravação, que o invalida, numa única
+   instância ([ADR 0026](docs/adr/0026-intervalos-guardados-entre-leituras.md), Marco 4).
 4. A listagem é uma consulta JPQL paginada com filtros opcionais. As consultas não usam SQL específico
    de banco.
 
@@ -1027,7 +1077,36 @@ flowchart LR
 
 ---
 
-## 9. Decisões
+## 9. Segurança
+
+**Por que a demonstração pública não tem login.** Os dados são públicos (o CSV do enunciado) e a API é **somente
+leitura**: nenhum endpoint grava, apaga ou expõe algo que não esteja no arquivo. Um login só atrapalharia quem
+avalia, sem proteger nada. A autenticação existe, é testada e fica **disponível por configuração**: basta definir
+`API_TOKEN` ([como ligar](#autenticação-opcional)). O que precisa de proteção na URL pública, como as métricas,
+fica fechado.
+
+| Camada | O que é feito | Onde é comprovado |
+| --- | --- | --- |
+| Autenticação opcional | Com `API_TOKEN`, os endpoints de negócio e as métricas exigem `Authorization: Bearer`. O token ausente e o errado recebem o mesmo 401 em Problem Details; a comparação é em tempo constante; o token nunca vai ao log nem às métricas; o Spring Security não gera senha ([ADR 0017](docs/adr/0017-autenticacao-por-token.md)) | `AuthEnabledIT`, `AuthProblemDetailsIT`, `TokenNotLoggedIT`, `NoGeneratedPasswordIT`, `AggregationsAuthIT` |
+| Cabeçalhos da API | `X-Content-Type-Options: nosniff` e `X-Frame-Options: DENY` em toda resposta; sem cabeçalhos de cache nos endpoints de negócio, para o ETag continuar útil | `CacheHeadersIT`, `CacheHeadersWithTokenIT` |
+| Front: CSP e nginx sem root | CSP só com a própria origem (`default-src 'self'`, `script-src 'self'`, `frame-ancestors 'none'`, sem `unsafe-inline`), `nosniff`, `Referrer-Policy: no-referrer` e `X-Frame-Options: DENY` ([`security-headers.conf`](frontend/nginx/security-headers.conf)). O nginx roda com o usuário 101, sem root. Dados do CSV são sempre exibidos como texto, nunca como HTML (FR-017a). Uma só origem, então a API não abre CORS | Passos 2 e 7 do [`web-smoke-test.sh`](.github/scripts/web-smoke-test.sh); caso 14 do testador adversário |
+| Imagens | Multi-stage e imagens base por digest. A API roda com o usuário 10001, sem código-fonte, Maven nem compilador na imagem final; o front, com o 101 | Jobs `image`, `web` e `dockerfile-lint` (hadolint) |
+| Publicação sem segredos | O pipeline entra no GCP por **Workload Identity Federation** (OIDC): nenhuma chave no GitHub nem no repositório. O provedor só aceita tokens deste repositório e do dono, pelos IDs numéricos, e da `main` ([ADR 0027](docs/adr/0027-publicacao-no-cloud-run.md)) | Job `deploy`, [evidências do GCP](specs/005-deploy-cloud-run/evidencias/) |
+| Permissões mínimas | O workflow tem só `contents: read`; a escrita existe só no `codeql` (`security-events: write`) e nos jobs de publicação (`id-token: write`). No GCP, a conta de publicação tem papéis só no serviço, no registro e na conta de execução, e não pode mudar quem invoca o serviço; as contas de execução da API e do front não têm papel nenhum | `workflow-policy` e as duas execuções do [`setup.sh`](deploy/gcp/setup.sh) |
+| Métricas escondidas | Na URL pública, só o `health` fica ligado, e `/actuator/prometheus` responde 404. Em qualquer modo, `/actuator/env`, `/actuator/beans` e os outros respondem 404, e a saúde não mostra detalhes | [`verify-deployment.sh`](.github/scripts/verify-deployment.sh) no job `deploy`; `HealthProbesIT` |
+| Trivy | Nas dependências de execução da API (inventário efetivo, com as transitivas), na imagem da API e na do front. Reprova `HIGH` ou `CRITICAL` com versão corrigida. No front, também o `npm audit` | Jobs `dependencies`, `image`, `web` e `frontend` |
+| CodeQL | Análise do Java com `security-extended`; reprova achado com `security-severity` ≥ 7,0 | Job `codeql` |
+| Política do workflow | Dez regras conferidas em todo push pelo [`check-workflows.sh`](.github/scripts/check-workflows.sh): actions por hash de commit, permissões, nenhum `secrets.`, publicação só nos jobs `deploy` e `deploy-web` e só depois dos checks, imagens do compose por digest, nenhuma senha de banco no workflow e Dependabot completo. Os casos negativos foram conferidos antes do push ([Marco 5](specs/005-deploy-cloud-run/evidencias/politica-workflow.txt), [Marco 6](specs/006-frontend-angular/evidencias/politica-workflow.txt)) | Job `workflow-policy` |
+| Testadores adversários | Três rodadas do Codex, sem ler o código de produção: Marco 1, ingestão por Kafka e front. Cada ataque virou teste permanente ([seção 11](#rodadas-do-testador-adversário)) | ITs em `adversario/`, `kafka/adversario/` e `aggregations/adversario/`; `adversario.spec.ts` do front |
+
+**Segredos no repositório:** nenhum. As únicas exceções são o token de demonstração
+(`awards-token-de-demonstracao`) e as senhas de demonstração do compose local, identificadas como tais e nunca
+usadas num ambiente publicado (constituição, Princípio VII). O [Dependabot](.github/dependabot.yml) mantém as
+dependências, as actions e as imagens atualizadas.
+
+---
+
+## 10. Decisões
 
 As decisões de arquitetura têm um ADR curto cada, com contexto, alternativas e consequências, no
 [índice de `docs/adr/`](docs/adr/README.md). Abaixo, as principais, em uma linha cada. O motivo e as
@@ -1047,7 +1126,8 @@ alternativas de cada uma estão em [`docs/ai/decisoes.md`](docs/ai/decisoes.md).
 - **Desempate por nome em ordem Unicode** (`String.compareTo`), para que o resultado não dependa do
   idioma da máquina.
 - **Carga antes de o servidor aceitar conexões**, para que nenhuma consulta veja dados incompletos.
-- **Cálculo dos intervalos a cada requisição, sem cache**, porque leva milissegundos.
+- **Cálculo dos intervalos a cada requisição, sem cache**, porque leva milissegundos com o arquivo do
+  enunciado. O Marco 4 reviu essa decisão para os 100 mil filmes do teste de carga (ADR 0026, abaixo).
 - **Contrato estático em `/openapi.yaml` como fonte única:** ele alimenta o Swagger UI e valida as
   respostas nos testes. Não há contrato gerado pelo código.
 - **Swagger UI pelo webjar, sem springdoc:** na versão 3.2.0, o springdoc só serve o Swagger UI com a
@@ -1087,6 +1167,15 @@ Do Marco 3:
 - **Testes com PostgreSQL num perfil Maven dedicado**, obrigatório no pipeline (constituição 1.7.0;
   ADR 0019).
 
+Do Marco 4:
+
+- **`./mvnw verify` só com os testes do modo padrão** e os demais no perfil `extras`, sem nenhum teste
+  removido, porque o comando do avaliador tinha chegado a cerca de 8 minutos (constituição 2.0.0).
+- **Intervalos guardados entre as leituras e invalidados a cada gravação**, com consistência imediata numa
+  única instância, depois de o k6 medir p99 de 927 ms com 100 mil filmes (ADR 0026).
+- **Limites do teste de carga iguais ao objetivo do SLO**, para pegar regressões reais e não o ruído do runner.
+- **Escopo reduzido:** cache AOT, SBOM com assinatura e dev container adiados ([roteiro](#13-roteiro)).
+
 Do Marco 5 (ADR 0027):
 
 - **Cloud Run com 0 a 1 instância por revisão,** só no modo padrão e com as métricas fechadas na URL
@@ -1097,70 +1186,122 @@ Do Marco 5 (ADR 0027):
 - **Revisão sem tráfego até ser conferida pela URL própria,** para que uma revisão ruim nunca chegue à URL
   pública.
 
+Do Marco 6 ([ADR 0028](docs/adr/0028-front-end-angular-com-nginx.md)):
+
+- **Angular 22.3 servido por nginx num segundo serviço do Cloud Run**, que repassa `/api` à API: uma só origem,
+  sem CORS na API.
+- **Duas agregações novas na API**, em vez de calcular os totais no navegador, com os endpoints existentes
+  intactos (contrato 1.3.0).
+- **Front fora do `./mvnw` e do `compose.yaml`**, com testes unitários e de ponta a ponta no pipeline
+  (constituição 2.1.0).
+- **Jobs do front no mesmo workflow**, para não duplicar a política, a concorrência e os `needs` das publicações.
+
 ---
 
-## 10. Uso de IA
+## 11. Metodologia e uso de IA
+
+### Spec-Driven Development com o Spec Kit
 
 O projeto foi feito com **Spec-Driven Development** pelo [GitHub Spec Kit](https://github.com/github/spec-kit),
-no modo *spec-anchored*: a spec é a fonte da verdade e muda antes do código.
+no modo *spec-anchored*: a spec é a fonte da verdade e muda antes do código. O trabalho anda em ciclos curtos, os
+*bolts*, inspirados no **AI-DLC** (AI-Driven Development Lifecycle): a IA propõe e executa cada passo, e o
+responsável decide em pontos de controle fixos (a spec, o PR e o merge).
 
-**Artefatos do Spec Kit:**
-- a [constituição](.specify/memory/constitution.md), com sete princípios inegociáveis;
-- a [spec](specs/001-producer-intervals-api/spec.md);
-- o [plano](specs/001-producer-intervals-api/plan.md);
-- a [research](specs/001-producer-intervals-api/research.md);
-- as [tarefas](specs/001-producer-intervals-api/tasks.md).
+Cada marco tem uma spec, com o plano, a research, os contratos, as tarefas e o checklist de revisão:
+
+| Spec | Marco | Status |
+| --- | --- | --- |
+| [001: intervalos de produtores e listagem](specs/001-producer-intervals-api/spec.md) | 1 (o enunciado) | entregue |
+| [002: operação](specs/002-operacao/spec.md) | 2 | entregue |
+| [003: modo Docker](specs/003-modo-docker/spec.md) | 3 | entregue |
+| [004: acabamento operacional](specs/004-acabamento-operacional/spec.md) | 4 | entregue com escopo reduzido ([roteiro](#13-roteiro)) |
+| [005: publicação no Cloud Run](specs/005-deploy-cloud-run/spec.md) | 5 | entregue |
+| [006: front-end em Angular](specs/006-frontend-angular/spec.md) | 6 | entregue |
 
 As regras comuns a todos os agentes estão no [`AGENTS.md`](AGENTS.md).
 
-**Fluxo por bolts:** o trabalho é dividido em ciclos curtos, os *bolts*, cada um num branch próprio.
+### Constituição
+
+A [constituição](.specify/memory/constitution.md), hoje na **versão 2.1.0**, tem sete princípios inegociáveis:
+somente testes de integração no back-end, execução só com o `./mvnw`, contrato de intervalos idêntico ao
+enunciado, spec como fonte da verdade, extras opcionais e isolados por perfil, rastreabilidade requisito →
+comprovação e nenhum segredo. Toda emenda passa por PR, é aprovada pelo responsável e fica registrada em
+[`docs/ai/decisoes.md`](docs/ai/decisoes.md).
+
+| Versão | Data | O que mudou | Origem |
+| --- | --- | --- | --- |
+| 1.0.0 | 2026-11-18 | Ratificação, com os sete princípios | Planejamento |
+| 1.1.0 | 2026-11-19 | Log em JSON e probes de liveness e readiness a partir do Marco 2 | `/speckit-analyze` da spec 001 |
+| 1.2.0 | 2026-11-19 | Princípio I reescrito: `@SpringBootTest` com contexto completo, sem mocks; log ou banco só sem endpoint | Segundo `/speckit-analyze` da spec 001 |
+| 1.3.0 | 2026-11-23 | Log em texto no `./mvnw` e JSON no container | Clarificação da spec 002 |
+| 1.4.0 | 2026-11-23 | Princípio VI: cada requisito tem a comprovação do seu tipo (IT, pipeline ou revisão) | Clarificação da spec 002 |
+| 1.4.1 | 2026-11-23 | Princípio V esclarecido: ETag, saúde e métricas podem ficar ligados no `./mvnw` | Plano 002 |
+| 1.5.0 | 2026-11-24 | Princípio I: `SpringApplication` sempre que o teste controla o ciclo de vida da aplicação real | Revisão do Codex no PR do Marco 2 |
+| 1.6.0 | 2026-11-24 | Princípio VII: credenciais de demonstração no compose local | Clarificação da spec 003 |
+| 1.7.0 | 2026-11-24 | Princípio VI: o que depende do PostgreSQL é comprovado num perfil Maven dedicado, obrigatório no pipeline | Plano 003 |
+| 2.0.0 | 2026-11-25 | Princípio II: `./mvnw verify` só com os ITs do modo padrão; os demais no perfil `extras` | Spec 004 |
+| 2.1.0 | 2026-11-26 | Princípios II e VI: front fora do `./mvnw`, comprovado por testes unitários (80%) e de ponta a ponta | Spec 006 |
+
+### Fluxo por bolts
+
+Cada bolt é feito num branch próprio:
 
 1. O implementador escreve primeiro os testes de integração, que precisam falhar, e depois o código.
 2. O responsável abre o pull request.
 3. O revisor comenta no PR.
 4. O implementador corrige só o que o responsável aceitar.
-5. O merge acontece com os testes verdes, e a sessão é exportada.
+5. O merge acontece com o pipeline verde, e a sessão é exportada.
 
 PR, merge e tags são feitos só pelo responsável, nunca por um agente.
 
-| Bolt | Entrega |
-| --- | --- |
-| 1 | Projeto Spring Boot e infraestrutura de teste |
-| 2 | Carga do CSV |
-| 3 | Cálculo dos intervalos |
-| 4 | Endpoint de intervalos no formato do enunciado |
-| 5 e 6 | Listagem, Swagger UI e fechamento, num único PR |
-| Marco 2 | Um único bolt, com seis etapas e um commit por etapa: ETag, observabilidade, Dockerfile, pipeline e Dependabot, ADRs e README ([spec 002](specs/002-operacao/spec.md)) |
-| Marco 3 | Um único bolt, com cinco etapas e um commit por etapa: PostgreSQL e perfil `docker`, Kafka, autenticação, compose com observabilidade, e ADRs com o README ([spec 003](specs/003-modo-docker/spec.md)) |
-| Marco 5 | Um único bolt, com quatro etapas e um commit por etapa: configuração do GCP pelo script, política do workflow e imagem como artefato, job `deploy` e documentação ([spec 005](specs/005-deploy-cloud-run/spec.md)) |
+| Bolt | Entrega | PR | Sessão |
+| --- | --- | --- | --- |
+| Spec do Marco 1 | Spec, plano, research e tarefas | #1 | [00](docs/ai/sessoes/00-preparacao.md) |
+| 1 | Projeto Spring Boot e infraestrutura de teste | #2 | [01](docs/ai/sessoes/01-bolt-1-projeto.md) |
+| 2 | Carga do CSV, com as correções do BOM e do `and` | #3 | [02](docs/ai/sessoes/02-bolt-2-carga-csv.md), [02b](docs/ai/sessoes/02b-bolt-2-correcao-bom.md), [02c](docs/ai/sessoes/02c-bolt-2-correcao-and.md) |
+| 3 | Cálculo dos intervalos | #4 | [03](docs/ai/sessoes/03-bolt-3-calculo.md) |
+| 4 | Endpoint de intervalos no formato do enunciado | #5 | [04](docs/ai/sessoes/04-bolt-4-endpoint.md) |
+| 5 e 6 | Listagem, Swagger UI e fechamento, num único PR | #6 | [05](docs/ai/sessoes/05-bolts-5-6-e-documentacao.md) |
+| Testador adversário do Marco 1 | 13 casos, ITs e correções | #7 | [07](docs/ai/sessoes/07-testador-adversario.md), [08](docs/ai/sessoes/08-adversario-testes-e-correcoes.md), [09](docs/ai/sessoes/09-documentacao-adversario.md) |
+| Marco 2 | Um bolt, seis etapas e um commit por etapa: ETag, observabilidade, Dockerfile, pipeline e Dependabot, ADRs e README | #8 | [10](docs/ai/sessoes/10-marco-2-operacao.md) |
+| Marco 3 | Um bolt, cinco etapas: PostgreSQL e perfil `docker`, Kafka, autenticação, compose com observabilidade, e ADRs com o README | #10 | [11](docs/ai/sessoes/11-marco-3-docker.md) |
+| Marco 4 | Um bolt, com as etapas 1 a 3 entregues: pendências do Marco 3 (inclusive o testador adversário do Kafka), gerador de CSV e teste de carga, SLO e alertas; as etapas 4 a 6 foram adiadas | #12 e #13 | [12](docs/ai/sessoes/12-marco-4-planejamento.md), [13](docs/ai/sessoes/13-marco-4-acabamento-operacional.md) |
+| Marco 5 | Um bolt, quatro etapas: configuração do GCP pelo script, política do workflow e imagem como artefato, job `deploy` e documentação | #14 e #15 | [14](docs/ai/sessoes/14-marco-5-deploy.md) |
+| Marco 6 | Um bolt, sete etapas: emenda 2.1.0, agregações na API, projeto Angular e painel, lista de filmes, imagem com ponta a ponta e pipeline, publicação do `awards-web` e documentação; depois, o testador adversário do front | #16 e #20 | [15](docs/ai/sessoes/15-marco-6-frontend.md) |
 
-**Papéis:**
+### Papéis
 
 | Papel | Ferramenta | O que faz |
 | --- | --- | --- |
 | Implementador | Claude Code | Escreve testes e código de cada bolt |
 | Revisor de pull request | Codex | Comenta cada PR e justifica os apontamentos, sem reescrever o código |
-| Testador adversário | Codex | Cria CSVs de ataque a partir da spec, sem ler o código de produção. Cada falha vira teste permanente |
-| Documentação | Claude Code, em sessão separada | README e guia da evidência de IA |
+| Testador adversário | Codex | Cria casos de ataque a partir da spec, sem ler o código de produção. Cada falha vira teste permanente |
+| Infraestrutura e SRE | Claude Code, em sessão separada | Docker, pipeline, observabilidade e publicação |
+| Documentação | Claude Code, em sessão separada | README, ADRs, SLO, runbook e guia da evidência de IA |
+| Front-end | Claude Code, em sessão separada | `frontend/` (Marco 6) |
 
-**Rodada do testador adversário:** feita sobre o Marco 1. O Codex trabalhou numa pasta isolada, só com
-o enunciado, a spec e o contrato, e entregou 13 casos de ataque, em
-[`docs/ai/adversario/`](docs/ai/adversario/). Cada caso virou um teste de integração permanente em
-`src/test/java/com/outsera/awards/adversario/`.
-- **11 dos 13 casos passaram sem nenhuma correção.**
-- Os outros dois levaram às decisões registradas em [`docs/ai/decisoes.md`](docs/ai/decisoes.md):
-  - o caso 12 fez o separador `and` deixar de diferenciar maiúsculas (FR-007);
-  - o caso 09 fez o ano válido ficar limitado de 1 a 9999 (FR-006), porque o ano 0 era aceito.
-- O caso 13 também pedia uma decisão (a ordem dos nomes com acento e caixa), mas o código já seguia a
-  ordem escolhida.
+### Rodadas do testador adversário
 
-**Evidência:** cada mensagem enviada aos agentes é gravada com data e hora por um hook. As sessões são
-exportadas por bolt, e as sugestões aceitas ou rejeitadas ficam registradas com o motivo. O guia de
-leitura está em [`docs/ai/README.md`](docs/ai/README.md).
+Em cada rodada, o Codex trabalhou só com o enunciado, as specs e os contratos, sem ler o código de produção. Cada
+caso virou teste permanente, e cada ambiguidade encontrada foi decidida pelo responsável e escrita na spec antes
+do código. O detalhe de cada caso está em [`docs/ai/decisoes.md`](docs/ai/decisoes.md).
+
+| Rodada | Casos | Falhas corrigidas | Onde viraram teste |
+| --- | --- | --- | --- |
+| Marco 1: carga do CSV e intervalos | 13 | **2**: o caso 12 fez o `and` deixar de diferenciar maiúsculas (FR-007), e o 09 limitou o ano de 1 a 9999 (FR-006), porque o ano 0 era aceito. Os outros 11 passaram sem correção | `adversario/`, um IT por caso, com os CSVs em [`docs/ai/adversario/`](docs/ai/adversario/) |
+| Marco 4: ingestão por Kafka | 30 (o 26 em três variantes) | **6**, em 5 casos: tipos errados nos campos (05), propriedade `winner` repetida (11), U+0000 nas pontas (13), emojis acima do limite do banco (17) e o marcador de carga concluída sem `count` ou com `count` `"0"` (26-B e 26-C). O caso 25 foi documentado no contrato | `kafka/adversario/`, com o `KafkaAdversarialEventsIT` (24 casos) e classes próprias para o marcador e a subida |
+| Marco 6: front e agregações | 27 | **1**: o caso 03, uma página enorme na URL, que virava a página 1 em vez da lista vazia. Oito lacunas da spec foram decididas antes dos testes | `aggregations/adversario/` (ITs), `frontend/src/app/adversario.spec.ts` (unitários) e `frontend/e2e/adversario.spec.ts` (ponta a ponta) |
+
+### Evidência
+
+Cada mensagem enviada aos agentes é gravada com data e hora por um hook, em
+[`docs/ai/prompts.md`](docs/ai/prompts.md). As sessões são exportadas por bolt em
+[`docs/ai/sessoes/`](docs/ai/sessoes/), e as sugestões aceitas ou rejeitadas ficam registradas com o motivo em
+[`docs/ai/decisoes.md`](docs/ai/decisoes.md). O guia de leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 
 ---
 
-## 11. Estrutura do repositório
+## 12. Estrutura do repositório
 
 ```text
 .
@@ -1236,3 +1377,30 @@ leitura está em [`docs/ai/README.md`](docs/ai/README.md).
 ├── docs/adr/                    # decisões de arquitetura (ADRs), com índice
 └── docs/ai/                     # evidência do uso de IA (ver docs/ai/README.md)
 ```
+
+---
+
+## 13. Roteiro
+
+O que ficou para depois, com o motivo e o que já está pronto para retomar.
+
+**Adiado no Marco 4.** O escopo do marco foi reduzido por decisão do responsável (spec 004, Status). A spec e as
+tarefas destes itens continuam guardadas:
+
+| Item | Spec 004 | O que falta |
+| --- | --- | --- |
+| Cache AOT da JVM na imagem, com o tempo de subida medido antes e depois | US4, FR-020 a FR-023 (etapa 4) | Execução de treino no build da imagem e a medição; a mesma imagem continua servindo ao modo padrão e ao compose |
+| SBOM da imagem e assinatura keyless com cosign | US5, FR-024 a FR-027 (etapa 5) | Assinar a imagem e anexar o SBOM como atestado. Com a publicação do Marco 5, a assinatura pode ir direto para a imagem do Artifact Registry |
+| Dev container | US6, FR-028 a FR-030 (etapa 6) | Ambiente pronto com JDK 25, Maven e Docker |
+| ADRs 0020 a 0025 das decisões do Marco 4 | FR-037 (etapa 6) | Os números estão reservados; as decisões já estão em [`docs/ai/decisoes.md`](docs/ai/decisoes.md) |
+
+**Próximos passos.**
+
+| Passo | Por quê | Ponto de partida |
+| --- | --- | --- |
+| Cache dos intervalos para várias instâncias | O cache vale para uma instância só, e por isso o Cloud Run fica limitado a 1 instância por revisão. Para escalar, a invalidação precisa ser compartilhada: um contador de versão no banco, na mesma transação de cada gravação (migração V2 do Flyway e atualização do `SchemaPostgresIT`), ou um evento de invalidação, aceitando na spec uma consistência que deixa de ser imediata | [ADR 0026](docs/adr/0026-intervalos-guardados-entre-leituras.md), seção "Limite: uma única instância" |
+| Modo Docker publicado | A publicação usa só o modo padrão (H2, sem Kafka). Publicar o PostgreSQL e o Kafka depende do passo acima e de credenciais gerenciadas fora do repositório | [ADR 0027](docs/adr/0027-publicacao-no-cloud-run.md) |
+| Login no front | Hoje, com `API_TOKEN` ligado, os painéis mostram o erro de acesso. Seria preciso um fluxo de login que não guarde o token no código do front | Spec 006, premissas e fora do escopo |
+| Front no compose | O front roda só pela publicação e pelo `npm start`; um serviço no `compose.yaml` mostraria o ciclo completo localmente | Decisão de 2026-11-26 em [`docs/ai/decisoes.md`](docs/ai/decisoes.md) |
+
+Ficam fora do escopo, por decisão do planejamento: imagem nativa, tracing distribuído e Kubernetes.
