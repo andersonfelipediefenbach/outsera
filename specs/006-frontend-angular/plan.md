@@ -71,7 +71,7 @@ alterados no pipeline.
 | VI. Rastreabilidade | ✅ | API: ITs (FR-001 a FR-006). Front: unitários e ponta a ponta no pipeline, o tipo de comprovação que a emenda 2.1.0 cria. Imagem e publicação: jobs `web` e `deploy-web`. Documentação: checklist da spec (FR-035) |
 | VII. Sem segredos | ✅ | Identidade federada sem chaves; só identificadores públicos no workflow; `secrets.` continua proibido; o front não guarda nem envia token; nenhuma credencial nova |
 | Cadeia de entrega | ✅ | `setup-node` fixado por hash; imagens base por digest; imagem do front multi-stage e não root, com hadolint, teste de fumaça e Trivy como a da API |
-| Observabilidade | ✅ | A API não muda. O log de acesso do nginx sai em JSON no container, ligado pela variável `LOG_FORMAT=json` que o `Dockerfile` define, como a constituição exige para container e ambiente publicado (FR-026a). O teste de fumaça confere o formato. O log de erro do nginx não tem formato configurável e fica em texto, limite registrado no ADR 0028. `/healthz` serve ao probe |
+| Observabilidade | ✅ | A API não muda. O log de acesso do nginx sai em JSON no container, ligado pela variável `LOG_FORMAT=json` que o `Dockerfile` define, como a constituição exige para container e ambiente publicado (FR-026a). O teste de fumaça confere o formato. O log de erro do nginx não tem formato configurável e fica em texto, limite registrado no ADR 0028. `/health` serve ao probe |
 | Fluxo | ✅ | Bolt único no branch `marco/6-frontend`, em etapas com commits próprios. PR, merge e tags ficam com o Anderson. O script do GCP só roda depois do login dele |
 
 **Depois do design (Phase 1):** sem violações. Pontos de atenção, sem exceção constitucional:

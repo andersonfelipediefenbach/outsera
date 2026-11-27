@@ -310,19 +310,19 @@ filtros e a paginação.
   `!package.json`, `!package-lock.json`, `!angular.json`, `!tsconfig*.json`, `!nginx/`).
 - [X] T046 [P] [US5] Criar `frontend/nginx/default.conf.template` e `frontend/nginx/10-require-api-url.sh` (copiado
   para `/docker-entrypoint.d/`) conforme contracts/web-image.md ("Rotas servidas" e "Cabeçalhos"): `listen
-  ${PORT}`; `/healthz`; `location /api/` com `resolver` lido do `/etc/resolv.conf` (gerado por um script de
+  ${PORT}`; `/health`; `location /api/` com `resolver` lido do `/etc/resolv.conf` (gerado por um script de
   entrypoint), `proxy_pass` por variável, `proxy_ssl_server_name on`, `Host` do destino e `proxy_read_timeout
   60s`; `try_files $uri $uri/ /index.html`; os cabeçalhos de segurança e de cache; `server_tokens off`; gzip. O
   script termina com "API_URL não definida" e código 1 sem a variável, e com "LOG_FORMAT deve ser json ou main" e
   código 1 para outro valor. Log conforme contracts/web-image.md ("Log"): `log_format json escape=json` com os dez
   campos (`time`, `method`, `path`, `query`, `status`, `bytes`, `duration`, `upstream_duration`, `user_agent`,
   `remote_addr`; `status`, `bytes` e `duration` sem aspas, como números), `access_log /dev/stdout ${LOG_FORMAT};`,
-  `access_log off` no `/healthz`, e nenhum cabeçalho `Authorization` ou `Cookie` no formato.
+  `access_log off` no `/health`, e nenhum cabeçalho `Authorization` ou `Cookie` no formato.
 - [X] T047 [P] [US5] Criar `.github/scripts/web-smoke-test.sh <imagem> <api_url>` com os 10 passos de
   contracts/web-image.md ("Teste de fumaça"), no estilo do `smoke-test.sh` (resultado por passo e resumo), lendo a
   `REFERENCE` do próprio `smoke-test.sh` em vez de copiá-la. Os passos 9 e 10 conferem o formato do log: cada linha
   de stdout do `docker logs` passa por `node -e` com `JSON.parse`, com os dez campos presentes, `status` e `bytes`
-  numéricos, a linha do `/api/producers/intervals` com 200, nenhuma linha do `/healthz` e nenhum `Authorization`
+  numéricos, a linha do `/api/producers/intervals` com 200, nenhuma linha do `/health` e nenhum `Authorization`
   (o passo 4 envia um `Authorization: Bearer teste` para provar que ele não aparece no log); com `LOG_FORMAT=main`,
   a linha não é JSON; com `LOG_FORMAT=xml`, a subida falha. Conferir `bash -n`.
 - [X] T048 [P] [US1] Criar `frontend/playwright.config.ts` (projetos `desktop` 1280×800 e `celular` 360×740 com

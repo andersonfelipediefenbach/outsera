@@ -28,7 +28,7 @@ Marco 5 já publica a API no Cloud Run, com identidade federada e sem segredos.
   no PR #16. O nginx:
   - devolve o `index.html` nas rotas internas;
   - aplica a CSP restrita a `'self'` e os cabeçalhos de segurança;
-  - tem `/healthz` para o probe;
+  - tem `/health` para o probe;
   - grava o log de acesso **em JSON**, ligado pela variável `LOG_FORMAT=json` que a imagem define (constituição,
     Observabilidade). Com `LOG_FORMAT=main`, o log volta ao texto padrão.
 - **Segundo serviço do Cloud Run, `awards-web`.** O fluxo é o do [ADR 0027](0027-publicacao-no-cloud-run.md):

@@ -3,6 +3,22 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-27 — Endpoint de saúde do front: `/health`, e não `/healthz`
+
+- **Origem:** primeira execução do job `deploy-web` na `main`, run 45917723129, depois do merge do PR #16. O
+  `verify-web.sh` reprovou só o passo 1: `/healthz` respondeu 404 com a página do próprio Google Front End ("Error
+  404 (Not Found)!!1"), e não com a do nginx. Os outros 5 passos passaram pela URL da revisão: página, rota interna,
+  repasse de `/api` com o resultado de referência e as duas agregações.
+- **Causa:** o Cloud Run reserva os caminhos terminados em `z` (como `/healthz`), que nunca chegam ao contêiner. No
+  pipeline e localmente, sem o Google Front End na frente, o `/healthz` respondia normalmente, por isso o teste de
+  fumaça não pegou. O startup probe do Cloud Run passou porque é feito dentro da plataforma, direto no contêiner.
+- **Decisão (responsável):** o endpoint de saúde do nginx passa a `/health`, no template do nginx, no startup probe
+  do job `deploy-web`, no `web-smoke-test.sh`, no `verify-web.sh`, nas esperas do job `web` e nos contratos (spec
+  006 e ADR 0028). A API não muda: o `/actuator/health` dela não termina em `z`. O contrato da imagem registra o
+  motivo.
+- **Efeito:** a revisão reprovada nunca recebeu tráfego. A URL pública do front continuou na imagem de exemplo até o
+  merge deste PR, depois do qual o `deploy-web` roda de novo.
+
 ## 2026-11-26 — PR #16: corrida no teste de teclado do ponta a ponta (US3-3 e caso 25)
 
 - **Origem:** run do PR 45909553455, commit e4d10ee. O run do push do mesmo commit passou inteiro. O cenário US3-3

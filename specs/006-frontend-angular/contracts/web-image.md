@@ -36,7 +36,7 @@ então `$uri` e as outras variáveis do nginx não são tocadas.
   (`$body_bytes_sent`, número), `duration` (`$request_time`, número, em segundos), `upstream_duration`
   (`$upstream_response_time`, texto, vazio sem repasse), `user_agent` (`$http_user_agent`) e `remote_addr`.
   Os cabeçalhos `Authorization` e `Cookie` nunca entram no log.
-- O `/healthz` não é logado (`access_log off`), para o probe não encher o log.
+- O `/health` não é logado (`access_log off`), para o probe não encher o log.
 - O log de erro continua em texto no stderr: o nginx não permite formato no `error_log`. O limite fica no ADR
   0028.
 
@@ -44,7 +44,7 @@ então `$uri` e as outras variáveis do nginx não são tocadas.
 
 | Caminho | Resposta |
 | --- | --- |
-| `/healthz` | 200 `ok`, `text/plain`, sem acessar a API |
+| `/health` | 200 `ok`, `text/plain`, sem acessar a API. Não é `/healthz`: o front-end do Google, na frente do Cloud Run, reserva os caminhos terminados em `z` e responde 404 sem chegar ao contêiner (run 45917723129) |
 | `/api/...` | repassado a `${API_URL}/api/...` com o mesmo método, a query, `If-None-Match` e `Authorization` (se houver); a resposta volta com status, corpo, `ETag` e `Content-Type` da API |
 | arquivo existente em `dist/` | o arquivo |
 | qualquer outro caminho | `index.html`, status 200 (rotas internas do Angular) |
@@ -67,7 +67,7 @@ Se o build de produção do Angular precisar de estilo em linha (CSS crítico), 
 ## Teste de fumaça (`.github/scripts/web-smoke-test.sh <imagem> <api_url>`)
 
 1. Sobe a imagem com `-p 127.0.0.1::8080` (porta aleatória do host), `--add-host host.docker.internal:host-gateway`
-   e o `API_URL` dado (por exemplo `http://host.docker.internal:8080`, a API no host); espera `/healthz` em até 30 s.
+   e o `API_URL` dado (por exemplo `http://host.docker.internal:8080`, a API no host); espera `/health` em até 30 s.
    No runner Linux, o `API_URL` usa o IP do gateway da rede `bridge` (o `host.docker.internal` do `--add-host` só
    existe no `/etc/hosts`, que o nginx não consulta); no Docker Desktop, `host.docker.internal` também funciona.
 2. `/` → 200, HTML com `<app-root` e `lang="pt-BR"`, CSP presente.
@@ -80,7 +80,7 @@ Se o build de produção do Angular precisar de estilo em linha (CSS crítico), 
 9. Log de acesso: as linhas de `docker logs` geradas pelos passos 2 a 6 (stdout) são, cada uma, JSON válido
    (`node -e 'JSON.parse(...)'` sobre cada linha, já que o runner tem Node e não tem garantia de `jq` com o mesmo
    comportamento) com os dez campos da seção "Log", `status` e `bytes` numéricos, uma linha com `path` igual a
-   `/api/producers/intervals` e `status` 200, nenhuma linha com `/healthz` e nenhuma ocorrência de
+   `/api/producers/intervals` e `status` 200, nenhuma linha com `/health` e nenhuma ocorrência de
    `Authorization`.
 10. Com `LOG_FORMAT=main`, a mesma requisição a `/` gera uma linha que **não** é JSON (texto padrão), e com
     `LOG_FORMAT=xml` o contêiner termina com a mensagem esperada.

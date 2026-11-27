@@ -61,10 +61,10 @@ wait_ready() { # nome, segundos
       echo "    o container $1 parou"; docker logs "$1" 2>&1 | tail -n 20; return 1
     fi
     base="$(url_of "$1")" || return 1
-    curl -sf "$base/healthz" >/dev/null 2>&1 && return 0
+    curl -sf "$base/health" >/dev/null 2>&1 && return 0
     sleep 1
   done
-  echo "    o container $1 não respondeu /healthz em $2 s"; return 1
+  echo "    o container $1 não respondeu /health em $2 s"; return 1
 }
 # Só o stdout do container: o log de acesso. O stderr (log de erro do nginx) fica de fora.
 stdout_of() { docker logs "$1" 2>/dev/null; }
@@ -149,7 +149,7 @@ step9() {
       if (typeof entry.status !== "number" || typeof entry.bytes !== "number" || typeof entry.duration !== "number") {
         console.log("    status, bytes ou duration não numéricos: " + line); process.exit(1);
       }
-      if (entry.path === "/healthz") { console.log("    /healthz no log: " + line); process.exit(1); }
+      if (entry.path === "/health") { console.log("    /health no log: " + line); process.exit(1); }
       if (/authorization|teste-de-fumaca/i.test(line)) { console.log("    Authorization no log: " + line); process.exit(1); }
       if (entry.path === "/api/producers/intervals" && entry.status === 200) api = true;
     }
@@ -174,7 +174,7 @@ step10() {
 TMP_BODY="$(mktemp)"
 trap 'cleanup; rm -f "$TMP_BODY"' EXIT
 
-run_step 1 "sobe com API_URL e responde /healthz em até 30 s" step1
+run_step 1 "sobe com API_URL e responde /health em até 30 s" step1
 if [[ -z "$BASE" ]]; then
   echo "web-smoke-test.sh: o container não subiu; os outros passos não rodam." >&2
   docker logs "$WEB" 2>&1 | tail -n 30 || true
@@ -187,7 +187,7 @@ run_step 5 "If-None-Match com o ETag dá 304 pelo repasse" step5
 run_step 6 "/api/aggregations/years-with-multiple-winners repassado" step6
 run_step 7 "o processo do container não roda como root" step7
 run_step 8 "sem API_URL, a subida falha com a mensagem esperada" step8
-run_step 9 "log de acesso em JSON, sem /healthz e sem Authorization" step9
+run_step 9 "log de acesso em JSON, sem /health e sem Authorization" step9
 run_step 10 "LOG_FORMAT=main gera texto, e LOG_FORMAT=xml falha na subida" step10
 
 echo
