@@ -1,4 +1,27 @@
 <!--
+Sync Impact Report (2.1.0)
+- Version change: 2.0.0 → 2.1.0
+  Justificativa: MINOR. Orientação ampliada para o front-end, sem remover nem relaxar nenhuma regra:
+  - Princípio II: o front-end fica fora do `./mvnw`; nenhum comando Maven pode exigir Node nem construir o
+    front;
+  - Princípio VI: novo tipo de comprovação, comportamento do front-end, por testes unitários com cobertura
+    mínima de 80% de linhas e teste de ponta a ponta contra a aplicação real, no pipeline. Um requisito da API
+    continua exigindo IT;
+  - Princípio I: sem regra nova; a frase sobre os testes unitários do front passa a citar o Princípio VI;
+  - portão de merge: inclui os jobs do front-end.
+  Origem: spec 006 (Marco 6), FR-024.
+- Modified principles: I (redação), II (item novo), VI (tipo de comprovação novo)
+- Modified sections: Fluxo de desenvolvimento e portões de qualidade (portão de merge)
+- Added sections: nenhuma
+- Removed sections: nenhuma
+- Impacto:
+  - AGENTS.md ✅ regras invioláveis, testes, stack e pontos em aberto;
+  - specs/006-frontend-angular ✅ FR-022 a FR-024 e verificação da constituição do plano;
+  - docs/ai/decisoes.md ✅ emenda registrada;
+  - specs/001 a 005: nenhuma mudança (não têm front-end).
+- Templates requiring updates: nenhum
+- Follow-up TODOs: nenhum
+
 Sync Impact Report (2.0.0)
 - Version change: 1.7.0 → 2.0.0
   Justificativa: MAJOR, por decisão do responsável. O Princípio II deixa de exigir que os testes dos
@@ -243,7 +266,8 @@ Os sete princípios abaixo são **inegociáveis**. Uma violação bloqueia o mer
 - O resultado de referência com o arquivo fornecido MUST ser testado: Joel Silver em `min`
   (1990–1991) e Matthew Vaughn em `max` (2002–2015).
 - Toda falha encontrada pelo testador adversário MUST virar teste de integração permanente.
-- Testes unitários são permitidos apenas no front-end, que está fora do escopo do enunciado.
+- Testes unitários são permitidos apenas no front-end, que está fora do escopo do enunciado, comprovados
+  conforme o Princípio VI.
 
 **Motivo:**
 - É uma exigência explícita do enunciado, e os testes de ponta a ponta são os que provam o contrato.
@@ -265,6 +289,8 @@ Os sete princípios abaixo são **inegociáveis**. Uma violação bloqueia o mer
 - O modo padrão MUST usar H2 em memória e carregar o CSV fornecido como padrão.
 - Os testes de Kafka MUST usar o broker embutido do Spring, e não Testcontainers. Os testes que
   dependem de PostgreSQL ficam em um perfil Maven separado, fora do `./mvnw verify` padrão.
+- O front-end (`frontend/`) fica fora do `./mvnw`: nenhum comando Maven MUST exigir Node nem construir o
+  front, e o front MUST NOT ser pré-requisito para subir a API ou rodar os testes dela.
 
 **Motivo:** o avaliador executa só o modo padrão. Se ele falha, a entrega inteira falha.
 
@@ -325,7 +351,11 @@ documentação coerentes e evita o modelo cascata.
     spec que diga o que o revisor confere;
   - **pipeline e imagem** (teste de fumaça do container, análise de segurança, cobertura mínima e lint
     do Dockerfile): execução do pipeline no GitHub Actions, com o estágio que comprova cada requisito
-    indicado na spec ou no plano.
+    indicado na spec ou no plano;
+  - **comportamento do front-end:** testes unitários, com cobertura mínima de 80% das linhas, e teste de ponta
+    a ponta contra a aplicação real (a API do modo padrão e o front servido como na publicação, sem respostas
+    simuladas), executados no pipeline, com o job vermelho reprovando o merge. Um requisito de comportamento da
+    API continua exigindo IT e MUST NOT ser comprovado só pelos testes do front.
 - Requisito sem comprovação não é considerado entregue. Um requisito de comportamento da aplicação
   MUST NOT ser comprovado só por revisão ou só pelo pipeline: ele precisa do seu teste de integração no
   `./mvnw verify`, se for do modo padrão, ou no `./mvnw -Pextras verify`, se depender de algo desligado
@@ -427,7 +457,8 @@ documentação coerentes e evita o modelo cascata.
   - As sugestões aceitas ou rejeitadas são registradas, com o motivo, em `docs/ai/decisoes.md`.
   - Dados pessoais MUST NOT entrar nessa evidência.
 - **Portão de merge:** os princípios I a VII estão atendidos, `./mvnw verify` e `./mvnw -Pextras
-  verify` estão verdes sem Docker e as decisões estão registradas.
+  verify` estão verdes sem Docker, os jobs do front-end estão verdes no pipeline e as decisões estão
+  registradas.
 
 ## Governance
 
@@ -444,4 +475,4 @@ documentação coerentes e evita o modelo cascata.
   conformidade com os princípios I a VII. Os sete princípios são inegociáveis e não admitem
   exceção em "Complexity Tracking". Qualquer outra divergência MUST ser justificada no plano.
 
-**Version**: 2.0.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-25
+**Version**: 2.1.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-26

@@ -1,0 +1,11 @@
+# Lista de permissão (contracts/web-image.md): só o necessário para o build e o nginx entra no contexto.
+*
+!package.json
+!package-lock.json
+!angular.json
+!tsconfig.json
+!tsconfig.app.json
+!public/
+!src/
+!nginx/
+src/**/*.spec.ts

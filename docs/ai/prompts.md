@@ -2934,3 +2934,164 @@ Rode o ./mvnw verify (o ApiDocsIT valida o contrato) e o check-unchanged-tests.s
 </pasted_content id="4633">
 
 ```
+
+## 2026-11-26 17:52:26 -03:00
+
+- Sessao: `84861b0e-c071-4f95-a859-a0f2d3e055cb`
+
+```text
+
+
+<pasted_content id="2aee">
+/speckit-specify Marco 6: front-end em Angular, num único bolt. Duas telas: Dashboard com quatro painéis (anos com mais de um vencedor; os 3 estúdios com mais vitórias; produtores com o maior e o menor intervalo, pelo endpoint existente; vencedores de um ano buscado) e Lista de filmes paginada, com filtro por ano e por vencedor. O back-end ganha os endpoints de agregação que os painéis precisarem, com ITs, sem alterar os existentes. O código fica em frontend/, com a versão estável mais recente do Angular; o ./mvnw verify do modo padrão não muda e não exige Node. Testes unitários no front (emenda da constituição para o front-end) e um teste de ponta a ponta no pipeline contra a aplicação real. Publicação num segundo serviço do Cloud Run (awards-web), com nginx servindo o Angular e repassando /api ao serviço awards, reaproveitando a identidade federada do Marco 5, sem segredos, max-instances=1. O README ganha a URL do front e a seção do Marco 6.
+</pasted_content id="2aee">
+
+```
+
+## 2026-11-26 17:58:45 -03:00
+
+- Sessao: `84861b0e-c071-4f95-a859-a0f2d3e055cb`
+
+```text
+B. E responda sempre em português, como nas sessões anteriores; confira também se a spec 006 e o checklist estão em português. Depois, siga para o /speckit-plan.
+```
+
+## 2026-11-26 18:09:10 -03:00
+
+- Sessao: `84861b0e-c071-4f95-a859-a0f2d3e055cb`
+
+```text
+/speckit-tasks Cada etapa termina com os testes da etapa verdes e um commit. Comprovações locais só quando forem rápidas; o que o pipeline comprova não precisa ser repetido na máquina. Pare só no push, na configuração dos checks da main ou se algo falhar. O login no gcloud já está feito.
+```
+
+## 2026-11-26 18:12:50 -03:00
+
+- Sessao: `84861b0e-c071-4f95-a859-a0f2d3e055cb`
+
+```text
+/speckit-analyze
+```
+
+## 2026-11-26 18:16:37 -03:00
+
+- Sessao: `84861b0e-c071-4f95-a859-a0f2d3e055cb`
+
+```text
+Aplique direto, sem me mostrar as propostas: C1 (log de acesso do nginx em JSON, no contrato web-image.md, no plan.md e nas tarefas T045 a T047, com o teste conferindo o formato), H1, H2, M1 a M6 e os baixos, como você recomendou. Para o SC-003, transforme o critério em item do checklist de revisão do PR, com critérios objetivos (sem rolagem horizontal em 360 px, navegação só pelo teclado, contraste legível), em vez de uma ferramenta nova. Depois, faça o commit da spec e siga com o /speckit-implement, etapa por etapa, com um commit por etapa, até o push.
+```
+
+## 2026-11-26 19:09:21 -03:00
+
+- Sessao: `84861b0e-c071-4f95-a859-a0f2d3e055cb`
+
+```text
+depois de finalizar, verifique os apontamentos do testado.
+
+
+<pasted_content id="2aee">
+O testador adversário gerou 27 casos em D:\Repo\PESSOAIS\outsera-test\adversario-front\casos, com 8 lacunas na spec. Decisões, aplicadas na spec antes do código:
+- 14: dados do CSV são sempre exibidos como texto, nunca interpretados como HTML; teste com título contendo marcação e script.
+- 24: a busca mais recente sempre vence; a anterior é cancelada (switchMap).
+- 08: corrigir o exemplo dos casos de borda para pagina=999; parâmetros desconhecidos são ignorados, e a consulta à API é montada só com os valores validados, sem repassar a URL.
+- 18: desempate dos estúdios em ordem Unicode, sem colação de idioma, como no Marco 1; o front não reordena.
+- 05: espaços nas pontas são removidos; espaço interno torna o ano inválido.
+- 07: a primeira ocorrência de um parâmetro repetido vence.
+- 03: página que não cabe num inteiro seguro é tratada como inválida, pela regra existente.
+- 13: só documentar na premissa o limite de 100 vencedores por ano.
+Depois, escreva os testes dos 27 casos (IT para a API, unitário ou Playwright para o front), agrupados como no Marco 4. Confirme quais falham, corrija só esses e registre tudo no decisoes.md, inclusive os que passaram. Commit, e siga para o push.
+</pasted_content id="2aee">
+```
+
+## 2026-11-26 19:15:00 -03:00
+
+- Sessao: `84861b0e-c071-4f95-a859-a0f2d3e055cb`
+
+```text
+<task-notification>
+<task-id>buqzajcr7</task-id>
+<tool-use-id>toolu_01SEXMfXBkfKvMUzou3bgrvB</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\84861b0e-c071-4f95-a859-a0f2d3e055cb\tasks\buqzajcr7.output</output-file>
+<status>completed</status>
+<summary>Background command "Set-Location D:\Repo\PESSOAIS\outsera-test\outsera; $t=Get-Date; .\mvnw.cmd -B -Pextras verify 2&gt;&amp;1 | Select-String -Pattern "^\[INFO\] Tests run: \d+, Failures: \d+, Errors: \d+, Skipped: \d+$|^\[ERROR\] Tests run:|BUILD|All coverage|Rule violated" | Select-Object -Last 8; "extras: $([int]((Get-Date)-$t).TotalSeconds) s"" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-26 19:40:49 -03:00
+
+- Sessao: `84861b0e-c071-4f95-a859-a0f2d3e055cb`
+
+```text
+
+
+<pasted_content id="2aee">
+O pipeline do PR #16 falhou no commit 830401c (runs 45905788282 e 45905598152). Leia os logs com o gh e diagnostique antes de corrigir:
+1. Job image: o passo "Build da imagem" falhou em 3 s, e o Trivy seguinte não achou awards:ci. O Dockerfile da API não mudou; confira se a pasta frontend/ afeta o contexto do build, o .dockerignore ou a verificação da lista de permissão.
+2. Job web (imagem do front, fumaça e ponta a ponta): falhou no passo 9 nos dois runs.
+3. Job dependencies: falhou só no run 45905598152 e passou no outro, com o mesmo commit; confirme se foi o download da base do Trivy.
+Corrija o que for real, um commit por causa, rode o que for rápido localmente e faça o push. Me avise com o resultado.
+</pasted_content id="2aee">
+
+```
+
+## 2026-11-26 20:00:10 -03:00
+
+- Sessao: `84861b0e-c071-4f95-a859-a0f2d3e055cb`
+
+```text
+<task-notification>
+<task-id>bz3beq38j</task-id>
+<tool-use-id>toolu_01GtiEECNPwgbRyPf4n5Qt6h</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\84861b0e-c071-4f95-a859-a0f2d3e055cb\tasks\bz3beq38j.output</output-file>
+<status>completed</status>
+<summary>Background command ""/c/Program Files/GitHub CLI/gh.exe" run watch 45907441770 --repo andersonfelipediefenbach/outsera --interval 30 --exit-status &gt; /dev/null 2&gt;&amp;1; echo "código: $?"; "/c/Program Files/GitHub CLI/gh.exe" run view 45907441770 --repo andersonfelipediefenbach/outsera --json jobs --jq '.jobs[] | "\(.conclusion // .status)\t\(.name)"'" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-26 20:02:25 -03:00
+
+- Sessao: `84861b0e-c071-4f95-a859-a0f2d3e055cb`
+
+```text
+<pasted_content id="2aee">
+Dois problemas no pipeline do commit 72f2eba:
+1. Job web: o teste de ponta a ponta passou, mas a porta do Trivy reprovou a imagem por CVEs altas e críticas, todas com correção, em pacotes do Alpine da imagem base nginx-unprivileged (musl, pcre2, zlib, tiff). Atualize o digest para a versão mais recente; se ela ainda tiver as CVEs, troque pela variante alpine-slim, conferindo que o nginx continua com o que o front precisa. Não use apk upgrade (o hadolint reprova e a imagem deixa de ser reproduzível). Confira localmente com o Trivy na mesma versão do pipeline.
+2. Job image (API): o passo de build falhou em 3 s só no run do push (45907435497), e passou no do PR (45907441770), no mesmo commit. Leia o log com o gh e veja se é disputa de cache do buildx entre os dois runs simultâneos; se for, corrija o escopo do cache.
+Um commit por causa, push e me avise.
+</pasted_content id="2aee">
+```
+
+## 2026-11-26 20:19:51 -03:00
+
+- Sessao: `84861b0e-c071-4f95-a859-a0f2d3e055cb`
+
+```text
+<task-notification>
+<task-id>b5pe36rp9</task-id>
+<tool-use-id>toolu_01A9wXtTt5FkRLq6Dat1WyjN</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\84861b0e-c071-4f95-a859-a0f2d3e055cb\tasks\b5pe36rp9.output</output-file>
+<status>completed</status>
+<summary>Background command "GH="/c/Program Files/GitHub CLI/gh.exe"; R=andersonfelipediefenbach/outsera; sleep 20; id=$("$GH" run list --repo $R --branch marco/6-frontend --event pull_request --limit 1 --json databaseId,headSha --jq '.[0] | select(.headSha|startswith("e4d10ee")) | .databaseId'); echo "run $id"; "$GH" run watch $id --repo $R --interval 30 &gt; /dev/null 2&gt;&amp;1; "$GH" run view $id --repo $R --json jobs,conclusion --jq '"conclusão: \(.conclusion)", (.jobs[] | "\(.conclusion // .status)\t\(.name)")'; echo "== push"; pid=$("$GH" run list --repo $R --branch marco/6-frontend --event push --limit 1 --json databaseId --jq '.[0].databaseId'); "$GH" run watch $pid --repo $R --interval 30 &gt; /dev/null 2&gt;&amp;1; "$GH" run view $pid --repo $R --json conclusion,jobs --jq '"conclusão push \(.conclusion)", (.jobs[] | select(.conclusion=="failure") | "falhou: \(.name)")'" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-26 20:23:06 -03:00
+
+- Sessao: `84861b0e-c071-4f95-a859-a0f2d3e055cb`
+
+```text
+No run 45909553455 (PR, commit e4d10ee), o job web falhou em 1 de 104 testes: e2e/layout.spec.ts US3-3, só no projeto celular. Depois de digitar 1990 e apertar Tab, o botão Buscar não recebeu o foco, na tentativa e na repetição. O mesmo teste passou no run do push (45909547694), no mesmo commit, então é instável. Baixe o trace e o screenshot do artefato do run com o gh, descubra para onde o foco foi e por quê (por exemplo, um elemento que aparece ou some ao digitar, ou uma diferença do layout de celular), e corrija a causa, no componente ou no teste, conforme o que a spec pede para a ordem de foco. Não aumente prazos nem acrescente esperas fixas. Rode o teste 10 vezes seguidas no projeto celular localmente antes do push.
+```
+
+## 2026-11-26 20:29:56 -03:00
+
+- Sessao: `84861b0e-c071-4f95-a859-a0f2d3e055cb`
+
+```text
+<task-notification>
+<task-id>brgqbjl8t</task-id>
+<tool-use-id>toolu_01JhvQU2TuVCqqNPLXA3hBpH</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\84861b0e-c071-4f95-a859-a0f2d3e055cb\tasks\brgqbjl8t.output</output-file>
+<status>completed</status>
+<summary>Background command "GH="/c/Program Files/GitHub CLI/gh.exe"; R=andersonfelipediefenbach/outsera; sleep 20; for ev in pull_request push; do id=$("$GH" run list --repo $R --branch marco/6-frontend --event $ev --limit 1 --json databaseId,headSha --jq '.[0] | select(.headSha|startswith("d2fd08c")) | .databaseId'); "$GH" run watch $id --repo $R --interval 30 &gt; /dev/null 2&gt;&amp;1; "$GH" run view $id --repo $R --json conclusion,jobs --jq "\"$ev $id: \(.conclusion)\", (.jobs[] | \"  \(.conclusion // .status)\t\(.name)\")"; done" completed (exit code 0)</summary>
+</task-notification>
+```

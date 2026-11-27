@@ -75,3 +75,22 @@ com/outsera/awards/isolation/DefaultModeIsolationIT.java
 
 # Marco 5, no modo padrão (spec 005, FR-027)
 com/outsera/awards/docs/ContractTextIT.java
+
+# Marco 6, no modo padrão (spec 006, FR-001 a FR-006)
+com/outsera/awards/aggregations/AggregationsReferenceIT.java
+com/outsera/awards/aggregations/YearsWithMultipleWinnersIT.java
+com/outsera/awards/aggregations/StudiosWinCountIT.java
+com/outsera/awards/aggregations/AggregationsEmptyIT.java
+com/outsera/awards/aggregations/AggregationsEtagIT.java
+com/outsera/awards/aggregations/AggregationsContractIT.java
+
+# Marco 6, testador adversário do front e das agregações (spec 006)
+com/outsera/awards/aggregations/adversario/FrontCase14HtmlLiteralIT.java
+com/outsera/awards/aggregations/adversario/FrontCase15UnicodeIT.java
+com/outsera/awards/aggregations/adversario/FrontCase16TiedYearsIT.java
+com/outsera/awards/aggregations/adversario/FrontCase17ThirdStudioTieIT.java
+com/outsera/awards/aggregations/adversario/FrontCase18AccentAndCaseOrderIT.java
+com/outsera/awards/aggregations/adversario/FrontCase19aEmptyAggregationsIT.java
+com/outsera/awards/aggregations/adversario/FrontCase19bTwoStudiosIT.java
+com/outsera/awards/aggregations/adversario/FrontCase20IntervalTiesIT.java
+com/outsera/awards/aggregations/adversario/FrontCase27AggregationsEtagIT.java

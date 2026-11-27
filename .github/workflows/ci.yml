@@ -1,6 +1,7 @@
 # Pipeline de CI (spec 002, US6 e FR-028 a FR-029; research R9 a R14; contracts/ci-pipeline.md).
-# Toda action é fixada por hash de commit (FR-028b). Nenhum segredo é usado. A única publicação é a do job
-# deploy, só em push na main, com a imagem testada no job image e identidade federada sem chaves (spec 005;
+# Toda action é fixada por hash de commit (FR-028b). Nenhum segredo é usado. As únicas publicações são as dos jobs
+# deploy e deploy-web, só em push na main, com as imagens testadas nos jobs image e web e identidade federada sem
+# chaves (spec 005 e spec 006;
 # contracts/ci-deploy.md). A política é verificada pelo job workflow-policy (.github/scripts/check-workflows.sh).
 name: CI
 
@@ -37,6 +38,9 @@ jobs:
       # Spec 004, FR-001 e SC-001; research R14.
       - name: Testes de integração dos Marcos 1 a 3 sem alteração desde a v0.3.0
         run: .github/scripts/check-unchanged-tests.sh v0.3.0
+      # Spec 006, FR-005: vale também para os ITs dos Marcos 4 e 5.
+      - name: Testes de integração dos Marcos 1 a 5 sem alteração desde a v0.5.0
+        run: .github/scripts/check-unchanged-tests.sh v0.5.0
 
   build:
     name: Build, testes e cobertura
@@ -216,6 +220,47 @@ jobs:
           done
           exit "$missing"
 
+  frontend:
+    # Front-end (spec 006, FR-019 e FR-022; contracts/ci-frontend.md, "Job frontend"): lint, testes unitários com
+    # cobertura mínima de 80% das linhas, build de produção e auditoria das dependências de execução. Só Node, sem
+    # Maven: o ./mvnw não depende do front (constituição 2.1.0, Princípio II).
+    name: Front-end (lint, unitários, build e auditoria)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Dependências (npm ci, com o lockfile)
+        run: npm ci --no-audit --no-fund
+      - name: Lint (angular-eslint, inclusive a proibição de respostas simuladas no ponta a ponta)
+        run: npm run lint
+      - name: Testes unitários com cobertura mínima de 80% das linhas
+        run: npm test -- --watch=false --coverage
+      - name: Cobertura no resumo
+        if: always()
+        run: |
+          summary=coverage/frontend/coverage-summary.json
+          if [[ -f "$summary" ]]; then
+            node -e 'const t=require("./'"$summary"'").total; console.log("### Cobertura do front (testes unitários)\n\nlinhas: " + t.lines.pct + "% (" + t.lines.covered + " de " + t.lines.total + "; mínimo 80%)")' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Relatório de cobertura do front não gerado." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Build de produção (com os orçamentos de tamanho)
+        run: npm run build
+      - name: Auditoria completa no resumo (sem reprovar)
+        if: always()
+        run: |
+          { echo "### npm audit (todas as dependências)"; echo; echo '```'; npm audit || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Porta da auditoria (alta e crítica, só dependências de execução)
+        run: npm audit --omit=dev --audit-level=high
+
   dockerfile-lint:
     name: Lint do Dockerfile (hadolint)
     runs-on: ubuntu-latest
@@ -225,6 +270,11 @@ jobs:
       - uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0
         with:
           dockerfile: Dockerfile
+          failure-threshold: warning
+      # Imagem do front (spec 006, FR-025).
+      - uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0
+        with:
+          dockerfile: frontend/Dockerfile
           failure-threshold: warning
 
   image:
@@ -320,6 +370,182 @@ jobs:
           format: table
           exit-code: '1'
 
+  web:
+    # Imagem do front (spec 006, FR-023, FR-025, FR-026 e FR-026a; contracts/ci-frontend.md, "Job web"): o mesmo
+    # tratamento da imagem da API (um build com saída no Docker e em tar OCI, digest como saída, teste de fumaça e
+    # porta de vulnerabilidades) e o ponta a ponta com o Playwright contra a API real (o JAR do modo padrão, com o
+    # arquivo fornecido) e a imagem do front, sem respostas simuladas. Nada é publicado aqui.
+    name: Imagem do front, fumaça e ponta a ponta
+    needs: dockerfile-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      # Digest do manifesto da imagem testada, que o job deploy-web publica sem rebuild.
+      digest: ${{ steps.digest.outputs.digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build da imagem do front (sem publicação; Docker e tar OCI do mesmo build)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: frontend
+          provenance: false
+          sbom: false
+          outputs: |
+            type=docker,name=awards-web:ci
+            type=oci,dest=${{ runner.temp }}/awards-web-oci.tar
+          cache-from: type=gha,scope=awards-web
+          cache-to: type=gha,mode=max,scope=awards-web
+      - name: Digest do manifesto e identidade da imagem testada
+        id: digest
+        env:
+          OCI_TAR: ${{ runner.temp }}/awards-web-oci.tar
+        run: |
+          set -euo pipefail
+          layout="$RUNNER_TEMP/awards-web-oci"
+          mkdir -p "$layout" && tar -xf "$OCI_TAR" -C "$layout"
+          count="$(jq '.manifests | length' "$layout/index.json")"
+          media="$(jq -r '.manifests[0].mediaType' "$layout/index.json")"
+          if [[ "$count" != "1" || "$media" != "application/vnd.oci.image.manifest.v1+json" ]]; then
+            echo "::error::o tar OCI deveria ter um único manifesto de imagem (encontrado: $count, $media)"
+            exit 1
+          fi
+          digest="$(jq -r '.manifests[0].digest' "$layout/index.json")"
+          config="$(jq -r '.config.digest' "$layout/blobs/sha256/${digest#sha256:}")"
+          platform="$(jq -r '.architecture + "/" + .os' "$layout/blobs/sha256/${config#sha256:}")"
+          if [[ "$platform" != "amd64/linux" ]]; then
+            echo "::error::a imagem deveria ser linux/amd64 (encontrado: $platform)"
+            exit 1
+          fi
+          id="$(docker image inspect awards-web:ci --format '{{.Id}}')"
+          if [[ "$id" != "$config" && "$id" != "$digest" ]]; then
+            echo "::error::a awards-web:ci ($id) não é a imagem do tar OCI (configuração $config, manifesto $digest)"
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          { echo "### Imagem do front testada"; echo; echo "- manifesto: \`$digest\`"; echo "- configuração: \`$config\`"; echo "- awards-web:ci: \`$id\`"; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: API do modo padrão no ar (JAR, arquivo fornecido)
+        run: |
+          set -euo pipefail
+          ./mvnw -B -q -DskipTests package
+          nohup java -jar target/awards-*.jar > "$RUNNER_TEMP/api.log" 2>&1 &
+          for _ in $(seq 1 90); do
+            if curl -sf http://127.0.0.1:8080/actuator/health/readiness >/dev/null; then echo "API pronta"; exit 0; fi
+            sleep 1
+          done
+          echo "::error::a API não ficou pronta em 90 s"
+          tail -n 50 "$RUNNER_TEMP/api.log"
+          exit 1
+      - name: Endereço do host visto pelos containers (IP, e não nome)
+        # O nginx resolve o API_URL pelo DNS (resolver), que ignora o /etc/hosts. No runner Linux, o
+        # host.docker.internal do --add-host só existe no /etc/hosts e dava 502 no repasse (PR #16). O IP do
+        # gateway da rede bridge é o host-gateway do Docker e dispensa a resolução.
+        run: |
+          set -euo pipefail
+          host_ip="$(docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}')"
+          if [[ ! "$host_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::gateway da rede bridge inválido: '$host_ip'"
+            exit 1
+          fi
+          curl -sf "http://$host_ip:8080/actuator/health/readiness" >/dev/null \
+            || { echo "::error::a API não responde em $host_ip:8080"; exit 1; }
+          echo "HOST_IP=$host_ip" >> "$GITHUB_ENV"
+          echo "API vista pelos containers em http://$host_ip:8080"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Teste de fumaça da imagem do front (10 passos)
+        run: .github/scripts/web-smoke-test.sh awards-web:ci "http://$HOST_IP:8080"
+      - name: Front no ar para o ponta a ponta (a imagem testada, com o repasse de /api)
+        run: |
+          set -euo pipefail
+          docker run -d --name e2e-web -p 127.0.0.1:8081:8080 -e "API_URL=http://$HOST_IP:8080" awards-web:ci
+          for _ in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8081/healthz >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          echo "::error::o front não respondeu /healthz em 30 s"
+          docker logs e2e-web
+          exit 1
+      - name: Segunda API e segundo front, com o CSV do caso 26 do testador adversário (palavras de 480 letras)
+        run: |
+          set -euo pipefail
+          nohup java -jar target/awards-*.jar --server.port=8082 \
+            --movies.csv.path=file:src/test/resources/scenarios/adversario-front/26-largura-de-360-px.csv \
+            > "$RUNNER_TEMP/api-caso-26.log" 2>&1 &
+          for _ in $(seq 1 90); do
+            if curl -sf http://127.0.0.1:8082/actuator/health/readiness >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:8082/actuator/health/readiness >/dev/null \
+            || { echo "::error::a API do caso 26 não ficou pronta"; tail -n 50 "$RUNNER_TEMP/api-caso-26.log"; exit 1; }
+          docker run -d --name e2e-web-caso-26 -p 127.0.0.1:8083:8080 -e "API_URL=http://$HOST_IP:8082" awards-web:ci
+          for _ in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8083/healthz >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          echo "::error::o front do caso 26 não respondeu /healthz em 30 s"
+          exit 1
+      - name: Ponta a ponta (Playwright, desktop e celular, inclusive os casos do testador adversário)
+        working-directory: frontend
+        env:
+          E2E_BASE_URL: http://127.0.0.1:8081
+          E2E_LONG_TEXT_URL: http://127.0.0.1:8083
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          npx playwright test
+      - name: Relatório do Playwright (na falha)
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Relatório da imagem do front (todas as severidades, sem reprovar)
+        if: always()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: awards-web:ci
+          scanners: vuln
+          format: table
+          output: trivy-imagem-web.txt
+          exit-code: '0'
+      - name: Relatório da imagem do front no resumo
+        if: always()
+        run: |
+          { echo "### Trivy: imagem do front"; echo; echo '```'; cat trivy-imagem-web.txt 2>/dev/null || echo "sem relatório"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Porta da imagem do front (alta e crítica, só com versão corrigida)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: awards-web:ci
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: '1'
+      - name: Imagem do front testada como artefato para o job deploy-web (só em push na main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: awards-web-oci
+          path: ${{ runner.temp }}/awards-web-oci.tar
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
+
   alert-rules:
     # Regras de alerta do SLO (spec 004, FR-004, FR-006 e FR-008; research R3), com o promtool da mesma
     # imagem do Prometheus do compose: o mesmo digest e a versão que o Dependabot atualiza.
@@ -396,7 +622,7 @@ jobs:
     # 2026-11-26). A lista de needs acompanha os checks obrigatórios da main (regra 9 do check-workflows.sh).
     name: Publicação no Cloud Run e conferência da URL
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'andersonfelipediefenbach/outsera'
-    needs: [workflow-policy, build, postgres, codeql, dependencies, dockerfile-lint, image, alert-rules, load, compose]
+    needs: [workflow-policy, build, postgres, codeql, dependencies, dockerfile-lint, image, alert-rules, load, compose, frontend, web]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -520,6 +746,146 @@ jobs:
             echo "| --- | --- |"
             echo "| URL pública | $SERVICE_URL |"
             echo "| Imagem | \`$GCP_REGISTRY/awards@$IMAGE_DIGEST\` |"
+            echo "| Revisão | ${REVISION:-não criada} |"
+            echo "| URL da revisão | ${TAG_URL:-não criada} |"
+            echo "| Resultado do job | ${{ job.status }} |"
+            echo "| Duração | $(( $(date +%s) - ${DEPLOY_START:-$(date +%s)} )) s |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-web:
+    # Publicação do front no Cloud Run (spec 006, FR-027 a FR-030; research R9 e R10; contracts/ci-frontend.md,
+    # "Job deploy-web"). Só em push na main deste repositório, depois dos 12 checks obrigatórios e da publicação e
+    # conferência da API (job deploy), para o front novo nunca chamar um endpoint que a API publicada ainda não
+    # tem. A imagem é a do job web, pelo digest, sem rebuild. A identidade federada é a mesma do deploy, sem chaves
+    # e sem secrets: os valores abaixo são identificadores públicos, impressos pelo deploy/gcp/setup.sh. A revisão
+    # nova sobe sem tráfego, é conferida pela URL própria e só então recebe o tráfego.
+    name: Publicação do front no Cloud Run e conferência
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'andersonfelipediefenbach/outsera'
+    needs: [workflow-policy, build, postgres, codeql, dependencies, dockerfile-lint, image, alert-rules, load, compose, frontend, web, deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: deploy-cloud-run-web
+      cancel-in-progress: false
+    environment:
+      name: cloud-run-web
+      url: https://awards-web-2564509384.southamerica-east1.run.app
+    env:
+      GCP_PROJECT_ID: outsera-awards
+      GCP_REGION: southamerica-east1
+      GCP_WIF_PROVIDER: projects/2564509384/locations/global/workloadIdentityPools/github/providers/github-actions
+      GCP_DEPLOY_SA: github-deployer@outsera-awards.iam.gserviceaccount.com
+      GCP_WEB_RUNTIME_SA: awards-web-runtime@outsera-awards.iam.gserviceaccount.com
+      GCP_REGISTRY: southamerica-east1-docker.pkg.dev/outsera-awards/awards
+      GCP_WEB_SERVICE: awards-web
+      WEB_URL: https://awards-web-2564509384.southamerica-east1.run.app
+      # Origem da API para o repasse de /api do nginx: a URL pública do serviço awards (FR-026).
+      API_URL: https://awards-2564509384.southamerica-east1.run.app
+      IMAGE_DIGEST: ${{ needs.web.outputs.digest }}
+    steps:
+      - name: Início da publicação
+        run: echo "DEPLOY_START=$(date +%s)" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: awards-web-oci
+          path: ${{ runner.temp }}/oci
+      - name: O artefato é a imagem testada no job web
+        run: |
+          set -euo pipefail
+          if [[ ! "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::digest do job web ausente ou inválido: '$IMAGE_DIGEST'"
+            exit 1
+          fi
+          layout="$RUNNER_TEMP/oci-layout"
+          mkdir -p "$layout" && tar -xf "$RUNNER_TEMP/oci/awards-web-oci.tar" -C "$layout"
+          found="$(jq -r '.manifests[0].digest' "$layout/index.json")"
+          if [[ "$found" != "$IMAGE_DIGEST" ]]; then
+            echo "::error::o artefato tem o manifesto $found, e o job web testou $IMAGE_DIGEST"
+            exit 1
+          fi
+          echo "Artefato confere com a imagem testada: $IMAGE_DIGEST"
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_DEPLOY_SA }}
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          version: '594.0.1'
+      - name: Envio da imagem testada ao Artifact Registry, com o digest preservado
+        run: |
+          set -euo pipefail
+          if ! command -v skopeo >/dev/null 2>&1; then
+            echo "::error::o skopeo não está no runner (research R1 do Marco 5)"
+            exit 1
+          fi
+          # O token de acesso vai por stdin e nunca é impresso.
+          gcloud auth print-access-token | skopeo login -u oauth2accesstoken --password-stdin "$GCP_REGION-docker.pkg.dev"
+          ref="docker://$GCP_REGISTRY/awards-web:$GITHUB_SHA"
+          skopeo copy --preserve-digests "oci-archive:$RUNNER_TEMP/oci/awards-web-oci.tar" "$ref"
+          pushed="$(skopeo inspect --format '{{.Digest}}' "$ref")"
+          if [[ "$pushed" != "$IMAGE_DIGEST" ]]; then
+            echo "::error::o registro tem $pushed, e a imagem testada é $IMAGE_DIGEST"
+            exit 1
+          fi
+          echo "Imagem no registro: $GCP_REGISTRY/awards-web@$pushed"
+      - name: Implantação sem tráfego, com tag própria
+        id: deploy
+        run: |
+          set -euo pipefail
+          tag="c-${GITHUB_SHA::7}"
+          # 0 a 1 instância (FR-027). O nginx lê PORT do Cloud Run e repassa /api ao awards (API_URL). O log de
+          # acesso em JSON vem da própria imagem (LOG_FORMAT=json; FR-026a).
+          gcloud run deploy "$GCP_WEB_SERVICE" --quiet --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
+            --image="$GCP_REGISTRY/awards-web@$IMAGE_DIGEST" \
+            --service-account="$GCP_WEB_RUNTIME_SA" \
+            --min-instances=0 --max-instances=1 --cpu=1 --memory=256Mi --port=8080 \
+            --set-env-vars="API_URL=$API_URL" \
+            --startup-probe=httpGet.path=/healthz,httpGet.port=8080,periodSeconds=2,failureThreshold=15,timeoutSeconds=1 \
+            --no-traffic --tag="$tag"
+          gcloud run services describe "$GCP_WEB_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > "$RUNNER_TEMP/service.json"
+          revision="$(jq -r '.status.latestCreatedRevisionName' "$RUNNER_TEMP/service.json")"
+          tag_url="$(jq -r --arg t "$tag" '.status.traffic[]? | select(.tag == $t) | .url' "$RUNNER_TEMP/service.json")"
+          if [[ -z "$revision" || -z "$tag_url" ]]; then
+            echo "::error::revisão ($revision) ou URL da tag $tag ($tag_url) não encontradas"
+            exit 1
+          fi
+          { echo "tag=$tag"; echo "revision=$revision"; echo "tag_url=$tag_url"; } >> "$GITHUB_OUTPUT"
+          echo "Revisão $revision, sem tráfego, em $tag_url"
+      - name: Conferência pela URL da revisão, antes do tráfego
+        env:
+          TAG_URL: ${{ steps.deploy.outputs.tag_url }}
+        run: .github/scripts/verify-web.sh "$TAG_URL"
+      - name: Tráfego para a revisão conferida
+        env:
+          TAG: ${{ steps.deploy.outputs.tag }}
+          REVISION: ${{ steps.deploy.outputs.revision }}
+        run: |
+          set -euo pipefail
+          # As tags das revisões anteriores saem, para os endereços antigos não continuarem acessíveis.
+          old_tags="$(jq -r --arg t "$TAG" '[.status.traffic[]? | select(.tag != null and .tag != $t) | .tag] | unique | join(",")' "$RUNNER_TEMP/service.json")"
+          args=(--to-revisions="$REVISION=100")
+          if [[ -n "$old_tags" ]]; then args+=(--remove-tags="$old_tags"); fi
+          gcloud run services update-traffic "$GCP_WEB_SERVICE" --quiet --project="$GCP_PROJECT_ID" --region="$GCP_REGION" "${args[@]}"
+      - name: Conferência pela URL pública
+        run: .github/scripts/verify-web.sh "$WEB_URL"
+      - name: Resumo da publicação
+        if: always()
+        env:
+          REVISION: ${{ steps.deploy.outputs.revision }}
+          TAG_URL: ${{ steps.deploy.outputs.tag_url }}
+        run: |
+          {
+            echo "### Publicação do front no Cloud Run"
+            echo
+            echo "| Item | Valor |"
+            echo "| --- | --- |"
+            echo "| URL pública | $WEB_URL |"
+            echo "| API repassada | $API_URL |"
+            echo "| Imagem | \`$GCP_REGISTRY/awards-web@$IMAGE_DIGEST\` |"
             echo "| Revisão | ${REVISION:-não criada} |"
             echo "| URL da revisão | ${TAG_URL:-não criada} |"
             echo "| Resultado do job | ${{ job.status }} |"

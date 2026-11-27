@@ -6,15 +6,18 @@
 FROM eclipse-temurin:25-jdk-alpine@sha256:22edbb1021420ae6e248519d1af07577742314d67d4c60fcbb2e285b7e47fa78 AS build
 WORKDIR /build
 
-# Dependências numa camada própria, com cache do Maven entre builds.
+# Dependências numa camada própria. O Maven do wrapper e o repositório local ficam dentro da camada (e não
+# num --mount=type=cache, que começa vazio em cada runner do pipeline): quando a camada volta do cache, o
+# package roda offline, sem depender do Maven Central (spec 006; 429 do Central no PR #16).
+ENV MAVEN_USER_HOME=/build/.m2
 COPY mvnw pom.xml ./
 COPY .mvn .mvn
-RUN --mount=type=cache,target=/root/.m2 sh ./mvnw -B -q dependency:go-offline
+RUN sh ./mvnw -B -q -Dmaven.repo.local=/build/.m2/repository dependency:go-offline
 
 COPY src/main src/main
 # JAR sem testes, extraído em camadas para o JarLauncher. As quatro pastas são criadas sempre, porque o
 # extract não cria a de uma camada vazia (por exemplo, sem dependências SNAPSHOT).
-RUN --mount=type=cache,target=/root/.m2 sh ./mvnw -B -q -Dmaven.test.skip=true package \
+RUN sh ./mvnw -B -q -o -Dmaven.repo.local=/build/.m2/repository -Dmaven.test.skip=true package \
     && java -Djarmode=tools -jar target/awards-*.jar extract --layers --launcher --destination extracted \
     && mkdir -p extracted/dependencies extracted/spring-boot-loader extracted/snapshot-dependencies extracted/application
 

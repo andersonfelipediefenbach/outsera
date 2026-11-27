@@ -146,3 +146,47 @@ Se o passo "Conferência pela URL pública" falhou, a revisão nova já recebe o
   a imagem é a do mesmo commit e o fluxo é o mesmo.
 - O artefato da imagem (`awards-oci`) fica guardado por 1 dia. Depois disso, a reexecução falha no download, e
   é preciso reexecutar a execução inteira da `main`, que reconstrói e testa a imagem.
+
+## Publicação do front no Cloud Run
+
+Job `deploy-web` do pipeline, só em push na `main` e depois do `deploy` da API (spec 006;
+[ADR 0028](adr/0028-front-end-angular-com-nginx.md)). O serviço é o `awards-web`, no mesmo projeto e região, com a
+URL pública <https://awards-web-2564509384.southamerica-east1.run.app>. O nginx do front repassa `/api` ao
+`awards` pela variável `API_URL` da revisão. Os comandos precisam do login de quem tem acesso ao projeto.
+
+```bash
+gcloud run revisions list --service=awards-web --region=southamerica-east1 --project=outsera-awards
+gcloud run services describe awards-web --region=southamerica-east1 --project=outsera-awards \
+  --format='yaml(status.traffic,spec.template.spec.containers[0].env)'
+.github/scripts/verify-web.sh https://awards-web-2564509384.southamerica-east1.run.app
+```
+
+**Falha antes da troca de tráfego:** a URL pública do front não mudou. As causas e os passos são os da API
+([acima](#falha-antes-da-troca-de-tráfego)), com `awards-web` no lugar de `awards`. Uma revisão que não sobe
+costuma ser `API_URL` ausente ou `LOG_FORMAT` inválido: o log de erro mostra "API_URL não definida" ou
+"LOG_FORMAT deve ser json ou main".
+
+**Falha depois da troca de tráfego:** voltar o tráfego do `awards-web` para a revisão anterior.
+
+```bash
+gcloud run revisions list --service=awards-web --region=southamerica-east1 --project=outsera-awards \
+  --sort-by=~metadata.creationTimestamp --format='value(metadata.name)' --limit=2
+gcloud run services update-traffic awards-web --region=southamerica-east1 --project=outsera-awards \
+  --to-revisions=<revisão anterior>=100
+```
+
+Depois, conferir com o `verify-web.sh` na URL pública e registrar o incidente. A correção vem num PR novo.
+
+### O front abre, mas `/api` responde 502 ou 504
+
+A página carrega, e os painéis mostram "Não foi possível carregar os dados.":
+
+1. Conferir a API direto, com
+   `.github/scripts/verify-deployment.sh --expect-no-metrics https://awards-2564509384.southamerica-east1.run.app`.
+   Se ela falhar, o problema é a API ([publicação no Cloud Run](#publicação-no-cloud-run)).
+2. Se a API responde, conferir o `API_URL` da revisão do front (comando `describe` acima). Ele precisa ser a
+   origem pública do `awards`, com `https://` e sem barra final.
+3. Um 504 logo depois de um período ocioso é a partida a frio do `awards`, que passou dos 60 s do repasse.
+   Recarregar a página; se repetir, ver o log do `awards`.
+4. O log de acesso do front, em JSON, mostra o `status` e o `upstream_duration` de cada `/api`:
+   `gcloud run services logs read awards-web --region=southamerica-east1 --project=outsera-awards --limit=50`.

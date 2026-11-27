@@ -3,6 +3,236 @@
 Sugestões e decisões relevantes, aceitas ou rejeitadas, com o motivo (item 5.2 do enunciado). As
 decisões de arquitetura ficam em ADRs, em `docs/adr/`.
 
+## 2026-11-26 — PR #16: corrida no teste de teclado do ponta a ponta (US3-3 e caso 25)
+
+- **Origem:** run do PR 45909553455, commit e4d10ee. O run do push do mesmo commit passou inteiro. O cenário US3-3
+  do `e2e/layout.spec.ts` falhou no projeto `celular` nas duas tentativas: depois de digitar "1990", o Tab não
+  levou o foco a "Buscar".
+- **Diagnóstico:** é corrida do teste, e não defeito do front. O botão fica desabilitado até a validação marcar o
+  campo como válido, como a FR-008 pede. A atualização da tela sem zone.js é agendada, e num runner mais lento o Tab
+  chegava antes de o botão se habilitar, então o foco pulava para o controle seguinte. O caso 25 do testador
+  adversário tinha a mesma sequência.
+- **Decisão:** os dois cenários esperam o botão habilitado (`toBeEnabled`) antes do Tab, como uma pessoa esperaria.
+  O código do front não muda. Comprovação local: os cenários de teclado, repetidos 5 vezes nos dois projetos, com 50
+  aprovados.
+
+## 2026-11-26 — PR #16: imagem do front sobre a `nginx:1.31-alpine-slim` oficial, sem root
+
+- **Origem:** no commit 72f2eba, o teste de fumaça e o ponta a ponta do job `web` passaram, mas a porta do Trivy
+  (alta e crítica, só com correção) reprovou a imagem do front. Eram 57 achados em pacotes do Alpine 3.23.4 da base
+  `nginxinc/nginx-unprivileged:1.29-alpine` (musl, pcre2, zlib, tiff, curl e outros), nenhum do nosso código.
+- **Diagnóstico**, com o Trivy 0.70.0, a mesma versão do pipeline:
+  - a `nginxinc/nginx-unprivileged` não é reconstruída desde 19/10/2026, e todas as variantes reprovam:
+    `1.30-alpine` (20 achados), `1.31-alpine` (14), `1.30-alpine-slim` (9) e `1.31-alpine-slim` (3, em musl,
+    musl-utils e zlib);
+  - a imagem oficial `nginx:1.31-alpine-slim`, reconstruída em 24/11, sai com zero achados. Ela tem o `envsubst` e
+    os mesmos scripts de entrada (inclusive o `15-local-resolvers.envsh`), mas roda como root.
+- **Alternativa rejeitada pelo responsável:** `apk upgrade` sobre a unprivileged. O build deixaria de ser
+  reproduzível.
+- **Decisão (responsável):** a base passa a ser a `nginx:1.31-alpine-slim` oficial, por digest. Uma camada como
+  root, sem instalar nem atualizar pacotes, faz o que a unprivileged faz por dentro: tira a diretiva `user`, põe o
+  `pid` e os temporários em `/tmp` e passa a `conf.d` (gerada pelo `envsubst`) e o cache ao usuário `nginx`. A etapa
+  final termina com `USER 101`, e a própria camada confere o `nginx.conf` resultante.
+- **Comprovação local:** hadolint aprovado; a porta do Trivy 0.70.0 aprovada (código 0); o `web-smoke-test.sh` passa
+  nos 10 passos, inclusive o UID diferente de 0 e o log em JSON; o Playwright passa com 101 cenários e 3 pulados
+  (os mesmos de antes).
+- **Job `image` do run de push 45907435497 (sem correção, por decisão do responsável):** não foi disputa de cache.
+  Foi o mesmo 429 do Maven Central, no download do Maven pelo wrapper. O commit a2cbcbd mudou o Dockerfile, então
+  a camada das dependências não existia no cache, e os dois runs simultâneos do mesmo commit (push e PR) baixaram
+  tudo do Central. O do PR conseguiu e gravou o cache. O escopo único do cache é o certo: com escopos separados, os
+  dois runs perderiam o cache sempre. Com a camada no cache, os builds seguintes não chamam o Central.
+
+## 2026-11-26 — PR #16: o repasse do front no pipeline usa o IP do host, e não `host.docker.internal`
+
+- **Origem:** job `web` vermelho nos dois runs do commit 830401c. O passo 9 ("Teste de fumaça da imagem do front")
+  falhou: os passos 4 a 6 do `web-smoke-test.sh` receberam 502 no repasse de `/api`, e o passo 9 do script falhou
+  em consequência, sem a linha de `/api/producers/intervals` com 200 no log.
+- **Diagnóstico** (reproduzido localmente): o nginx usa `proxy_pass` por variável, então resolve o host do
+  `API_URL` pelo `resolver`, que consulta o DNS e ignora o `/etc/hosts`. O `--add-host host.docker.internal:host-gateway`
+  só escreve no `/etc/hosts`. No Docker Desktop, onde os testes locais passaram, `host.docker.internal` também
+  está no DNS; no runner Linux, não. Com um nome que só existe no `/etc/hosts`, o log de erro do nginx mostra
+  `could not be resolved (3: Host not found)`, e o repasse dá 502. A publicação não é afetada: lá o `API_URL` é a
+  URL pública do `awards`, que está no DNS.
+- **Decisão:** o job `web` lê o IP do gateway da rede `bridge` (`docker network inspect`), confere que a API
+  responde nele e o passa no `API_URL` do teste de fumaça, do front do ponta a ponta e do front do caso 26. Um IP
+  não precisa de resolução. O contrato da imagem passa a dizer que o host do `API_URL` precisa estar no DNS ou ser
+  um IP. A imagem não muda: o `resolver` por variável continua necessário no Cloud Run, onde o IP do `awards` pode
+  mudar.
+- **Comprovação local:** com um nome criado só por `--add-host`, o repasse dá 502, como no pipeline. Com o IP do
+  host visto pelo container, o `web-smoke-test.sh` passa nos 10 passos.
+
+## 2026-11-26 — PR #16: falha do job `dependencies` no run 45905598152 (sem correção)
+
+- **Diagnóstico:** não foi o download da base do Trivy. O passo 4 (`./mvnw dependency:copy-dependencies`) passou 4
+  minutos tentando e terminou em `No plugin found for prefix 'dependency'`: o Maven não resolveu o plugin no
+  Central. Os passos do Trivy falharam só depois, porque o `target/runtime-deps` não existia. A janela de horário é
+  a mesma do 429 do Central no job `image`, e o mesmo commit passou no run 45905788282.
+- **Decisão:** falha externa e intermitente do Maven Central, sem mudança no código nem no workflow. Se voltar a
+  acontecer, o caminho é reexecutar o job e, se for frequente, avaliar novas tentativas do resolvedor do Maven.
+
+## 2026-11-26 — PR #16: build da imagem da API sem depender do Maven Central no cache
+
+- **Origem:** job `image` vermelho nos runs 45905788282 e 45905598152 (commit 830401c). O passo "Build da imagem"
+  falhou em 3 s com `wget: server returned error: HTTP/1.1 429 Too Many Requests`, ao baixar o Maven do wrapper
+  dentro do `docker build`, e o Trivy seguinte não achou a `awards:ci`.
+- **Diagnóstico:** a pasta `frontend/` não entra no contexto. O passo "Contexto de build contra a lista de
+  permissão" passou, e o `.dockerignore` da raiz continua só com `mvnw`, `.mvn/`, `pom.xml` e `src/main/`. A causa é
+  do Dockerfile, e vinha do Marco 2. O `/root/.m2` era um `--mount=type=cache`, que o cache do GitHub não
+  guarda e que começa vazio em cada runner. Quando a camada do `dependency:go-offline` voltava do cache, o
+  `package` baixava de novo o Maven do wrapper e as dependências. Com o Central limitando a taxa, o build caía.
+- **Decisão:** o Maven do wrapper (`MAVEN_USER_HOME=/build/.m2`) e o repositório local
+  (`-Dmaven.repo.local=/build/.m2/repository`) passam a ficar dentro da camada das dependências, e o `package` roda
+  offline (`-o`). Com a camada em cache, o build não acessa o Central. Sem cache, os downloads acontecem uma vez, na
+  camada das dependências. Só o estágio de build cresce; a imagem final não muda.
+- **Comprovação local:** `docker build --no-cache` verde, com o `package` offline. A imagem sobe e devolve o
+  resultado de referência e as agregações, com o UID 10001. O hadolint e o `check-docker-context.sh` aprovam.
+
+## 2026-11-26 — Testador adversário: front-end e agregações (Marco 6)
+
+O Anderson acionou o Codex como testador adversário do Marco 6. O Codex escreveu 27 casos a partir da spec 006,
+do contrato da interface, do OpenAPI 1.3.0, do data-model da spec 001 e do enunciado, sem ler o código de
+produção. Os casos ficaram fora do repositório, como no Marco 4.
+
+**Lacunas da spec (8) e decisões do responsável, aplicadas na spec antes dos testes:**
+
+| Caso | Decisão | Onde |
+| --- | --- | --- |
+| 14 | Dados do CSV são sempre exibidos como texto, nunca interpretados como HTML | FR-017a |
+| 24 | A busca mais recente sempre vence; a anterior é cancelada | FR-008a |
+| 08 | O exemplo dos casos de borda passa a `pagina=999`; parâmetros desconhecidos são ignorados, e a consulta à API usa só os valores validados | FR-013, casos de borda |
+| 18 | Desempate dos estúdios em ordem Unicode (`String.compareTo`), sem colação de idioma, como no Marco 1; o front não reordena | FR-002 |
+| 05 | Espaços nas pontas são removidos; um espaço interno torna o ano inválido | FR-008 |
+| 07 | Num parâmetro repetido, a primeira ocorrência vence | FR-013 |
+| 03 | Uma página que não cabe num inteiro seguro é inválida, pela regra existente | FR-013 |
+| 13 | Só documentar, nas premissas, o limite de 100 vencedores por ano | Premissas |
+
+**Como os casos viraram testes permanentes** (agrupados como no Marco 4: uma classe ou um arquivo para o que
+divide o mesmo contexto; contexto próprio só quando o caso exige um CSV próprio):
+
+- **API (ITs, `./mvnw verify`):** `src/test/java/com/outsera/awards/aggregations/adversario/`, com a base
+  `FrontAdversarialCaseIT`. São uma classe por CSV (casos 14, 15, 16, 17, 18, 19a, 19b e 20) e o
+  `FrontCase27AggregationsEtagIT`, com o arquivo fornecido. Os CSVs foram copiados dos casos sem alteração para
+  `src/test/resources/scenarios/adversario-front/`, e o do caso 26 foi gerado pela descrição do caso. Os
+  `@DisplayName` começam por `S006 adversário caso NN`.
+- **Front, unitários (job `frontend`):** `frontend/src/app/adversario.spec.ts`, um `describe` por caso. Ficam
+  aqui a leitura da URL (01, 03 a 08) e os casos que pedem dados especiais ou controle da rede (10 a 24). O
+  `HttpTestingController` entrega as respostas no formato do contrato, e a parte da API desses casos fica nos ITs.
+- **Front, ponta a ponta (job `web`):** `frontend/e2e/adversario.spec.ts`, contra a aplicação real. Cobre a URL e
+  o histórico (01 a 09), o Dashboard (11 e 12), o teclado (25) e a largura com palavras de 480 letras (26). As
+  requisições a `/api/movies` são só observadas (`page.on('request')`), nunca simuladas. O caso 26 usa uma segunda
+  API, com o CSV do caso, e um segundo front, que o job `web` sobe.
+
+**Resultado antes de qualquer correção:**
+
+| Caso | Testes | Resultado |
+| --- | --- | --- |
+| 01 página inválida | unitário e e2e | passou |
+| 02 página além da última e retorno | e2e | passou |
+| 03 páginas enormes | unitário e e2e | **falhou**: a página tinha limite de 9 dígitos, e `pagina=2147483649` virava a página 1 em vez do vazio |
+| 04 ano inválido com vencedor válido | unitário e e2e | passou |
+| 05 ano vazio, em branco ou com espaços | unitário e e2e | passou (o `trim` já existia; agora está na spec) |
+| 06 vencedor ambíguo | unitário e e2e | passou |
+| 07 parâmetros repetidos | unitário e e2e | passou (o `ParamMap.get` do Angular já usa a primeira ocorrência) |
+| 08 parâmetros desconhecidos | unitário e e2e | passou |
+| 09 histórico e volta à página 1 | e2e | passou |
+| 10 ano só com indicados | unitário | passou |
+| 11 busca por 0 e 10000 | unitário e e2e | passou |
+| 12 texto, negativo e campo limpo | unitário e e2e | passou |
+| 13 mais de 100 vencedores | unitário | passou (limite documentado: o painel mostra os 100 da única chamada) |
+| 14 HTML literal | IT e unitário | passou (a interpolação do Angular já escapa) |
+| 15 Unicode sem normalização | IT e unitário | passou |
+| 16 anos empatados | IT e unitário | passou |
+| 17 empate no terceiro estúdio | IT e unitário | passou |
+| 18 acentos e caixa | IT e unitário | passou (ordem da API: Alfa, Zeta, alfa, Álamo) |
+| 19 agregações vazias e dois estúdios | IT e unitário | passou |
+| 20 empates nos intervalos | IT e unitário | passou |
+| 21 painel lento | unitário | passou |
+| 22 falha parcial e repetição | unitário | passou |
+| 23 API indisponível | unitário | passou |
+| 24 buscas fora de ordem | unitário | passou (o `Loader` já cancela a assinatura anterior, como um `switchMap`) |
+| 25 só teclado | e2e | passou |
+| 26 largura de 360 px | e2e | passou |
+| 27 ETag das agregações | IT | passou |
+
+**Correção (só o caso 03):** a página da URL passa a aceitar só dígitos, de 1 até o maior inteiro seguro
+(`Number.isSafeInteger`). Acima disso, ela é inválida e vira a página 1, como o responsável decidiu. Uma página
+válida cujo índice passa do máximo da API (2147483647, o limite do `page` no contrato) consulta esse máximo. Ele
+fica sempre além da última página, então a tela mostra "Nenhum filme encontrado." e o link de volta, que é o
+resultado esperado do caso. Sem isso, o índice 2147483648 daria 400 na API. A spec registra a regra na FR-013, e
+a escolha do máximo da API foi do implementador.
+
+**Ajustes nos próprios testes**, antes de valerem como prova, sem mudar o código:
+- três testes unitários chamavam o `setup` duas vezes no mesmo TestBed, e ganharam o `mount`;
+- o caso 26 exigia "Próxima" dentro da altura da tela. Com textos tão longos, a página rola na vertical, e o caso
+  pede que os controles caibam na largura. A conferência passou a ser a posição horizontal do botão.
+
+## 2026-11-26 — Marco 6: desvios do briefing no front-end
+
+- **Origem:** spec 006 (Marco 6), FR-031 e FR-034. O briefing ("Front-end") previa hospedagem estática, CORS por
+  variável, um container do front no compose e testes "em pipeline próprio", e deixava a versão do Angular em
+  aberto.
+- **Decisões (responsável, no pedido do marco e na clarificação de 2026-11-26):**
+  - **publicação no Cloud Run** (`awards-web`), e não em Vercel ou Firebase Hosting: reaproveita o projeto, a
+    identidade federada sem chaves e o fluxo conferido do Marco 5, sem outro provedor nem conta;
+  - **mesma origem, sem CORS:** o nginx repassa `/api` ao serviço `awards`, e o `ng serve` faz o mesmo localmente.
+    A API não ganha configuração de CORS, e o navegador não faz preflight (research R8);
+  - **front fora do `compose.yaml`** (opção B da clarificação): o front roda só pela publicação e pelo `npm
+    start`. O compose, o job `compose` e o dono deles não mudam;
+  - **jobs do front no mesmo workflow** (`frontend`, `web` e `deploy-web`), e não num workflow próprio: um segundo
+    arquivo duplicaria a política, a concorrência e os `needs` das publicações (research R9);
+  - **Angular 22.3.0**, a `latest` do npm na data do plano, com Node 26 LTS (research R1). O ponto sai da lista
+    de pontos em aberto do `AGENTS.md`.
+- **Ajustes feitos durante a implementação:**
+  - o aviso do orçamento do bundle inicial subiu de 300 kB para 350 kB, e o erro ficou em 500 kB: o Angular 22
+    com router, forms e http já parte de cerca de 310 kB;
+  - o CSS crítico em linha do build (`inlineCritical`) foi desligado, porque a CSP restrita a `'self'` bloqueia
+    estilo e script em linha;
+  - o front sobe no teste de fumaça e no ponta a ponta com `-p` e `host.docker.internal:host-gateway`, e não com
+    `--network host`, para o mesmo script rodar no runner e no Docker Desktop.
+- **Briefing:** não foi alterado. Ele é o registro do planejamento, e a fonte da verdade é a spec 006.
+
+## 2026-11-26 — Política do workflow: `yq | grep -q` deixava passar `docker build` e `docker push`
+
+- **Origem:** casos negativos do `check-workflows.sh` na etapa 6 do Marco 6 (spec 006, T057). Um `docker build`
+  num passo do `deploy-web` era aprovado.
+- **Causa:** com `set -o pipefail`, `yq ... | grep -q` termina com erro quando o `grep -q` encontra o texto cedo e
+  fecha o pipe (SIGPIPE no `yq`), e o `if` lia isso como "não encontrado". O defeito vinha do Marco 5 e valia
+  também para o `docker build` no `deploy` e para o `docker push` em qualquer job (regras 5 e 9).
+- **Decisão:** a saída do `yq` vai para uma variável antes do `grep`, nas três verificações. Os 9 casos negativos
+  (os 5 do contrato do Marco 6 e mais 4) reprovam, e o workflow real continua aprovado
+  (`specs/006-frontend-angular/evidencias/politica-workflow.txt`).
+
+## 2026-11-26 — Contrato 1.3.0: agregações do painel (spec 006)
+
+- **Origem:** spec 006 (Marco 6), FR-001 a FR-004. O painel do front precisa dos anos com mais de um vencedor e
+  das vitórias por estúdio.
+- **Decisão:** o contrato passa à versão 1.3.0 (MINOR), com dois paths novos
+  (`/api/aggregations/years-with-multiple-winners` e `/api/aggregations/studios-with-win-count`) e quatro esquemas
+  fechados. Paths, parâmetros, respostas e esquemas existentes não mudam (Princípio III). O `info.description`
+  continua com duas frases, então o `ContractTextIT` passa sem mudança.
+- **ITs alterados:** só os dois que já têm exceção em `.github/unchanged-tests-exceptions.txt`, sem título novo:
+  - `ApiDocsIT`: o contrato da spec passa a ser o de `specs/006-frontend-angular/contracts/openapi.yaml`, e a lista
+    de paths do contrato passa a ter os quatro endpoints;
+  - `ApiDocsSecurityIT`: a versão `1.3.0` e os dois caminhos novos na conferência do `security` e da resposta 401.
+- **Alternativa rejeitada:** `?projection=` em `/api/movies`, que mudaria um endpoint existente (spec 006, FR-005;
+  research R6).
+
+## 2026-11-26 — Emenda 2.1.0 da constituição: comprovação do front-end
+
+- **Origem:** spec 006 (Marco 6), FR-024. O pedido do responsável inclui testes unitários no front e um teste de
+  ponta a ponta no pipeline, mas o Princípio VI só conhecia três tipos de comprovação (IT, revisão e pipeline), e o
+  Princípio II não dizia nada sobre o Node.
+- **Decisão (responsável):** emenda MINOR, aprovada no PR do Marco 6, como primeiro commit do bolt:
+  - Princípio II: o front fica fora do `./mvnw`; nenhum comando Maven pode exigir Node nem construir o front;
+  - Princípio VI: novo tipo de comprovação, comportamento do front-end, por testes unitários com cobertura mínima
+    de 80% das linhas e teste de ponta a ponta contra a aplicação real, sem respostas simuladas, no pipeline;
+  - Princípio I: sem regra nova; os testes unitários continuam só no front, agora citando o Princípio VI;
+  - portão de merge: inclui os jobs do front.
+- **Motivo:** sem a emenda, os requisitos de comportamento do front ficariam sem forma de comprovação válida, ou
+  exigiriam IT no back-end para algo que só existe no navegador.
+- **Impacto:** `AGENTS.md` (regras invioláveis, testes, stack e pontos em aberto) e spec 006. As specs 001 a 005
+  não mudam.
+
 ## 2026-11-26 — Contrato 1.2.1 e exceção do `ApiDocsSecurityIT` à regra dos testes sem alteração
 
 - **Origem:** pedido do responsável no fechamento do Marco 5 (spec 005, FR-027). Com o Swagger UI público na

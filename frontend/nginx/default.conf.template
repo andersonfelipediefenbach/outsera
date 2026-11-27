@@ -1,0 +1,68 @@
+# Configuração do nginx do front (spec 006, FR-026 e FR-026a; contracts/web-image.md). Gerada na subida pelo
+# envsubst, só com PORT, API_URL, LOG_FORMAT e NGINX_LOCAL_RESOLVERS.
+
+# Caminho sem a query, para o log (o $uri muda com o try_files).
+map $request_uri $request_path {
+  ~^(?<path>[^?]*) $path;
+}
+
+# Uma linha de JSON por requisição; Authorization e Cookie nunca entram no log.
+log_format json escape=json '{"time":"$time_iso8601","method":"$request_method","path":"$request_path",'
+  '"query":"$args","status":$status,"bytes":$body_bytes_sent,"duration":$request_time,'
+  '"upstream_duration":"$upstream_response_time","user_agent":"$http_user_agent","remote_addr":"$remote_addr"}';
+
+server {
+  listen ${PORT};
+  server_name _;
+  server_tokens off;
+  root /usr/share/nginx/html;
+  index index.html;
+
+  access_log /dev/stdout ${LOG_FORMAT};
+
+  gzip on;
+  gzip_types text/css application/javascript application/json image/svg+xml;
+  gzip_min_length 1024;
+
+  resolver ${NGINX_LOCAL_RESOLVERS} valid=30s ipv6=off;
+  resolver_timeout 5s;
+
+  # Probe do Cloud Run e teste de fumaça: não acessa a API e não vai para o log.
+  location = /healthz {
+    access_log off;
+    default_type text/plain;
+    include /etc/nginx/snippets/security-headers.conf;
+    return 200 "ok\n";
+  }
+
+  # Repasse ao serviço da API, mesma origem para o navegador (FR-018). Por variável, o DNS é resolvido em tempo de
+  # execução, e a URI original (com a query) segue inteira.
+  location /api/ {
+    set $api_upstream "${API_URL}";
+    proxy_pass $api_upstream;
+    proxy_http_version 1.1;
+    proxy_set_header Host $proxy_host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_ssl_server_name on;
+    proxy_ssl_name $proxy_host;
+    proxy_connect_timeout 10s;
+    proxy_read_timeout 60s;
+    proxy_hide_header X-Content-Type-Options;
+    proxy_hide_header X-Frame-Options;
+    include /etc/nginx/snippets/security-headers.conf;
+  }
+
+  # Arquivos com hash no nome (main-XXXXXXXX.js, chunk-XXXXXXXX.js, styles-XXXXXXXX.css): cache de um ano.
+  location ~ "-[A-Z0-9]{8}\.(js|css)$" {
+    add_header Cache-Control "public, max-age=31536000, immutable" always;
+    include /etc/nginx/snippets/security-headers.conf;
+    try_files $uri =404;
+  }
+
+  # Rotas internas do Angular: qualquer caminho sem arquivo devolve o index.html, sem cache.
+  location / {
+    add_header Cache-Control "no-cache" always;
+    include /etc/nginx/snippets/security-headers.conf;
+    try_files $uri $uri/ /index.html;
+  }
+}

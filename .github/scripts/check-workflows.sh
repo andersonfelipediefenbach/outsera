@@ -7,19 +7,20 @@
 # Verifica, em <raiz>/.github (padrão: a raiz do repositório):
 #   1. todo `uses:` está fixado por hash de commit de 40 caracteres;
 #   2. o `permissions` do topo de cada workflow é exatamente `contents: read`;
-#   3. nenhum job pede escrita, exceto `security-events: write` no job `codeql` e `id-token: write` no job
-#      `deploy` (spec 005, FR-012);
+#   3. nenhum job pede escrita, exceto `security-events: write` no job `codeql` e `id-token: write` nos jobs
+#      `deploy` e `deploy-web` (spec 005, FR-012; spec 006, FR-030);
 #   4. não há referência a `secrets.`;
 #   5. não há publicação de imagem (`push: true` no build-push-action ou `docker push`), e o `skopeo`, que
-#      envia a imagem testada ao registro, só aparece no job `deploy` (spec 005, FR-012);
+#      envia a imagem testada ao registro, só aparece nos jobs `deploy` e `deploy-web` (spec 005, FR-012);
 #   6. o dependabot.yml tem version 2 e os ecossistemas maven, github-actions, docker e docker-compose,
-#      com directory "/" e schedule.interval (docker-compose: spec 003, FR-034);
+#      com directory "/" e schedule.interval (docker-compose: spec 003, FR-034), e npm e docker com directory
+#      "/frontend" (spec 006);
 #   7. toda imagem do compose.yaml e dos service containers dos workflows está fixada por digest
 #      (@sha256: com 64 caracteres hexadecimais; spec 003, FR-034; research R17);
 #   8. nenhum service container de workflow declara POSTGRES_PASSWORD: o job postgres usa trust, e a
 #      credencial de demonstração só pode estar no compose (constituição 1.6.0; research R16);
-#   9. se existe o job `deploy`: o `if` (normalizado) é o do contrato, os `needs` têm os checks
-#      obrigatórios da main, a concorrência é o grupo `deploy-cloud-run` sem cancelamento e não há build
+#   9. em cada job de publicação (`deploy` e `deploy-web`): o `if` (normalizado) é o do contrato, os `needs` têm os checks
+#      obrigatórios da main (e o `deploy`, no `deploy-web`), a concorrência é o grupo próprio sem cancelamento e não há build
 #      de imagem no job (spec 005, FR-008, FR-011 e FR-012; contracts/workflow-policy.md);
 #  10. o `concurrency.cancel-in-progress` do topo não é `true` fixo, para não cancelar uma publicação na
 #      main (spec 005, FR-011).
@@ -52,9 +53,10 @@ PINNED='^[^@[:space:]]+@[0-9a-f]{40}$'
 DIGEST='^[^@[:space:]]+@sha256:[0-9a-f]{64}$'
 
 # Regra 9 (spec 005; contracts/ci-deploy.md). A lista acompanha os checks obrigatórios da main (Marco 4,
-# T064): um check obrigatório novo entra aqui e nos `needs` do job deploy, no mesmo commit (FR-008).
+# T064; spec 006, frontend e web): um check obrigatório novo entra aqui e nos `needs` do job deploy, no mesmo
+# commit (FR-008).
 DEPLOY_IF="github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'andersonfelipediefenbach/outsera'"
-REQUIRED_CHECKS=(workflow-policy build postgres codeql dependencies dockerfile-lint image alert-rules load compose)
+REQUIRED_CHECKS=(workflow-policy build postgres codeql dependencies dockerfile-lint image alert-rules load compose frontend web)
 
 # Normaliza uma expressão de `if`: sem ${{ }}, sem espaços nas pontas e com espaços repetidos reduzidos.
 normalize_if() {
@@ -87,10 +89,10 @@ for wf in "${WORKFLOWS[@]}"; do
       if [[ "$job" == "codeql" && "$key" == "security-events" && "$value" == "write" ]]; then
         continue
       fi
-      if [[ "$job" == "deploy" && "$key" == "id-token" && "$value" == "write" ]]; then
+      if [[ ( "$job" == "deploy" || "$job" == "deploy-web" ) && "$key" == "id-token" && "$value" == "write" ]]; then
         continue
       fi
-      violation "$name" "job $job pede '$key: $value' (só o job codeql pode ter security-events: write, e só o job deploy, id-token: write)"
+      violation "$name" "job $job pede '$key: $value' (só o job codeql pode ter security-events: write, e só os jobs deploy e deploy-web, id-token: write)"
     done < <(yqr -r ".jobs.\"$job\".permissions | to_entries[] | .key + \"=\" + .value" "$wf")
   done < <(yqr -r '.jobs | to_entries[] | select(.value.permissions != null) | .key' "$wf")
 
@@ -103,34 +105,44 @@ for wf in "${WORKFLOWS[@]}"; do
   if [[ -n "$(yqr -r '.. | select(tag == "!!map" and has("uses")) | select(.uses | test("^docker/build-push-action@")) | select((.with.push // false) == true) | .uses' "$wf")" ]]; then
     violation "$name" "docker/build-push-action com push: true"
   fi
-  if yqr -r '.. | select(tag == "!!map" and has("run")) | .run' "$wf" | grep -q 'docker push'; then
+  # A saída vai para uma variável antes do grep: com pipefail, um `yq | grep -q` falharia por SIGPIPE quando o
+  # grep encontra o texto cedo, e a violação passaria despercebida (spec 006, casos negativos do deploy-web).
+  runs="$(yqr -r '.. | select(tag == "!!map" and has("run")) | .run' "$wf")"
+  if grep -q 'docker push' <<<"$runs"; then
     violation "$name" "passo run com docker push"
   fi
   while IFS= read -r job; do
     [[ -z "$job" ]] && continue
-    violation "$name" "job $job usa skopeo (o envio de imagem ao registro só pode estar no job deploy)"
-  done < <(yqr -r '.jobs | to_entries[] | select(.key != "deploy") | select([.value.steps[]?.run // "" | test("(^|[^[:alnum:]_-])skopeo([^[:alnum:]_-]|$)")] | any) | .key' "$wf")
+    violation "$name" "job $job usa skopeo (o envio de imagem ao registro só pode estar nos jobs deploy e deploy-web)"
+  done < <(yqr -r '.jobs | to_entries[] | select(.key != "deploy" and .key != "deploy-web") | select([.value.steps[]?.run // "" | test("(^|[^[:alnum:]_-])skopeo([^[:alnum:]_-]|$)")] | any) | .key' "$wf")
 
-  # 9. Job deploy: condição, dependências, concorrência e nenhum build.
-  if [[ "$(yqr -r '.jobs | has("deploy")' "$wf")" == "true" ]]; then
-    deploy_if="$(normalize_if "$(yqr -r '.jobs.deploy.if // ""' "$wf")")"
+  # 9. Jobs de publicação (deploy e deploy-web): condição, dependências, concorrência e nenhum build. O
+  # deploy-web depende também do deploy: o front só sai depois da API conferida (spec 006, FR-028).
+  for job in deploy deploy-web; do
+    [[ "$(yqr -r ".jobs | has(\"$job\")" "$wf")" == "true" ]] || continue
+    case "$job" in
+      deploy) expected_group=deploy-cloud-run; source_job=image; extra_needs=() ;;
+      deploy-web) expected_group=deploy-cloud-run-web; source_job=web; extra_needs=(deploy) ;;
+    esac
+    deploy_if="$(normalize_if "$(yqr -r ".jobs.\"$job\".if // \"\"" "$wf")")"
     [[ "$deploy_if" == "$DEPLOY_IF" ]] \
-      || violation "$name" "job deploy com if diferente do contrato (encontrado: '$deploy_if'; esperado: '$DEPLOY_IF')"
-    needs="$(yqr -r '[.jobs.deploy.needs] | flatten | .[] // ""' "$wf")"
-    for check in "${REQUIRED_CHECKS[@]}"; do
-      grep -qxF "$check" <<<"$needs" || violation "$name" "job deploy sem o check obrigatório '$check' em needs"
+      || violation "$name" "job $job com if diferente do contrato (encontrado: '$deploy_if'; esperado: '$DEPLOY_IF')"
+    needs="$(yqr -r "[.jobs.\"$job\".needs] | flatten | .[] // \"\"" "$wf")"
+    for check in "${REQUIRED_CHECKS[@]}" "${extra_needs[@]}"; do
+      grep -qxF "$check" <<<"$needs" || violation "$name" "job $job sem o check obrigatório '$check' em needs"
     done
-    group="$(yqr -r '.jobs.deploy.concurrency.group // ""' "$wf")"
-    cancel="$(yqr -o=json '.jobs.deploy.concurrency."cancel-in-progress"' "$wf")"
-    [[ "$group" == "deploy-cloud-run" && "$cancel" == "false" ]] \
-      || violation "$name" "job deploy deveria ter concurrency.group 'deploy-cloud-run' e cancel-in-progress: false (encontrado: '$group', $cancel)"
-    if [[ -n "$(yqr -r '.jobs.deploy.steps[]?.uses // "" | select(test("^docker/build-push-action@"))' "$wf")" ]]; then
-      violation "$name" "job deploy com docker/build-push-action (a imagem publicada é a do job image, sem rebuild)"
+    group="$(yqr -r ".jobs.\"$job\".concurrency.group // \"\"" "$wf")"
+    cancel="$(yqr -o=json ".jobs.\"$job\".concurrency.\"cancel-in-progress\"" "$wf")"
+    [[ "$group" == "$expected_group" && "$cancel" == "false" ]] \
+      || violation "$name" "job $job deveria ter concurrency.group '$expected_group' e cancel-in-progress: false (encontrado: '$group', $cancel)"
+    if [[ -n "$(yqr -r ".jobs.\"$job\".steps[]?.uses // \"\" | select(test(\"^docker/build-push-action@\"))" "$wf")" ]]; then
+      violation "$name" "job $job com docker/build-push-action (a imagem publicada é a do job $source_job, sem rebuild)"
     fi
-    if yqr -r '.jobs.deploy.steps[]?.run // ""' "$wf" | grep -qE 'docker[[:space:]]+(buildx[[:space:]]+)?build'; then
-      violation "$name" "job deploy com docker build (a imagem publicada é a do job image, sem rebuild)"
+    job_runs="$(yqr -r ".jobs.\"$job\".steps[]?.run // \"\"" "$wf")"
+    if grep -qE 'docker[[:space:]]+(buildx[[:space:]]+)?build' <<<"$job_runs"; then
+      violation "$name" "job $job com docker build (a imagem publicada é a do job $source_job, sem rebuild)"
     fi
-  fi
+  done
 
   # 10. A concorrência do topo não pode cancelar sempre (cancelaria uma publicação na main).
   if [[ "$(yqr -o=json '.concurrency."cancel-in-progress"' "$wf")" == "true" ]]; then
@@ -158,6 +170,11 @@ else
   for eco in maven github-actions docker docker-compose; do
     found="$(yqr -r ".updates[]? | select(.\"package-ecosystem\" == \"$eco\" and .directory == \"/\" and (.schedule.interval // \"\") != \"\") | .\"package-ecosystem\"" "$DEPENDABOT")"
     [[ -n "$found" ]] || violation ".github/dependabot.yml" "falta o ecossistema $eco com directory \"/\" e schedule.interval"
+  done
+  # Front-end (spec 006, FR-019 e FR-025).
+  for eco in npm docker; do
+    found="$(yqr -r ".updates[]? | select(.\"package-ecosystem\" == \"$eco\" and .directory == \"/frontend\" and (.schedule.interval // \"\") != \"\") | .\"package-ecosystem\"" "$DEPENDABOT")"
+    [[ -n "$found" ]] || violation ".github/dependabot.yml" "falta o ecossistema $eco com directory \"/frontend\" e schedule.interval"
   done
 fi
 

@@ -1,0 +1,174 @@
+# deploy/gcp/setup.sh, duas execuções seguidas em 2026-11-26 (spec 006, T055; FR-027 e FR-028).
+# Só identificadores públicos; nenhuma credencial é criada nem impressa.
+
+## Primeira execução (passos 10 a 12 criam o awards-web)
+
+--- passo 0: ferramentas, conta, projeto, faturamento e IDs do repositório
+    conta ativa: ok
+    projeto outsera-awards ACTIVE, número 2564509384
+    faturamento ligado
+    andersonfelipediefenbach/outsera: repository_id 1462943252, repository_owner_id 31636415
+==> passo 0: OK (já existia) - ferramentas, conta, projeto, faturamento e IDs do repositório
+--- passo 1: APIs ativadas
+==> passo 1: OK (já existia) - APIs ativadas
+--- passo 2: repositório de imagens awards e política de limpeza
+Listing items under project outsera-awards, location southamerica-east1, repository awards.
+
+Dry run is disabled.
+Encryption: Google-managed key
+Repository Size: 159.070MB
+==> passo 2: OK (já existia) - repositório de imagens awards e política de limpeza
+--- passo 3: conta de execução awards-runtime
+==> passo 3: OK (já existia) - conta de execução awards-runtime
+--- passo 4: conta de publicação github-deployer, sem chaves
+    github-deployer@outsera-awards.iam.gserviceaccount.com sem chaves gerenciadas pelo usuário
+==> passo 4: OK (já existia) - conta de publicação github-deployer, sem chaves
+--- passo 5: pool de identidade github
+==> passo 5: OK (já existia) - pool de identidade github
+--- passo 6: provedor OIDC github-actions (repositório e main)
+    condição: assertion.repository_id == '1462943252' && assertion.repository_owner_id == '31636415' && assertion.ref == 'refs/heads/main'
+==> passo 6: OK (já existia) - provedor OIDC github-actions (repositório e main)
+--- passo 7: serviço awards no Cloud Run
+==> passo 7: OK (já existia) - serviço awards no Cloud Run
+--- passo 8: vínculos de IAM com permissões mínimas
+==> passo 8: OK (já existia) - vínculos de IAM com permissões mínimas
+--- passo 9: identificadores públicos
+
+GCP_PROJECT_ID=outsera-awards
+GCP_PROJECT_NUMBER=2564509384
+GCP_REGION=southamerica-east1
+GCP_WIF_PROVIDER=projects/2564509384/locations/global/workloadIdentityPools/github/providers/github-actions
+GCP_DEPLOY_SA=github-deployer@outsera-awards.iam.gserviceaccount.com
+GCP_RUNTIME_SA=awards-runtime@outsera-awards.iam.gserviceaccount.com
+GCP_REGISTRY=southamerica-east1-docker.pkg.dev/outsera-awards/awards
+GCP_SERVICE=awards
+URL=https://awards-2564509384.southamerica-east1.run.app
+URL_ALTERNATIVA=https://awards-ijx5jl3k2q-rj.a.run.app
+==> passo 9: OK (já existia) - identificadores públicos
+--- passo 10: conta de execução awards-web-runtime
+Created service account [awards-web-runtime].
+Service account email: awards-web-runtime@outsera-awards.iam.gserviceaccount.com
+    criado: conta de serviço awards-web-runtime@outsera-awards.iam.gserviceaccount.com
+==> passo 10: OK (criado) - conta de execução awards-web-runtime
+--- passo 11: serviço awards-web no Cloud Run
+Deploying container to Cloud Run service [awards-web] in project [outsera-awards] region [southamerica-east1]
+Deploying new service...
+Creating Revision............................................................done
+Routing traffic.....done
+Done.
+Service [awards-web] revision [awards-web-00001-cxz] has been deployed and is serving 100 percent of traffic.
+Service URL: https://awards-web-2564509384.southamerica-east1.run.app
+Proxy locally with: gcloud run services proxy awards-web --region southamerica-east1 --project outsera-awards
+    criado: serviço awards-web com a imagem de exemplo
+==> passo 11: OK (criado) - serviço awards-web no Cloud Run
+--- passo 12: vínculos de IAM do awards-web com permissões mínimas
+Updated IAM policy for service [awards-web].
+    criado: roles/run.developer para serviceAccount:github-deployer@outsera-awards.iam.gserviceaccount.com em serviço awards-web
+Updated IAM policy for serviceAccount [awards-web-runtime@outsera-awards.iam.gserviceaccount.com].
+    criado: roles/iam.serviceAccountUser para serviceAccount:github-deployer@outsera-awards.iam.gserviceaccount.com em conta awards-web-runtime
+Updated IAM policy for service [awards-web].
+    criado: roles/run.invoker para allUsers em serviço awards-web
+    awards-web-runtime@outsera-awards.iam.gserviceaccount.com sem chaves gerenciadas pelo usuário
+==> passo 12: OK (criado) - vínculos de IAM do awards-web com permissões mínimas
+--- passo 13: identificadores públicos do awards-web
+
+GCP_WEB_SERVICE=awards-web
+GCP_WEB_RUNTIME_SA=awards-web-runtime@outsera-awards.iam.gserviceaccount.com
+WEB_URL=https://awards-web-2564509384.southamerica-east1.run.app
+==> passo 13: OK (já existia) - identificadores públicos do awards-web
+
+Resumo:
+  passo 0: OK (já existia) - ferramentas, conta, projeto, faturamento e IDs do repositório
+  passo 1: OK (já existia) - APIs ativadas
+  passo 2: OK (já existia) - repositório de imagens awards e política de limpeza
+  passo 3: OK (já existia) - conta de execução awards-runtime
+  passo 4: OK (já existia) - conta de publicação github-deployer, sem chaves
+  passo 5: OK (já existia) - pool de identidade github
+  passo 6: OK (já existia) - provedor OIDC github-actions (repositório e main)
+  passo 7: OK (já existia) - serviço awards no Cloud Run
+  passo 8: OK (já existia) - vínculos de IAM com permissões mínimas
+  passo 9: OK (já existia) - identificadores públicos
+  passo 10: OK (criado) - conta de execução awards-web-runtime
+  passo 11: OK (criado) - serviço awards-web no Cloud Run
+  passo 12: OK (criado) - vínculos de IAM do awards-web com permissões mínimas
+  passo 13: OK (já existia) - identificadores públicos do awards-web
+  14 OK, 0 FALHA, 5 mudança(s)
+
+## Segunda execução (0 mudanças)
+
+--- passo 0: ferramentas, conta, projeto, faturamento e IDs do repositório
+    conta ativa: ok
+    projeto outsera-awards ACTIVE, número 2564509384
+    faturamento ligado
+    andersonfelipediefenbach/outsera: repository_id 1462943252, repository_owner_id 31636415
+==> passo 0: OK (já existia) - ferramentas, conta, projeto, faturamento e IDs do repositório
+--- passo 1: APIs ativadas
+==> passo 1: OK (já existia) - APIs ativadas
+--- passo 2: repositório de imagens awards e política de limpeza
+Listing items under project outsera-awards, location southamerica-east1, repository awards.
+
+Dry run is disabled.
+Encryption: Google-managed key
+Repository Size: 159.070MB
+==> passo 2: OK (já existia) - repositório de imagens awards e política de limpeza
+--- passo 3: conta de execução awards-runtime
+==> passo 3: OK (já existia) - conta de execução awards-runtime
+--- passo 4: conta de publicação github-deployer, sem chaves
+    github-deployer@outsera-awards.iam.gserviceaccount.com sem chaves gerenciadas pelo usuário
+==> passo 4: OK (já existia) - conta de publicação github-deployer, sem chaves
+--- passo 5: pool de identidade github
+==> passo 5: OK (já existia) - pool de identidade github
+--- passo 6: provedor OIDC github-actions (repositório e main)
+    condição: assertion.repository_id == '1462943252' && assertion.repository_owner_id == '31636415' && assertion.ref == 'refs/heads/main'
+==> passo 6: OK (já existia) - provedor OIDC github-actions (repositório e main)
+--- passo 7: serviço awards no Cloud Run
+==> passo 7: OK (já existia) - serviço awards no Cloud Run
+--- passo 8: vínculos de IAM com permissões mínimas
+==> passo 8: OK (já existia) - vínculos de IAM com permissões mínimas
+--- passo 9: identificadores públicos
+
+GCP_PROJECT_ID=outsera-awards
+GCP_PROJECT_NUMBER=2564509384
+GCP_REGION=southamerica-east1
+GCP_WIF_PROVIDER=projects/2564509384/locations/global/workloadIdentityPools/github/providers/github-actions
+GCP_DEPLOY_SA=github-deployer@outsera-awards.iam.gserviceaccount.com
+GCP_RUNTIME_SA=awards-runtime@outsera-awards.iam.gserviceaccount.com
+GCP_REGISTRY=southamerica-east1-docker.pkg.dev/outsera-awards/awards
+GCP_SERVICE=awards
+URL=https://awards-2564509384.southamerica-east1.run.app
+URL_ALTERNATIVA=https://awards-ijx5jl3k2q-rj.a.run.app
+==> passo 9: OK (já existia) - identificadores públicos
+--- passo 10: conta de execução awards-web-runtime
+==> passo 10: OK (já existia) - conta de execução awards-web-runtime
+--- passo 11: serviço awards-web no Cloud Run
+==> passo 11: OK (já existia) - serviço awards-web no Cloud Run
+--- passo 12: vínculos de IAM do awards-web com permissões mínimas
+    awards-web-runtime@outsera-awards.iam.gserviceaccount.com sem chaves gerenciadas pelo usuário
+==> passo 12: OK (já existia) - vínculos de IAM do awards-web com permissões mínimas
+--- passo 13: identificadores públicos do awards-web
+
+GCP_WEB_SERVICE=awards-web
+GCP_WEB_RUNTIME_SA=awards-web-runtime@outsera-awards.iam.gserviceaccount.com
+WEB_URL=https://awards-web-2564509384.southamerica-east1.run.app
+==> passo 13: OK (já existia) - identificadores públicos do awards-web
+
+Resumo:
+  passo 0: OK (já existia) - ferramentas, conta, projeto, faturamento e IDs do repositório
+  passo 1: OK (já existia) - APIs ativadas
+  passo 2: OK (já existia) - repositório de imagens awards e política de limpeza
+  passo 3: OK (já existia) - conta de execução awards-runtime
+  passo 4: OK (já existia) - conta de publicação github-deployer, sem chaves
+  passo 5: OK (já existia) - pool de identidade github
+  passo 6: OK (já existia) - provedor OIDC github-actions (repositório e main)
+  passo 7: OK (já existia) - serviço awards no Cloud Run
+  passo 8: OK (já existia) - vínculos de IAM com permissões mínimas
+  passo 9: OK (já existia) - identificadores públicos
+  passo 10: OK (já existia) - conta de execução awards-web-runtime
+  passo 11: OK (já existia) - serviço awards-web no Cloud Run
+  passo 12: OK (já existia) - vínculos de IAM do awards-web com permissões mínimas
+  passo 13: OK (já existia) - identificadores públicos do awards-web
+  14 OK, 0 FALHA, 0 mudança(s)
+
+## Chaves gerenciadas pelo usuário da conta awards-web-runtime
+
+Listed 0 items.
