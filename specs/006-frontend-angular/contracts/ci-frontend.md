@@ -52,7 +52,7 @@ O hadolint roda também em `frontend/Dockerfile`, com o mesmo `failure-threshold
   3. `skopeo copy --preserve-digests` para `…/awards/awards-web:$GITHUB_SHA` e conferência do digest no registro;
   4. `gcloud run deploy awards-web` com `--image=…@$IMAGE_DIGEST`, `--service-account`, `--min-instances=0`,
      `--max-instances=1`, `--cpu=1`, `--memory=256Mi`, `--port=8080`, `--set-env-vars=API_URL=$API_URL`,
-     startup probe HTTP em `/healthz`, `--no-traffic --tag=c-<sha curto>`;
+     startup probe HTTP em `/health`, `--no-traffic --tag=c-<sha curto>`;
   5. `verify-web.sh "$TAG_URL"`;
   6. tráfego 100% para a revisão, removendo as tags antigas;
   7. `verify-web.sh "$WEB_URL"`;
@@ -62,7 +62,7 @@ O hadolint roda também em `frontend/Dockerfile`, com o mesmo `failure-threshold
 
 Com novas tentativas até 120 s, para a partida a frio dos dois serviços:
 
-1. `<url>/healthz` → 200.
+1. `<url>/health` → 200.
 2. `<url>/` → 200 com `<app-root`; `<url>/filmes` → 200 com o mesmo HTML.
 3. `<url>/api/producers/intervals` → corpo idêntico à `REFERENCE` do `smoke-test.sh`.
 4. `<url>/api/aggregations/years-with-multiple-winners` → 1986, 1990 e 2015, cada um com 2.

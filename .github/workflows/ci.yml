@@ -468,10 +468,10 @@ jobs:
           set -euo pipefail
           docker run -d --name e2e-web -p 127.0.0.1:8081:8080 -e "API_URL=http://$HOST_IP:8080" awards-web:ci
           for _ in $(seq 1 30); do
-            if curl -sf http://127.0.0.1:8081/healthz >/dev/null; then exit 0; fi
+            if curl -sf http://127.0.0.1:8081/health >/dev/null; then exit 0; fi
             sleep 1
           done
-          echo "::error::o front não respondeu /healthz em 30 s"
+          echo "::error::o front não respondeu /health em 30 s"
           docker logs e2e-web
           exit 1
       - name: Segunda API e segundo front, com o CSV do caso 26 do testador adversário (palavras de 480 letras)
@@ -488,10 +488,10 @@ jobs:
             || { echo "::error::a API do caso 26 não ficou pronta"; tail -n 50 "$RUNNER_TEMP/api-caso-26.log"; exit 1; }
           docker run -d --name e2e-web-caso-26 -p 127.0.0.1:8083:8080 -e "API_URL=http://$HOST_IP:8082" awards-web:ci
           for _ in $(seq 1 30); do
-            if curl -sf http://127.0.0.1:8083/healthz >/dev/null; then exit 0; fi
+            if curl -sf http://127.0.0.1:8083/health >/dev/null; then exit 0; fi
             sleep 1
           done
-          echo "::error::o front do caso 26 não respondeu /healthz em 30 s"
+          echo "::error::o front do caso 26 não respondeu /health em 30 s"
           exit 1
       - name: Ponta a ponta (Playwright, desktop e celular, inclusive os casos do testador adversário)
         working-directory: frontend
@@ -844,7 +844,7 @@ jobs:
             --service-account="$GCP_WEB_RUNTIME_SA" \
             --min-instances=0 --max-instances=1 --cpu=1 --memory=256Mi --port=8080 \
             --set-env-vars="API_URL=$API_URL" \
-            --startup-probe=httpGet.path=/healthz,httpGet.port=8080,periodSeconds=2,failureThreshold=15,timeoutSeconds=1 \
+            --startup-probe=httpGet.path=/health,httpGet.port=8080,periodSeconds=2,failureThreshold=15,timeoutSeconds=1 \
             --no-traffic --tag="$tag"
           gcloud run services describe "$GCP_WEB_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > "$RUNNER_TEMP/service.json"
           revision="$(jq -r '.status.latestCreatedRevisionName' "$RUNNER_TEMP/service.json")"

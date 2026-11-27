@@ -85,7 +85,7 @@ is_top_studios() {
   ' "$TMP/body" 2>/dev/null
 }
 
-check 1 "/healthz responde 200" /healthz is_ok
+check 1 "/health responde 200" /health is_ok
 check 2 "/ devolve o index.html do Angular" / is_html
 INDEX="$(cat "$TMP/body" 2>/dev/null || true)"
 check 2b "/filmes devolve o mesmo index.html (rota interna)" /filmes is_same_html

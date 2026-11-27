@@ -28,7 +28,7 @@ server {
   resolver_timeout 5s;
 
   # Probe do Cloud Run e teste de fumaça: não acessa a API e não vai para o log.
-  location = /healthz {
+  location = /health {
     access_log off;
     default_type text/plain;
     include /etc/nginx/snippets/security-headers.conf;

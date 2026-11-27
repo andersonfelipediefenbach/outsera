@@ -166,7 +166,7 @@ requisitos são da [spec](spec.md).
   - `index.html` com `Cache-Control: no-cache`; arquivos com hash no nome com cache de um ano e `immutable`;
   - cabeçalhos de segurança: `Content-Security-Policy` restrita a `'self'`, `X-Content-Type-Options`,
     `Referrer-Policy` e `X-Frame-Options: DENY`; `server_tokens off`; gzip;
-  - `location = /healthz` devolve 200 sem acessar a API (probe do Cloud Run e teste de fumaça).
+  - `location = /health` devolve 200 sem acessar a API (probe do Cloud Run e teste de fumaça).
 - **Contexto do build:** `frontend/` com `.dockerignore` em lista de permissão (como o da raiz). O
   `.dockerignore` da raiz já exclui `frontend/` da imagem da API, então ela não muda.
 - **Alternativas recusadas:**
@@ -186,7 +186,7 @@ requisitos são da [spec](spec.md).
   - **`dockerfile-lint`**: ganha o `frontend/Dockerfile` no mesmo hadolint.
   - **`web`** (todo push e PR; depende de `dockerfile-lint`): build da imagem do front com as mesmas duas saídas
     do job `image` (Docker e tar OCI, digest como saída; research R1 do Marco 5); JDK 25 e `./mvnw -B -DskipTests
-    package` para o JAR da API; teste de fumaça da imagem do front (`web-smoke-test.sh`: `/healthz`, `/`, rota
+    package` para o JAR da API; teste de fumaça da imagem do front (`web-smoke-test.sh`: `/health`, `/`, rota
     interna, repasse de `/api/producers/intervals` com a `REFERENCE` do `smoke-test.sh`, cabeçalhos de segurança
     e usuário não root); Playwright nos dois projetos; Trivy com a mesma porta da imagem da API; artefato
     `awards-web-oci` só em push na `main`.
@@ -194,7 +194,7 @@ requisitos são da [spec](spec.md).
     mesma identidade federada (`auth` e `setup-gcloud` já fixados), mesma concorrência sem cancelamento
     (grupo próprio `deploy-cloud-run-web`); envio do tar ao Artifact Registry com `skopeo --preserve-digests`
     como `awards-web:<sha>`; `gcloud run deploy awards-web` com `--no-traffic --tag`, `API_URL` da URL pública do
-    `awards`, `--min-instances=0 --max-instances=1 --cpu=1 --memory=256Mi`, startup probe em `/healthz`;
+    `awards`, `--min-instances=0 --max-instances=1 --cpu=1 --memory=256Mi`, startup probe em `/health`;
     conferência pela URL da tag (`verify-web.sh`), tráfego, conferência pela URL pública e resumo.
 - **Checks obrigatórios:** a lista passa de 10 para **12** (`frontend` e `web`). O `REQUIRED_CHECKS` do
   `check-workflows.sh` e os `needs` dos dois jobs de publicação mudam juntos, e o Anderson atualiza a proteção da
