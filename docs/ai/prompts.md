@@ -3103,3 +3103,44 @@ No run 45909553455 (PR, commit e4d10ee), o job web falhou em 1 de 104 testes: e2
 ```text
 O deploy do front falhou no run 45917723129: o verify-web.sh reprovou só o passo 1, com /healthz devolvendo um 404 do próprio Google Front End ("Error 404 (Not Found)!!1"), não do nginx. O Cloud Run reserva caminhos terminados em "z", que nunca chegam ao contêiner. Os outros 5 passos passaram. Renomeie o endpoint de saúde do nginx para /health (no nginx, na sonda do Cloud Run, no teste de fumaça, no verify-web.sh e nos contratos), registre a causa no decisoes.md e abra um PR curto. Depois do merge, o deploy roda de novo.
 ```
+
+## 2026-11-27 11:06:06 -03:00
+
+- Sessao: `f20c8568-741a-44a5-9051-b15bd136b0e6`
+
+```text
+
+
+<pasted_content id="cfca">
+Revisão final do README, num branch docs/readme-final a partir da main atualizada. Sem mudar código.
+1. Sumário com links logo depois do título.
+2. Visão geral reescrita, com duas partes bem separadas: "O enunciado" (o que foi pedido e onde está) e "Além do enunciado", com uma tabela por marco (2 a 6): o que entrega, como ver ou rodar e o link para a seção. Os dois links publicados (front e Swagger) em destaque.
+3. Seção nova "Segurança": autenticação opcional por API_TOKEN, CSP e nginx sem root, deploy sem segredos (OIDC), permissões mínimas, métricas escondidas, Trivy, CodeQL, política do workflow e os testadores adversários. Diga explicitamente por que a demonstração pública fica sem login: dados públicos e somente leitura, com a autenticação disponível por configuração.
+4. Renomeie "Uso de IA" para "Metodologia e uso de IA" e atualize: Spec-Driven Development com o Spec Kit inspirado no AI-DLC; links para as specs 001 a 006; constituição 2.1.0 e o histórico das emendas; tabela de bolts com todos os marcos, inclusive o 4 e o 6; as três rodadas do testador adversário (Marco 1, Kafka, front) com os números de casos e de falhas corrigidas.
+5. Uma seção "Roteiro" no fim, juntando o que foi adiado no Marco 4 e o que seria o próximo passo (por exemplo, o cache para várias instâncias do ADR 0026).
+Confira se todos os números e links do README batem com o repositório. Commit, push e me avise para eu abrir o PR.
+</pasted_content id="cfca">
+
+```
+
+## 2026-11-27 11:17:28 -03:00
+
+- Sessao: `f20c8568-741a-44a5-9051-b15bd136b0e6`
+
+```text
+<task-notification>
+<task-id>bdetkzqkm</task-id>
+<tool-use-id>toolu_01A2Tm3JMRsbygyd3bTWSo4H</tool-use-id>
+<output-file>C:\Users\ander\AppData\Local\Temp\claude\cd9697c376913fb9\84861b0e-c071-4f95-a859-a0f2d3e055cb\tasks\bdetkzqkm.output</output-file>
+<status>completed</status>
+<summary>Background command "Run default and extras Maven verify" completed (exit code 0)</summary>
+</task-notification>
+```
+
+## 2026-11-27 11:28:14 -03:00
+
+- Sessao: `f20c8568-741a-44a5-9051-b15bd136b0e6`
+
+```text
+No roteiro, mantenha o modo Docker publicado e o front no compose, e reescreva o login como condicional: "login com um provedor de identidade, caso a aplicação passe a ter dados privados", coerente com a seção de Segurança. Passe a spec 006 para Implemented neste mesmo PR, como foi feito com a 005. Commit e push.
+```

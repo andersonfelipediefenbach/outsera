@@ -4,7 +4,17 @@
 
 **Criada em**: 2026-11-26
 
-**Status**: Rascunho
+**Status**: Implemented (2026-11-27). A publicação foi comprovada na `main` pela
+[execução 46004797618](https://github.com/andersonfelipediefenbach/outsera/actions/runs/46004797618) do merge do
+PR #20 (commit `81ea91f`):
+- os 12 checks ficaram verdes, e os jobs `deploy` e `deploy-web` passaram nos 13 passos, em 65 s e 57 s;
+- a execução do merge do PR #16 (`87b2c52`) tinha reprovado no `deploy-web`, corrigido pelo PR #20, que passou o
+  endpoint de saúde do nginx a `/health`.
+
+A conferência depois do merge está em [`evidencias/publicacao-main.txt`](evidencias/publicacao-main.txt): o
+`verify-web.sh` na URL pública passou nos 6 passos, com a primeira resposta em 18,8 s a frio e 0,22 s com as
+instâncias ativas (SC-001). A leitura das anotações do `awards-web` pelo `gcloud` (SC-007) ainda não foi
+registrada.
 
 **Entrada**: descrição do responsável: "Marco 6: front-end em Angular, num único bolt. Duas telas: Dashboard com quatro painéis (anos com mais de um vencedor; os 3 estúdios com mais vitórias; produtores com o maior e o menor intervalo, pelo endpoint existente; vencedores de um ano buscado) e Lista de filmes paginada, com filtro por ano e por vencedor. O back-end ganha os endpoints de agregação que os painéis precisarem, com ITs, sem alterar os existentes. O código fica em frontend/, com a versão estável mais recente do Angular; o ./mvnw verify do modo padrão não muda e não exige Node. Testes unitários no front (emenda da constituição para o front-end) e um teste de ponta a ponta no pipeline contra a aplicação real. Publicação num segundo serviço do Cloud Run (awards-web), com nginx servindo o Angular e repassando /api ao serviço awards, reaproveitando a identidade federada do Marco 5, sem segredos, max-instances=1. O README ganha a URL do front e a seção do Marco 6."
 
