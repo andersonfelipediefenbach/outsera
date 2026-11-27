@@ -1,35 +1,45 @@
 # Golden Raspberry Awards API
 
+> **Extra, publicado para ver sem instalar nada:** o [front](https://awards-web-2564509384.southamerica-east1.run.app)
+> (painel e lista de filmes) e o [Swagger UI da API](https://awards-2564509384.southamerica-east1.run.app/swagger-ui.html).
+
 ## Sumário
 
-1. [Visão geral](#1-visão-geral): [o enunciado](#o-enunciado) e [além do enunciado](#além-do-enunciado)
-2. [Avalie em 2 minutos](#2-avalie-em-2-minutos)
-3. [Como executar](#3-como-executar), com os extras dos [Marcos 3](#modo-docker-completo-postgresql-kafka-prometheus-e-grafana-opcional),
-   [4](#marco-4-slo-alertas-teste-de-carga-e-dados-gerados-opcional),
-   [5](#marco-5-publicação-no-cloud-run-opcional) e [6](#marco-6-front-end-em-angular-opcional)
-4. [Endpoints](#4-endpoints)
-5. [Testes](#5-testes) e [pipeline](#pipeline)
-6. [Requisitos do enunciado](#6-requisitos-do-enunciado), com os dos Marcos 2 a 6
-7. [Regras de negócio](#7-regras-de-negócio)
-8. [Arquitetura](#8-arquitetura)
-9. [Segurança](#9-segurança)
-10. [Decisões](#10-decisões)
-11. [Metodologia e uso de IA](#11-metodologia-e-uso-de-ia)
-12. [Estrutura do repositório](#12-estrutura-do-repositório)
-13. [Roteiro](#13-roteiro)
+**[Parte 1. O teste (o que o enunciado pede)](#parte-1-o-teste-o-que-o-enunciado-pede)**
+
+- [Visão geral](#visão-geral)
+- [Avalie em 2 minutos](#avalie-em-2-minutos)
+- [Como executar](#como-executar): [porta](#porta), [outro CSV](#outro-arquivo-csv), [arquivo inválido](#arquivo-inválido) e [formato do log](#formato-do-log)
+- [Endpoints](#endpoints) e [códigos HTTP](#códigos-http)
+- [Testes](#testes) (`./mvnw verify`)
+- [Requisitos do enunciado](#requisitos-do-enunciado)
+- [Regras de negócio](#regras-de-negócio)
+
+**[Parte 2. Extras (além do enunciado)](#parte-2-extras-além-do-enunciado)**
+
+- [Testes dos extras](#testes-dos-extras-mvnw--pextras-verify) (`./mvnw -Pextras verify`)
+- [Marco 2: operação](#marco-2-operação): imagem Docker, ETag, endpoints operacionais e pipeline
+- [Marco 3: modo Docker e autenticação](#marco-3-modo-docker-e-autenticação)
+- [Marco 4: SLO, alertas, teste de carga e dados gerados](#marco-4-slo-alertas-teste-de-carga-e-dados-gerados-opcional)
+- [Marco 5: publicação no Cloud Run](#marco-5-publicação-no-cloud-run-opcional)
+- [Marco 6: front-end em Angular](#marco-6-front-end-em-angular-opcional)
+
+**[Parte 3. Sobre o projeto](#parte-3-sobre-o-projeto)**
+
+- [Arquitetura](#arquitetura)
+- [Segurança](#segurança)
+- [Decisões](#decisões)
+- [Metodologia e uso de IA](#metodologia-e-uso-de-ia)
+- [Estrutura do repositório](#estrutura-do-repositório)
+- [Roteiro](#roteiro)
 
 ---
 
-## 1. Visão geral
+## Parte 1. O teste (o que o enunciado pede)
 
-> **Publicado, para ver sem instalar nada:**
-> - **Front (painel e lista de filmes):** <https://awards-web-2564509384.southamerica-east1.run.app>
-> - **Swagger UI da API:** <https://awards-2564509384.southamerica-east1.run.app/swagger-ui.html>
->
-> Os dois serviços ficam com zero instâncias quando ninguém os usa, então a primeira chamada pode levar alguns
-> segundos.
+Tudo nesta parte roda só com o JDK e o `./mvnw`, sem Docker, sem Node e sem nenhuma configuração.
 
-### O enunciado
+### Visão geral
 
 O enunciado da Outsera pede uma API REST que lê, ao subir, o CSV de indicados e vencedores da categoria Pior
 Filme do Golden Raspberry Awards e informa os produtores com o **menor** e o **maior** intervalo entre duas
@@ -37,33 +47,18 @@ vitórias consecutivas, no formato da página 2. Tudo o que ele exige roda só c
 
 | O que foi pedido | Onde está |
 | --- | --- |
-| Carga do CSV na inicialização, num banco embarcado (item 4.3: H2 em memória) | [Regras de negócio](#7-regras-de-negócio) e [arquitetura](#fluxo-da-carga-até-a-resposta) |
+| Carga do CSV na inicialização, num banco embarcado (item 4.3: H2 em memória) | [Regras de negócio](#regras-de-negócio) e [arquitetura](#fluxo-da-carga-até-a-resposta) |
 | `GET /api/producers/intervals`, com `min` e `max` no formato exato da página 2 | [Endpoints](#get-apiproducersintervals) |
-| API no nível 2 de Richardson (item 4.1) | [Endpoints](#4-endpoints) e [códigos HTTP](#códigos-http) |
-| Somente testes de integração (item 4.2) | [Testes](#5-testes) |
-| Como executar e testar (item 4.4) | [Avalie em 2 minutos](#2-avalie-em-2-minutos) e [como executar](#3-como-executar) |
-| Código num repositório git (item 4.5) | Este repositório ([estrutura](#12-estrutura-do-repositório)) |
-| Uso de IA e registro das interações (itens 5.1 e 5.2) | [Metodologia e uso de IA](#11-metodologia-e-uso-de-ia) |
+| API no nível 2 de Richardson (item 4.1) | [Endpoints](#endpoints) e [códigos HTTP](#códigos-http) |
+| Somente testes de integração (item 4.2) | [Testes](#testes) |
+| Como executar e testar (item 4.4) | [Avalie em 2 minutos](#avalie-em-2-minutos) e [como executar](#como-executar) |
+| Código num repositório git (item 4.5) | Este repositório ([estrutura](#estrutura-do-repositório)) |
+| Uso de IA e registro das interações (itens 5.1 e 5.2) | [Metodologia e uso de IA](#metodologia-e-uso-de-ia) |
 
 A listagem paginada de filmes (`GET /api/movies`) também faz parte do Marco 1, pela leitura da seção 1 do
-enunciado. A matriz de cada item com o teste que o comprova está na [seção 6](#6-requisitos-do-enunciado).
+enunciado. A matriz de cada item com o teste que o comprova está em [requisitos do enunciado](#requisitos-do-enunciado).
 
-### Além do enunciado
-
-Os extras vieram em marcos, cada um com a sua spec, e **nenhum muda o modo padrão**: o `./mvnw verify` e o
-`./mvnw spring-boot:run` continuam iguais, sem Docker e sem Node.
-
-| Marco | O que entrega | Como ver ou rodar | Seção |
-| --- | --- | --- | --- |
-| 2 | ETag e 304, liveness e readiness, métricas do Prometheus, log em JSON por variável, imagem Docker não root e pipeline com portas de segurança | `curl -si .../api/producers/intervals`, `/actuator/health/readiness`, `docker build -t awards:local .` | [Formato do log](#formato-do-log), [imagem](#imagem-docker-opcional), [ETag](#etag-e-304), [pipeline](#pipeline) |
-| 3 | Modo Docker com PostgreSQL, ingestão por Kafka, Prometheus e Grafana; autenticação por token, desligada por padrão | `docker compose up -d --build --wait`; `API_TOKEN=... ./mvnw spring-boot:run` | [Modo Docker](#modo-docker-completo-postgresql-kafka-prometheus-e-grafana-opcional), [autenticação](#autenticação-opcional) |
-| 4 | SLO com alertas e runbook, teste de carga com k6 e gerador de CSV grande e determinístico (escopo reduzido) | Jobs `alert-rules` e `load`; `java tools/csv-generator/GenerateMovies.java` | [Marco 4](#marco-4-slo-alertas-teste-de-carga-e-dados-gerados-opcional), [roteiro](#13-roteiro) |
-| 5 | Publicação da API no Cloud Run a cada merge na `main`, pela imagem testada e sem chaves | [Swagger UI publicado](https://awards-2564509384.southamerica-east1.run.app/swagger-ui.html) | [Marco 5](#marco-5-publicação-no-cloud-run-opcional) |
-| 6 | Front em Angular (painel e lista de filmes), duas agregações novas na API e publicação do front | [Front publicado](https://awards-web-2564509384.southamerica-east1.run.app); `cd frontend && npm ci && npm start` | [Marco 6](#marco-6-front-end-em-angular-opcional), [agregações](#agregações-do-painel) |
-
----
-
-## 2. Avalie em 2 minutos
+### Avalie em 2 minutos
 
 **Pré-requisito:** só o **JDK 25** no `PATH`. Não é preciso Maven, Docker nem banco de dados: o
 wrapper baixa o Maven, e o banco é um H2 em memória.
@@ -78,7 +73,7 @@ O `./mvnw verify` roda os **testes de integração de todo o modo padrão**: H2,
 regras, os endpoints de negócio, o Swagger e o que vem ligado sem configuração (ETag, sondas, métricas e log em
 texto). Num clone limpo, com as dependências do Maven já baixadas, ele leva cerca de 1 minuto (63 s medidos, com a compilação). Os testes do que
 vem desligado por padrão (Kafka, autenticação ligada e log em JSON) e a cobertura mínima de 90% rodam com
-`./mvnw -Pextras verify`, também sem Docker, em cerca de 4 a 9 minutos. O pipeline roda os dois em todo push (seção 5).
+`./mvnw -Pextras verify`, também sem Docker, em cerca de 4 a 9 minutos. O pipeline roda os dois em todo push ([pipeline](#pipeline), no Marco 2).
 
 A aplicação responde em `http://localhost:8080`. A carga do CSV termina antes de o servidor aceitar
 conexões, e o log mostra o resumo:
@@ -112,36 +107,14 @@ curl -s "http://localhost:8080/api/movies?year=1990&winner=true"
 
 Documentação interativa: <http://localhost:8080/swagger-ui.html>.
 
-**Ou sem instalar nada: a demonstração publicada.** A mesma API, no modo padrão e com o arquivo
-fornecido, roda no Google Cloud Run. Ela é publicada pelo pipeline a cada merge na `main` (Marco 5,
-[seção 3](#marco-5-publicação-no-cloud-run-opcional)).
+**Ou sem instalar nada:** a mesma API e o front estão publicados no Cloud Run, como extras dos Marcos 5 e 6
+([demonstração publicada](#demonstração-publicada-da-api) e [front publicado](#front-publicado)).
 
-```bash
-curl -s https://awards-2564509384.southamerica-east1.run.app/api/producers/intervals
-```
+### Como executar
 
-- Swagger UI: <https://awards-2564509384.southamerica-east1.run.app/swagger-ui.html>.
-- **A primeira chamada pode levar alguns segundos.** O serviço fica com zero instâncias quando ninguém o
-  usa, e a primeira chamada espera a aplicação subir e carregar o CSV. As seguintes respondem na hora.
-- É uma demonstração: uma instância só, sem autenticação e sem garantia de disponibilidade.
+Só o modo padrão. O que precisa de Docker, de token ou de Node está na [Parte 2](#parte-2-extras-além-do-enunciado).
 
-**E o front, também publicado.** O painel e a lista de filmes, em Angular, rodam num segundo serviço do Cloud
-Run, que repassa as chamadas de `/api` a essa mesma API (Marco 6,
-[seção 3](#marco-6-front-end-em-angular-opcional)):
-
-- Painel: <https://awards-web-2564509384.southamerica-east1.run.app>, com os anos com mais de um vencedor, os
-  três estúdios com mais vitórias, os produtores com o maior e o menor intervalo e a busca dos vencedores de um
-  ano.
-- Lista de filmes, já filtrada pelos vencedores de 1990:
-  <https://awards-web-2564509384.southamerica-east1.run.app/filmes?ano=1990&vencedor=sim>.
-- **A primeira abertura pode levar alguns segundos**: os dois serviços ficam com zero instâncias quando ninguém
-  os usa, e o painel mostra "Carregando…" enquanto eles sobem.
-
----
-
-## 3. Como executar
-
-### Porta
+#### Porta
 
 A porta padrão é `8080` e muda pela variável `PORT`.
 
@@ -153,7 +126,7 @@ PORT=9090 ./mvnw spring-boot:run
 $env:PORT = "9090"; .\mvnw.cmd spring-boot:run
 ```
 
-### Outro arquivo CSV
+#### Outro arquivo CSV
 
 O padrão é o arquivo do enunciado, embarcado em `src/main/resources/movielist.csv`. Para usar outro,
 defina `MOVIES_CSV_PATH`. O valor é um caminho no sistema de arquivos, absoluto ou relativo à raiz do
@@ -176,7 +149,7 @@ Com esse arquivo, os intervalos ficam assim:
 No PowerShell, `$env:` vale para a sessão inteira. Remova a variável com
 `Remove-Item Env:MOVIES_CSV_PATH` para voltar ao arquivo padrão.
 
-### Arquivo inválido
+#### Arquivo inválido
 
 | Situação | Comportamento |
 | --- | --- |
@@ -210,7 +183,19 @@ Informe um arquivo CSV existente, em UTF-8, com o separador ";" e o cabeçalho "
 
 Os motivos possíveis são `NOT_FOUND`, `UNREADABLE`, `INVALID_SEPARATOR` e `INVALID_HEADER`.
 
-### Formato do log
+Com linhas inválidas (`src/test/resources/scenarios/invalid-lines.csv`), a aplicação sobe e o log
+registra cada rejeição e o resumo:
+
+```text
+WARN ... Linha 4 rejeitada: número de colunas diferente de 5 (encontradas 4)
+WARN ... Linha 8 rejeitada: ano não numérico (19x0)
+WARN ... Linha 13 rejeitada: winner diferente de yes ou vazio (no)
+WARN ... Linha 14 rejeitada: ano fora da faixa de 1 a 9999 (0)
+...
+Carga do arquivo src/test/resources/scenarios/invalid-lines.csv concluída: 13 linhas lidas, 2 aceitas, 11 rejeitadas
+```
+
+#### Formato do log
 
 No `./mvnw`, o log é o **texto** padrão do Spring Boot, legível no terminal, e sem o banner. Para ter
 **JSON** (formato ECS, um objeto por linha), defina `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`. A imagem
@@ -228,7 +213,293 @@ $env:LOGGING_STRUCTURED_FORMAT_CONSOLE = "ecs"; .\mvnw.cmd spring-boot:run
 {"@timestamp":"2026-11-24T13:38:51.169Z","log":{"level":"INFO","logger":"com.outsera.awards.ingestion.MovieFileLoader"},"process":{"pid":49512,"thread":{"name":"main"}},"service":{"name":"awards","version":"0.1.0-SNAPSHOT"},"message":"Carga do arquivo classpath:movielist.csv concluída: 206 linhas lidas, 206 aceitas, 0 rejeitadas","ecs":{"version":"8.11"}}
 ```
 
-### Imagem Docker (opcional)
+### Endpoints
+
+O contrato completo (versão 1.3.0, com ETag e a autenticação opcional) está em
+[`specs/006-frontend-angular/contracts/openapi.yaml`](specs/006-frontend-angular/contracts/openapi.yaml), publicado
+em <http://localhost:8080/openapi.yaml> e navegável no Swagger UI, em
+<http://localhost:8080/swagger-ui.html>. Os dos Marcos 1 a 5 ficam em
+[`specs/001-producer-intervals-api/contracts/openapi.yaml`](specs/001-producer-intervals-api/contracts/openapi.yaml),
+[`specs/002-operacao/contracts/openapi.yaml`](specs/002-operacao/contracts/openapi.yaml),
+[`specs/003-modo-docker/contracts/openapi.yaml`](specs/003-modo-docker/contracts/openapi.yaml) (1.2.0) e
+[`specs/005-deploy-cloud-run/contracts/openapi.yaml`](specs/005-deploy-cloud-run/contracts/openapi.yaml) (1.2.1),
+como registro. A 1.3.0 só acrescenta as duas agregações do painel (spec 006, FR-004): os endpoints existentes não
+mudam.
+
+| Método e caminho | O que faz |
+| --- | --- |
+| `GET /api/producers/intervals` | Produtores com o menor e o maior intervalo entre vitórias consecutivas |
+| `GET /api/movies` | Lista paginada de filmes, com filtros |
+| `GET /swagger-ui.html` | Documentação interativa |
+| `GET /openapi.yaml` | Contrato OpenAPI 3.1 |
+
+Os endpoints dos extras estão na Parte 2: as [agregações do painel](#agregações-do-painel) (Marco 6) e os
+[endpoints operacionais](#endpoints-operacionais) (Marco 2).
+
+#### `GET /api/producers/intervals`
+
+Sem parâmetros. Sempre responde **200** com as listas `min` e `max`, no formato exato da página 2 do
+enunciado. Cada item tem só `producer`, `interval`, `previousWin` e `followingWin`.
+
+- Os empatados entram todos, ordenados por `previousWin` e depois pelo nome.
+- Sem nenhum produtor com duas vitórias, a resposta é `{"min":[],"max":[]}`, também com 200.
+
+O exemplo com o arquivo do enunciado está em [Avalie em 2 minutos](#avalie-em-2-minutos).
+
+#### `GET /api/movies`
+
+| Parâmetro | Valores aceitos | Padrão |
+| --- | --- | --- |
+| `year` | Ano exato, só dígitos (até 9) | sem filtro |
+| `winner` | `true` ou `false`, sem diferenciar maiúsculas | sem filtro |
+| `page` | Inteiro de 0 a 2147483647 | `0` |
+| `size` | Inteiro de 1 a 100 | `20` |
+
+- A ordem é sempre por ano e depois por título. Parâmetros desconhecidos são ignorados.
+- `studios` vem `null` quando a coluna está vazia no arquivo. `producers` e `studios` trazem o texto
+  como está no arquivo.
+- Uma página além da última, ou um filtro sem resultado, responde 200 com `content` vazio e os totais
+  reais.
+
+```bash
+curl -s "http://localhost:8080/api/movies?size=2"
+```
+
+```json
+{"content":[{"year":1980,"title":"Can't Stop the Music","studios":"Associated Film Distribution","producers":"Allan Carr","winner":true},{"year":1980,"title":"Cruising","studios":"Lorimar Productions, United Artists","producers":"Jerry Weintraub","winner":false}],"page":0,"size":2,"totalElements":206,"totalPages":103}
+```
+
+Um parâmetro inválido responde **400** em Problem Details (RFC 9457), com `Content-Type:
+application/problem+json`. A propriedade `invalidParams` lista todos os parâmetros inválidos da
+consulta:
+
+```bash
+curl -s "http://localhost:8080/api/movies?page=-1&size=500"
+```
+
+```json
+{"detail":"Parâmetro inválido na consulta","instance":"/api/movies","status":400,"title":"Bad Request","invalidParams":[{"name":"page","reason":"deve ser um inteiro maior ou igual a 0"},{"name":"size","reason":"deve ser um inteiro de 1 a 100"}]}
+```
+
+#### Códigos HTTP
+
+| Código | Quando |
+| --- | --- |
+| 200 | Consulta atendida, inclusive com listas vazias |
+| 304 | `If-None-Match` igual ao ETag atual, sem corpo |
+| 400 | Parâmetro inválido em `/api/movies`, em Problem Details |
+| 401 | Autenticação ligada e token ausente ou errado, em Problem Details |
+| 404 | Caminho inexistente, em Problem Details |
+| 405 | Verbo diferente de GET nos dois endpoints, em Problem Details e com o cabeçalho `Allow: GET` |
+| 503 | Liveness ou readiness negativa (no modo Docker, a readiness fica 503 até a carga por Kafka terminar) |
+
+### Testes
+
+```bash
+./mvnw verify                          # testes do enunciado (Linux, macOS ou Git Bash)
+./mvnw -Pextras verify                 # todos os testes, com os dos extras e a cobertura mínima
+./mvnw -Pextras verify -Dit.test=ReferenceFileIT   # uma classe só
+```
+
+```powershell
+.\mvnw.cmd verify
+.\mvnw.cmd -Pextras verify
+.\mvnw.cmd -Pextras verify "-Dit.test=ReferenceFileIT"   # no PowerShell, o -D vai entre aspas
+```
+
+Todos são **testes de integração**, executados pelo Maven Failsafe na fase `verify`, **sem Docker**
+(constituição 2.0.0, Princípios II e VI):
+
+- **`./mvnw verify`:** uma execução, com os **243 testes do modo padrão**, listados em
+  [`src/test/default-mode-its.txt`](src/test/default-mode-its.txt): os do enunciado (Marco 1) e os dos Marcos 2,
+  3 e 6 que valem sem nenhuma configuração. Leva cerca de 1 minuto num clone limpo (63 s medidos, com a compilação).
+
+Os testes do que vem desligado por padrão rodam com o `./mvnw -Pextras verify`, descrito na
+[Parte 2](#testes-dos-extras-mvnw--pextras-verify).
+
+| Grupo (`src/test/java/com/outsera/awards/`) | O que cobre |
+| --- | --- |
+| `SmokeIT` | A aplicação sobe com o arquivo padrão |
+| `ingestion/` | Carga do CSV: falhas de inicialização, variações inofensivas, BOM, linhas inválidas, duplicatas, estúdios vazios, resumo da carga e arquivos sem filmes válidos |
+| `intervals/` | Cálculo e formato dos intervalos: resultado de referência, empates em `min` e `max`, três ou mais vitórias, linhas fora de ordem, vitórias no mesmo ano, separação de produtores, arquivo com anos diferentes dos do enunciado e um oráculo independente com arquivos gerados |
+| `adversario/` | Os 13 casos do testador adversário ([rodadas do testador](#rodadas-do-testador-adversário)), um IT por caso, com o CSV e o resultado esperado em `src/test/resources/scenarios/adversario/` |
+| `movies/` | Listagem: paginação, filtros, ordem, parâmetros inválidos e tempo de resposta abaixo de 1 s |
+| `docs/` | As respostas reais dos dois endpoints validadas contra o `openapi.yaml`, inclusive o `ETag` e o 304, mais o Swagger UI e o contrato publicado |
+| `web/` | Verbos não suportados nos dois endpoints respondem 405 |
+
+| `support/` | Base comum (`ScenarioIT`, `KafkaScenarioIT`, `TokenScenarioIT`) e apoios (aplicação real por `SpringApplication`, HTTP, Kafka e PostgreSQL reais, leitura do log, do Prometheus e do contrato), sem testes próprios |
+
+Os grupos dos extras estão nos testes de cada marco: [Marco 2](#testes-do-marco-2), [Marco 3](#testes-do-marco-3) e
+[Marco 6](#testes-do-marco-6).
+
+**Como os testes funcionam:**
+- Cada classe sobe a aplicação inteira com `@SpringBootTest` em porta aleatória e faz chamadas HTTP
+  reais.
+- Cada cenário tem o seu CSV em `src/test/resources/scenarios/`, escolhido pela propriedade
+  `movies.csv.path`.
+- Quando o teste precisa controlar o ciclo de vida da aplicação real, ele a executa com
+  `SpringApplication`, ainda sem mocks (Princípio I, constituição 1.5.0). São quatro casos:
+  - **falha de inicialização**, como o `StartupFailureIT`: o contexto não chega a subir, e o teste
+    verifica a exceção e o log;
+  - **múltiplas execuções**, como o `EtagAcrossRunsIT`, o `KafkaEquivalenceIT` e o `RestartPostgresIT`:
+    comparam duas ou mais subidas;
+  - **ordem da subida**, como o `ReadinessAfterLoadIT`: observa os eventos reais do ciclo de vida;
+  - **saída completa da subida**, como o `JsonLogFormatIT` e o `TokenNotLoggedIT`: capturam o log desde a
+    primeira linha.
+
+  O resultado é verificado por HTTP real sempre que o HTTP observa o comportamento.
+
+**Por que só testes de integração:** o item 4.2 do enunciado pede testes de integração, e o Princípio I
+da [constituição](.specify/memory/constitution.md) proíbe testes unitários e mocks na API.
+- Não há classe `*Test`, e o Mockito foi excluído do classpath de teste.
+- Os testes verificam o comportamento pelo HTTP, como o avaliador o vê, e não detalhes internos.
+- Log e banco só podem ser usados enquanto um comportamento não tem endpoint. O único teste que consulta
+  o banco é o `SchemaPostgresIT`, que confere o histórico do Flyway, porque a migração não tem endpoint. O
+  log só é verificado no que não tem endpoint: os avisos e o resumo da carga, a ordem entre a carga e o
+  início do servidor, as falhas de inicialização, o próprio formato do log e a ausência do token.
+- Os testes do Kafka usam um produtor e um consumidor reais contra o broker embutido. Os testes do
+  PostgreSQL usam um banco real, com um esquema próprio por classe.
+- A autenticação é testada com tokens gerados na hora: nenhum token fica no código dos testes.
+
+### Requisitos do enunciado
+
+Cada item exigido pelo enunciado e como ele é comprovado: pelo teste de integração ou, nos itens de
+entrega (4.4, 4.5, 5.1 e 5.2), pelo artefato correspondente. A matriz completa, requisito por
+requisito da spec, está em
+[`specs/001-producer-intervals-api/plan.md`](specs/001-producer-intervals-api/plan.md#rastreabilidade-requisito--teste).
+
+| Item do enunciado | Requisitos da spec | Como é comprovado |
+| --- | --- | --- |
+| API RESTful no nível 2 de Richardson: recursos nomeados (`/api/producers/intervals`, `/api/movies`), verbo GET e códigos HTTP adequados (item 4.1) | FR-017, FR-018, FR-019, FR-023, FR-023a | **200:** `ReferenceFileIT`, `IntervalsShapeIT`, `MoviesListingIT`. **400** em Problem Details: `MoviesInvalidParamsIT`, `MoviesContractIT`. **404** em Problem Details para rota inexistente: `SmokeIT`. **405** para POST, PUT e DELETE nos dois endpoints, com `Allow: GET`: `HttpMethodsIT` |
+| Carga do CSV na inicialização, antes de o servidor aceitar conexões | FR-001, FR-002 | `DefaultFileIT` |
+| Formato de `min` e `max` (`producer`, `interval`, `previousWin`, `followingWin`), página 2 | FR-017, FR-025 | `IntervalsShapeIT`, `IntervalsContractIT` |
+| Intervalo só entre vitórias consecutivas do mesmo produtor | FR-011, FR-012, FR-013, FR-016 | `ThreeOrMoreWinsIT`, `UnorderedLinesIT`, `SameYearWinsIT`, `WinnerVariantsIT` |
+| Empates: todos os empatados em `min` e em `max` | FR-014, FR-015 | `TiesMinIT`, `TiesMaxIT`, `IntervalEdgeCasesIT` |
+| Listas vazias quando nenhum produtor venceu duas vezes | FR-018 | `NoRepeatWinnersIT`, `IntervalsShapeIT`, `EmptyLoadIT` |
+| Resultado de referência com o arquivo fornecido (Joel Silver em `min`, Matthew Vaughn em `max`) | SC-001 | `ReferenceFileIT` |
+| Correto com outros arquivos, sem dados fixos no código | FR-016a, FR-016b, SC-004a | `DisjointProducersIT`, `RandomizedOracleIT` |
+| Leitura da lista de indicados e vencedores (seção 1) | FR-019 a FR-023 | `MoviesListingIT`, `MoviesInvalidParamsIT`, `MoviesContractIT` |
+| Somente testes de integração (item 4.2) | FR-027, Princípio I | Todos os testes são `*IT`, sem mocks, executados pelo Failsafe, com `@SpringBootTest` ou com a aplicação real por `SpringApplication` nos quatro casos de controle do ciclo de vida descritos em [testes](#testes) |
+| Execução só com o wrapper, sem Docker e sem instalar banco: SGBD **H2 em memória**, embarcado na aplicação (item 4.3) | FR-026 | O H2 é dependência do `pom.xml`, e nenhuma URL de banco é configurada, então o Spring Boot cria um H2 em memória a cada execução. Todos os testes sobem a aplicação assim, e o `SmokeIT` confirma que ela sobe com o arquivo padrão. Além disso, `./mvnw verify` e `./mvnw spring-boot:run` foram executados em clone limpo, no Linux e no Windows |
+| Documentação de como executar e testar (item 4.4) | — | Este README: [Avalie em 2 minutos](#avalie-em-2-minutos) (avaliação rápida), [como executar](#como-executar) (execução) e [testes](#testes) (testes) |
+| Código em repositório git (item 4.5) | — | Este repositório, com um ou mais commits por bolt e a estrutura descrita em [estrutura do repositório](#estrutura-do-repositório) |
+| Uso de IA no desenvolvimento (item 5.1) | — | Spec Kit, Claude Code e Codex, com o fluxo por bolts e os papéis descritos em [metodologia e uso de IA](#metodologia-e-uso-de-ia) |
+| Registro das interações com a IA (item 5.2) | — | [`docs/ai/README.md`](docs/ai/README.md): prompts com data e hora, sessões exportadas e decisões aceitas ou rejeitadas |
+
+Cada método de teste tem um `@DisplayName` que começa pelos IDs dos requisitos que comprova (por
+exemplo, `"FR-014 FR-015 empate no mínimo"`, no `TiesMinIT`).
+
+### Regras de negócio
+
+As regras completas estão na [spec](specs/001-producer-intervals-api/spec.md).
+
+#### Arquivo e cabeçalho
+
+- O separador é `;` e o cabeçalho é `year;title;studios;producers;winner`, **nessa ordem**. Os nomes das
+  colunas não diferenciam maiúsculas (`Year;Title;...` é aceito). Ordem diferente, coluna faltando ou
+  coluna a mais impedem a aplicação de subir.
+- O arquivo é lido em UTF-8. O **BOM** no início é removido antes da leitura, então não atrapalha um
+  cabeçalho entre aspas nem uma linha em branco logo depois dele.
+- Linhas em branco, inclusive só com espaços, e espaços em volta dos campos são ignorados sem aviso.
+- `winner` igual a `yes`, sem diferenciar maiúsculas e ignorando espaços, marca o vencedor. Vazio
+  significa só indicado.
+
+#### Linhas inválidas e duplicadas
+
+Uma linha inválida é ignorada, com um aviso que cita o número da linha física no arquivo (o cabeçalho
+é a linha 1) e o motivo. A carga continua. Os motivos, verificados nesta ordem:
+
+1. número de colunas diferente de 5;
+2. ano vazio;
+3. ano não numérico (aceita só dígitos, sem sinal);
+4. ano fora da faixa de 1 a 9999, como `0` ou `10000`;
+5. título vazio;
+6. produtores vazios, inclusive quando a separação não gera nenhum nome;
+7. `winner` diferente de `yes` ou vazio;
+8. **duplicata:** o filme é identificado por ano + título. A primeira ocorrência vale, e as repetições
+   são ignoradas com aviso que cita a linha original.
+
+A coluna de estúdios é opcional. Ao final, o log traz o resumo de linhas lidas, aceitas e rejeitadas.
+
+#### Separação dos nomes de produtores
+
+- Os separadores são a vírgula, a palavra `and` e a combinação `, and`.
+- O `and` só separa como palavra inteira, sem diferenciar maiúsculas: `AND` e `aNd` também separam.
+  `Robbinsand`, `Anderson` e `andrew` não são cortados.
+- Vários `and` seguidos contam todos como separadores. Partes vazias são descartadas, e um nome
+  repetido no mesmo filme conta uma vez.
+- Os nomes são comparados **exatamente como escritos**, depois de tirar os espaços em volta. Não há
+  correção de grafia, abreviação ou maiúsculas, e os espaços internos são preservados.
+
+| Coluna `producers` | Nomes |
+| --- | --- |
+| `Eric Fellner, and Tom Hooper` | `Eric Fellner`, `Tom Hooper` |
+| `Sid and Marty Krofft` | `Sid`, `Marty Krofft` |
+| `Iris AND Nilo aNd Eva` | `Iris`, `Nilo`, `Eva` |
+| `Brian Robbinsand Sharla Sumpter Bridgett` | um nome só |
+| `A, , B` | `A`, `B` |
+| `Producer A and and Producer B` | `Producer A`, `Producer B` |
+| `, and` | nenhum (linha rejeitada) |
+
+#### Intervalos e empates
+
+- Só os filmes **vencedores** contam.
+- Para cada produtor, os anos de vitória são ordenados, e cada par de vitórias **vizinhas** gera um
+  intervalo (`followingWin - previousWin`). A primeira vitória nunca é comparada com a última quando há
+  outras entre elas.
+- Duas vitórias no mesmo ano, em filmes diferentes, dão intervalo 0.
+- `min` traz **todos** os intervalos iguais ao menor valor, e `max` **todos** os iguais ao maior. Dentro
+  de cada lista, a ordem é por `previousWin` e depois pelo nome (por código Unicode, sem depender do
+  idioma da máquina).
+- O resultado não depende da ordem das linhas no arquivo. Nada do resultado está fixo no código: ele
+  vem só do arquivo carregado.
+
+---
+
+## Parte 2. Extras (além do enunciado)
+
+- **Front publicado:** <https://awards-web-2564509384.southamerica-east1.run.app>
+- **Swagger UI publicado:** <https://awards-2564509384.southamerica-east1.run.app/swagger-ui.html>
+
+Os extras vieram em marcos, cada um com a sua spec, e **nenhum muda o modo padrão**: o `./mvnw verify` e o
+`./mvnw spring-boot:run` continuam iguais, sem Docker e sem Node.
+
+| Marco | O que entrega | Como ver ou rodar | Seção |
+| --- | --- | --- | --- |
+| 2 | ETag e 304, liveness e readiness, métricas do Prometheus, log em JSON por variável, imagem Docker não root e pipeline com portas de segurança | `curl -si .../api/producers/intervals`, `/actuator/health/readiness`, `docker build -t awards:local .` | [Formato do log](#formato-do-log), [imagem](#imagem-docker-opcional), [ETag](#etag-e-304), [pipeline](#pipeline) |
+| 3 | Modo Docker com PostgreSQL, ingestão por Kafka, Prometheus e Grafana; autenticação por token, desligada por padrão | `docker compose up -d --build --wait`; `API_TOKEN=... ./mvnw spring-boot:run` | [Modo Docker](#modo-docker-completo-postgresql-kafka-prometheus-e-grafana-opcional), [autenticação](#autenticação-opcional) |
+| 4 | SLO com alertas e runbook, teste de carga com k6 e gerador de CSV grande e determinístico (escopo reduzido) | Jobs `alert-rules` e `load`; `java tools/csv-generator/GenerateMovies.java` | [Marco 4](#marco-4-slo-alertas-teste-de-carga-e-dados-gerados-opcional), [roteiro](#roteiro) |
+| 5 | Publicação da API no Cloud Run a cada merge na `main`, pela imagem testada e sem chaves | [Swagger UI publicado](https://awards-2564509384.southamerica-east1.run.app/swagger-ui.html) | [Marco 5](#marco-5-publicação-no-cloud-run-opcional) |
+| 6 | Front em Angular (painel e lista de filmes), duas agregações novas na API e publicação do front | [Front publicado](https://awards-web-2564509384.southamerica-east1.run.app); `cd frontend && npm ci && npm start` | [Marco 6](#marco-6-front-end-em-angular-opcional), [agregações](#agregações-do-painel) |
+
+### Testes dos extras: `./mvnw -Pextras verify`
+
+- **`./mvnw -Pextras verify`:** a mesma execução do modo padrão e mais duas, também sem Docker e só com o JDK
+  (constituição 2.0.0):
+  - **`extras`:** os testes do que vem desligado por padrão (Kafka, inclusive os do testador adversário,
+    e a autenticação ligada), com o log em texto. Os 5 do `JsonLogFormatIT` ficam
+    pulados, porque só valem com o JSON ligado;
+  - **`json-logs`:** os 85 testes das classes marcadas com `@Tag("log")` rodam de novo, numa JVM
+    própria, com `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`. Assim, as mesmas verificações de log valem nos
+    dois formatos.
+
+Os testes do Kafka rodam no `./mvnw -Pextras verify` com o **broker embutido** do Spring Kafka (KRaft,
+dentro do próprio teste), sem Docker.
+
+A **cobertura** de linhas é medida pelo JaCoCo sobre a soma das execuções do `./mvnw -Pextras verify`, que
+falha abaixo de **90%**. O relatório fica em `target/site/jacoco-it/index.html`. O job `build` do pipeline
+roda esse perfil em todo push. Os testes do Kafka usam um perfil só de teste (`kafkatest`, em
+`src/test/resources`), com prazos curtos dos clientes, e reaproveitam o contexto do Spring entre as
+classes que só leem.
+
+### Marco 2: operação
+
+ETag e 304 nos endpoints de negócio, liveness e readiness, métricas no formato do Prometheus, log em JSON por
+variável ([formato do log](#formato-do-log), na Parte 1), imagem Docker não root e o pipeline com as portas de
+segurança. ETag, sondas e métricas vêm ligados no modo padrão, e os testes deles rodam no `./mvnw verify`. A spec
+está em [`specs/002-operacao/spec.md`](specs/002-operacao/spec.md).
+
+#### Imagem Docker (opcional)
 
 A imagem é um caminho alternativo. Nada do modo padrão precisa de Docker.
 
@@ -257,7 +528,119 @@ docker run --rm -p 9090:9090 -e PORT=9090 \
 O contrato da imagem está em
 [`specs/002-operacao/contracts/container.md`](specs/002-operacao/contracts/container.md).
 
-### Modo Docker completo: PostgreSQL, Kafka, Prometheus e Grafana (opcional)
+#### ETag e 304
+
+As respostas 200 dos endpoints de negócio trazem um `ETag` forte, derivado do conteúdo: o mesmo corpo tem
+sempre o mesmo ETag, inclusive entre execuções com o mesmo arquivo. O corpo da resposta 200 não muda.
+
+```bash
+curl -si http://localhost:8080/api/producers/intervals | grep -i etag
+# ETag: "010f231232ae1af42532e0827a126190d"
+
+curl -si -H 'If-None-Match: "010f231232ae1af42532e0827a126190d"' http://localhost:8080/api/producers/intervals
+# HTTP/1.1 304, sem corpo
+```
+
+- O `If-None-Match` bate com o ETag atual sozinho, numa lista, na forma fraca (`W/"..."`) ou com `*`.
+- Na listagem, cada combinação de página, tamanho e filtros tem o seu próprio ETag.
+- Respostas de erro (400 e 405) não têm ETag e nunca viram 304.
+
+#### Endpoints operacionais
+
+| Método e caminho | O que faz |
+| --- | --- |
+| `GET /actuator/health/liveness`, `GET /actuator/health/readiness`, `GET /actuator/health` | Saúde da aplicação ([endpoints operacionais](#endpoints-operacionais)) |
+| `GET /actuator/prometheus` | Métricas no formato do Prometheus |
+
+Na mesma porta da API e sem detalhes internos. As probes e a saúde geral são sempre públicas. O endpoint
+de métricas exige o token quando a [autenticação](#autenticação-opcional) está ligada. Os contratos estão
+em [`specs/002-operacao/contracts/operational-endpoints.md`](specs/002-operacao/contracts/operational-endpoints.md)
+e, com o que o Marco 3 acrescenta, em
+[`specs/003-modo-docker/contracts/operational-endpoints.md`](specs/003-modo-docker/contracts/operational-endpoints.md).
+
+| Caminho | Resposta |
+| --- | --- |
+| `/actuator/health/liveness` | 200 `{"status":"UP"}`; 503 `{"status":"DOWN"}` se a aplicação estiver quebrada |
+| `/actuator/health/readiness` | 200 `{"status":"UP"}` só depois da carga do CSV; 503 `{"status":"OUT_OF_SERVICE"}` antes |
+| `/actuator/health` | 200 `{"status":"UP","groups":["liveness","readiness"]}`, sem componentes nem detalhes |
+| `/actuator/prometheus` | Texto do Prometheus: `http_server_requests_seconds` (contagem e histograma de latência por rota, método, status e `outcome`), métricas da JVM e do processo, todas com `application="awards"`. No modo Docker, também `awards_ingestion_events_total` (eventos gravados e rejeitados) e `kafka_consumer_fetch_manager_records_lag_max` (atraso do consumidor) |
+
+Os demais endpoints do Actuator (`/actuator`, `/actuator/env`, `/actuator/beans` e outros) respondem
+404. Com as métricas, a taxa de erro e o percentil 95 de cada endpoint saem direto no Prometheus:
+
+```promql
+sum(rate(http_server_requests_seconds_count{uri="/api/producers/intervals",outcome=~"CLIENT_ERROR|SERVER_ERROR"}[5m]))
+  / sum(rate(http_server_requests_seconds_count{uri="/api/producers/intervals"}[5m]))
+
+histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri="/api/producers/intervals"}[5m])))
+```
+
+#### Testes do Marco 2
+
+No `./mvnw verify`, menos o `JsonLogFormatIT`, que roda na execução `json-logs` do `./mvnw -Pextras verify`.
+
+| Grupo (`src/test/java/com/outsera/awards/`) | O que cobre |
+| --- | --- |
+
+| `etag/` | ETag e 304: valor único, lista, forma fraca, `*`, malformado, erros sem ETag e o mesmo ETag entre execuções |
+| `health/` | Liveness e readiness, corpo sem detalhes, 503 nos estados negativos e a readiness só depois da carga |
+| `metrics/` | Métricas no formato do Prometheus: contagem, status, rota sem parâmetros, rotas inexistentes, 304, histograma e rótulo `application` |
+| `logging/` | Log em texto sem a variável, JSON ECS com ela, banner desligado e nenhum cabeçalho `Authorization` no log |
+
+#### Pipeline
+
+O [GitHub Actions](.github/workflows/ci.yml) roda em todo push e pull request, sem segredos. Toda action é
+fixada por hash de commit. As únicas publicações são as dos jobs `deploy` (API, Marco 5) e `deploy-web` (front,
+Marco 6), só em push na `main`. O contrato completo está em
+[`specs/002-operacao/contracts/ci-pipeline.md`](specs/002-operacao/contracts/ci-pipeline.md), e o das
+publicações, em [`specs/005-deploy-cloud-run/contracts/ci-deploy.md`](specs/005-deploy-cloud-run/contracts/ci-deploy.md)
+e [`specs/006-frontend-angular/contracts/ci-frontend.md`](specs/006-frontend-angular/contracts/ci-frontend.md).
+Os checks obrigatórios da `main` são 12: os 10 do Marco 4, mais `frontend` e `web`.
+
+| Job | O que faz | Reprova quando |
+| --- | --- | --- |
+| `workflow-policy` | Confere a política do workflow, do Dependabot e do compose, e que os ITs dos marcos anteriores não mudaram desde a `v0.2.0`, a `v0.3.0` e a `v0.5.0` | Action sem hash de commit, permissão além de `contents: read` (exceto `security-events: write` no `codeql` e `id-token: write` no `deploy` e no `deploy-web`), uso de `secrets.`, publicação de imagem fora do `deploy` e do `deploy-web`, job de publicação sem os 12 checks em `needs` (o `deploy-web` também sem o `deploy`), com outra condição, com cancelamento ou com build, Dependabot incompleto (inclusive o npm e o docker do `frontend/`), imagem do compose ou de service container sem digest, senha de banco no workflow, ou um IT de uma dessas tags alterado sem exceção registrada |
+| `build` | `./mvnw -Pextras verify` (enunciado, extras e log em JSON), cobertura no resumo e relatórios como artefato | Qualquer teste falha, ou a cobertura de linhas fica abaixo de 90% |
+| `postgres` | `./mvnw -Ppostgres-it verify` contra um PostgreSQL 18 (service container, collation `C`, sem credencial) | Qualquer `*PostgresIT` falha |
+| `compose` | [`compose-test.sh`](.github/scripts/compose-test.sh): sobe o compose e confere a referência, o Prometheus, o dashboard, as regras do SLO carregadas sem alerta disparando, um vencedor novo pelo Kafka em até 5 s, o tópico de erros, a persistência depois de `down`, a queda real do banco e o token | Qualquer passo falha, ou a subida até o dashboard passa de 3 min |
+| `codeql` | Análise do código Java (`security-extended`) | Achado de severidade alta ou crítica (`security-severity` ≥ 7,0) |
+| `dependencies` | Trivy nas dependências de runtime que o Maven copia (inventário efetivo, com as transitivas), com relatório completo e as versões de `lz4-java` e `snappy-java` no resumo | Vulnerabilidade `HIGH` ou `CRITICAL` **com versão corrigida**, ou `lz4-java` e `snappy-java` fora do inventário |
+| `alert-rules` | `promtool check rules`, `check config` e `test rules` das regras do SLO, com a imagem do Prometheus do compose | Regra inválida ou teste de regra falhando |
+| `load` | [`load-test.sh`](.github/scripts/load-test.sh): gera o CSV de 100 mil filmes duas vezes e compara os SHA-256, mede a carga direta e a carga por Kafka e roda o k6 | Hashes diferentes, linha rejeitada, readiness fora do prazo, ou p99 e taxa de erro acima dos limites |
+| `frontend` | No `frontend/`, com Node 26: `npm ci`, lint (angular-eslint), testes unitários com cobertura no resumo, build de produção e `npm audit` ([Marco 6](#marco-6-front-end-em-angular-opcional)) | Erro de lint, teste falhando, cobertura de linhas abaixo de 80%, orçamento de tamanho estourado, ou vulnerabilidade alta ou crítica numa dependência de execução |
+| `web` | Imagem do front (no Docker e em tar OCI, do mesmo build), digest, a API pelo JAR, [`web-smoke-test.sh`](.github/scripts/web-smoke-test.sh) (10 passos, inclusive o log em JSON), Playwright nos projetos `desktop` e `celular` contra a API real, e Trivy. Em push na `main`, guarda o tar para o `deploy-web` | Imagem que não sobe, repasse ou rota interna quebrados, cabeçalho ou log fora do contrato, cenário de ponta a ponta falhando, ou vulnerabilidade `HIGH` ou `CRITICAL` com correção |
+| `dockerfile-lint` | hadolint no `Dockerfile` e no `frontend/Dockerfile` | Aviso ou erro |
+| `image` | Contexto de build, imagem (no Docker e em tar OCI, do mesmo build), digest, teste de fumaça (13 passos) e Trivy na imagem. Em push na `main`, guarda o tar para o `deploy` | Contexto fora do `.dockerignore`, tar com mais de um manifesto ou fora de `linux/amd64`, imagem do Docker diferente da do tar, imagem que não sobe ou não responde o resultado de referência, ou vulnerabilidade `HIGH` ou `CRITICAL` com correção na imagem |
+| `deploy` | Só em push na `main`, depois dos 12 checks: envia a imagem testada ao Artifact Registry pelo digest, implanta sem tráfego, confere pela URL da revisão, passa o tráfego e confere a URL pública ([Marco 5](#marco-5-publicação-no-cloud-run-opcional)). Não é check obrigatório, porque só roda depois do merge | Digest diferente do testado, falha de identidade ou de permissão, revisão que não sobe, ou conferência reprovada (readiness, resultado de referência, Swagger ou métricas abertas) |
+| `deploy-web` | Só em push na `main`, depois dos 12 checks e do `deploy`: envia a imagem do front testada pelo digest, implanta no `awards-web` sem tráfego, confere pela URL da revisão com o [`verify-web.sh`](.github/scripts/verify-web.sh), passa o tráfego e confere a URL pública ([Marco 6](#marco-6-front-end-em-angular-opcional)). Não é check obrigatório | Digest diferente do testado, falha de identidade ou de permissão, ou conferência reprovada (página, rota interna, repasse de `/api` com o resultado de referência e as agregações) |
+
+Achados médios e baixos, e vulnerabilidades sem correção, aparecem no relatório sem reprovar. O
+[Dependabot](.github/dependabot.yml) abre PRs semanais para Maven, GitHub Actions, as imagens base, as
+imagens do compose e as dependências do npm do front.
+
+#### Requisitos do Marco 2 (extras de operação)
+
+Fora do enunciado, mas com a mesma rastreabilidade. Cada requisito é comprovado na forma do seu tipo
+(Princípio VI, constituição 1.4.0): comportamento da aplicação por teste de integração; imagem e
+pipeline pela execução do pipeline; documentação por revisão, com item no checklist da spec. A matriz
+completa está em [`specs/002-operacao/plan.md`](specs/002-operacao/plan.md#rastreabilidade-requisito--comprovação).
+
+| Extra | Requisitos | Como é comprovado |
+| --- | --- | --- |
+| ETag e 304 nos dois endpoints, com o corpo do Marco 1 inalterado | FR-001 a FR-007 | `IntervalsEtagIT`, `MoviesEtagIT`, `EtagEmptyIT`, `EtagAcrossRunsIT`, `IntervalsContractIT`, `MoviesContractIT`, `ApiDocsIT` e toda a suíte do Marco 1 |
+| Liveness e readiness, com a readiness só depois da carga | FR-008 a FR-011 | `HealthProbesIT`, `ReadinessInvalidLinesIT`, `ProbeStatesIT`, `ReadinessAfterLoadIT` |
+| Métricas de latência e de erro no formato do Prometheus | FR-012 a FR-016 | `MetricsIT` |
+| Log em texto no `./mvnw` e JSON por variável | FR-017 a FR-020 | `TextLogFormatIT`, `JsonLogFormatIT` e as classes com `@Tag("log")` nas duas execuções |
+| Imagem multi-stage, não root, com healthcheck e `.dockerignore` | FR-021 a FR-027 | Jobs `dockerfile-lint` e `image` (contexto de build e teste de fumaça) |
+| Pipeline, portas de segurança e cobertura, actions por hash e Dependabot | FR-028 a FR-029 | Jobs `workflow-policy`, `build`, `codeql`, `dependencies` e `image` |
+| ADRs e este README | FR-030, FR-031, FR-034 | Revisão do PR, pelas seções "Revisão dos ADRs" e "Revisão do README" de [`checklists/requirements.md`](specs/002-operacao/checklists/requirements.md) |
+
+### Marco 3: modo Docker e autenticação
+
+O modo Docker com PostgreSQL, ingestão por Kafka, Prometheus e Grafana, e a autenticação por token, desligada
+por padrão. A spec está em [`specs/003-modo-docker/spec.md`](specs/003-modo-docker/spec.md).
+
+#### Modo Docker completo: PostgreSQL, Kafka, Prometheus e Grafana (opcional)
 
 O [`compose.yaml`](compose.yaml) sobe o ambiente completo do Marco 3. É só para desenvolvimento local, e
 nada dele é exigido pelo modo padrão.
@@ -311,7 +694,7 @@ docker compose --profile tools run --rm kafka-cli /opt/kafka/bin/kafka-console-c
 `compose.yaml`, podem ser trocadas pelas variáveis `POSTGRES_PASSWORD` e `GRAFANA_ADMIN_PASSWORD` e nunca
 devem ser usadas num ambiente publicado (constituição 1.6.0, Princípio VII).
 
-### Autenticação (opcional)
+#### Autenticação (opcional)
 
 A autenticação existe e é testada, mas fica **desligada por padrão**: sem a variável `API_TOKEN`, todos
 os endpoints são públicos, como no Marco 2. Com ela, os intervalos, a listagem e as métricas exigem o
@@ -341,21 +724,56 @@ curl -s -H "Authorization: Bearer awards-token-de-demonstracao" \
 - No compose, a autenticação também fica desligada por padrão. Para ligá-la:
   `API_TOKEN=<token> docker compose up -d`. O Prometheus passa a coletar com o mesmo token.
 
-Com linhas inválidas (`src/test/resources/scenarios/invalid-lines.csv`), a aplicação sobe e o log
-registra cada rejeição e o resumo:
+#### Testes do Marco 3
 
-```text
-WARN ... Linha 4 rejeitada: número de colunas diferente de 5 (encontradas 4)
-WARN ... Linha 8 rejeitada: ano não numérico (19x0)
-WARN ... Linha 13 rejeitada: winner diferente de yes ou vazio (no)
-WARN ... Linha 14 rejeitada: ano fora da faixa de 1 a 9999 (0)
-...
-Carga do arquivo src/test/resources/scenarios/invalid-lines.csv concluída: 13 linhas lidas, 2 aceitas, 11 rejeitadas
+O Kafka e a autenticação ligada rodam no `./mvnw -Pextras verify`, com o broker embutido; o isolamento e a
+autenticação desligada, no `./mvnw verify`.
+
+| Grupo (`src/test/java/com/outsera/awards/`) | O que cobre |
+| --- | --- |
+
+| `isolation/` | Sem perfil, o Kafka não é configurado: nenhuma métrica nem cliente Kafka (Marco 3) |
+| `kafka/` | Ingestão por Kafka com o broker embutido: resultado de referência, equivalência byte a byte com a carga direta, readiness só com o evento de carga concluída, linhas inválidas, falhas estruturais, vencedor novo em até 5 s, atualização, idempotência, cada tipo de evento inválido no tópico de erros (inclusive o caractere nulo, que o PostgreSQL não aceita), tópico de erros fora do ar, broker fora do ar e métricas (Marco 3), mais os 30 casos do testador adversário em `kafka/adversario/` (Marco 4) |
+| `security/` | Autenticação desligada (guarda do `API_TOKEN`) e ligada: 401 em Problem Details, endpoints públicos, token fora do log, sem senha gerada, cabeçalhos de cache e de proteção e o contrato publicado (1.2.0 no Marco 3, 1.2.1 desde o Marco 5) |
+
+| `postgres/` | Só no perfil `postgres-it`: esquema, equivalência e ordem entre o H2 e o PostgreSQL, reinícios, nova tentativa quando a gravação falha e recusa permanente do banco por dado inválido, que vai ao tópico de erros (Marco 3) |
+
+**Testes com PostgreSQL** (perfil Maven `postgres-it`): o que só existe no PostgreSQL fica fora do
+`./mvnw verify` padrão (Princípio II) e roda obrigatoriamente no job `postgres` do pipeline (Princípio VI,
+constituição 1.7.0). São a migração, a ordem com a collation, os reinícios sobre o mesmo banco e a nova
+tentativa quando a gravação falha. Para rodar localmente, é preciso um PostgreSQL com collation `C`:
+
+```bash
+docker run -d --name awards-pg -p 5432:5432 -e POSTGRES_DB=awards -e POSTGRES_USER=awards \
+  -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_INITDB_ARGS='--locale=C --encoding=UTF8' postgres:18-alpine
+DB_URL=jdbc:postgresql://localhost:5432/awards DB_USER=awards DB_PASSWORD= ./mvnw -Ppostgres-it verify
+docker rm -f awards-pg
 ```
 
----
+#### Requisitos do Marco 3 (modo Docker e autenticação)
+
+Também fora do enunciado. O comportamento comum aos dois bancos é comprovado no `./mvnw -Pextras verify`,
+e o que só existe no PostgreSQL, no perfil `postgres-it` (Princípio VI, constituição 2.0.0). A matriz completa está
+em [`specs/003-modo-docker/plan.md`](specs/003-modo-docker/plan.md#rastreabilidade-princípio-vi). Os
+`@DisplayName` dos testes novos começam por `S003`, porque os IDs das três specs se repetem.
+
+| Extra | Requisitos | Como é comprovado |
+| --- | --- | --- |
+| Modo padrão idêntico, sem Kafka configurado | FR-001 | `DefaultModeIsolationIT`, a suíte dos Marcos 1 e 2 e o `check-unchanged-tests.sh` |
+| PostgreSQL com o mesmo esquema e a mesma ordem da listagem | FR-004 a FR-008 | `SchemaPostgresIT`, `EquivalencePostgresIT`, `ListingOrderPostgresIT` (job `postgres`) |
+| Kafka como caminho único, com a readiness depois do evento de carga concluída | FR-009 a FR-013 | `KafkaReferenceFileIT`, `KafkaReadinessIT`, `KafkaInvalidLinesIT`, `KafkaStructuralFailureIT`, `PublisherSummaryIT`, `KafkaBrokerUnavailableIT` |
+| Gravação idempotente com atualização e reinícios | FR-014 | `KafkaIdempotencyIT`, `KafkaUpdateIT`, `RestartDirectPostgresIT`, `RestartPostgresIT` |
+| Tópico de erros e nova tentativa quando a gravação falha | FR-015, FR-015a | `KafkaInvalidEventsIT`, `KafkaErrorTopicUnavailableIT`, `RetryPostgresIT` e o passo 7b do job `compose` |
+| Vencedor novo depois da carga e métricas da ingestão | FR-016, FR-017 | `KafkaNewWinnerIT`, `KafkaMetricsIT` |
+| Carga direta e Kafka equivalentes, sem exceção | FR-018 | `KafkaEquivalenceIT`, `FieldTooLongIT` |
+| Autenticação por token, desligada por padrão | FR-019 a FR-023, FR-025 a FR-027 | `AuthDisabledByDefaultIT`, `AuthEnabledIT`, `AuthProblemDetailsIT`, `TokenNotLoggedIT`, `NoGeneratedPasswordIT`, `AuthContractIT`, `ApiDocsSecurityIT` |
+| Cabeçalhos de cache e de proteção | FR-022a | `CacheHeadersIT`, `CacheHeadersWithTokenIT` |
+| Compose com observabilidade, imagens por digest e credenciais de demonstração | FR-028 a FR-035 | Jobs `compose` e `workflow-policy` |
+| README e ADRs | FR-036, FR-037 | Revisão do PR, pelas seções de [`specs/003-modo-docker/checklists/requirements.md`](specs/003-modo-docker/checklists/requirements.md) |
 
 ### Marco 4: SLO, alertas, teste de carga e dados gerados (opcional)
+
+A spec está em [`specs/004-acabamento-operacional/spec.md`](specs/004-acabamento-operacional/spec.md).
 
 Tudo aqui é extra e roda só com o Docker. O modo padrão não muda (spec 004, FR-001).
 
@@ -430,9 +848,26 @@ Antes disso, com os 100 mil filmes, o p99 dos intervalos era de 927 ms.
 
 **O que o Marco 4 deixou para depois.** O escopo do marco foi reduzido por decisão do responsável (spec 004,
 Status): o cache AOT, o SBOM com a assinatura, o dev container e os ADRs 0020 a 0025 ficaram adiados, com a spec
-e as tarefas guardadas. A lista está no [roteiro](#13-roteiro).
+e as tarefas guardadas. A lista está no [roteiro](#roteiro).
+
+#### Requisitos do Marco 4 (SLO, alertas, carga e dados gerados)
+
+Também fora do enunciado, com o escopo reduzido descrito no [roteiro](#roteiro). A matriz completa está em
+[`specs/004-acabamento-operacional/plan.md`](specs/004-acabamento-operacional/plan.md#rastreabilidade-princípio-vi).
+Os `@DisplayName` dos testes novos começam por `S004`.
+
+| Extra | Requisitos | Como é comprovado |
+| --- | --- | --- |
+| Modo padrão sem mudança | FR-001, FR-002, SC-001 | Job `build` e `check-unchanged-tests.sh` contra a `v0.2.0` e a `v0.3.0` |
+| SLO, alertas e runbook | FR-003 a FR-009, SC-002, SC-003 | Job `alert-rules`, passo 4b do job `compose` e revisão de [`docs/slo.md`](docs/slo.md) e [`docs/runbook.md`](docs/runbook.md) |
+| Teste de carga com limites | FR-010 a FR-013, FR-011a, SC-004 | Job `load` e o registro da medição em `docs/ai/decisoes.md` |
+| Gerador de CSV e carga inicial medida | FR-014 a FR-019, SC-005, SC-006 | Job `load` (dois SHA-256 iguais ao do Windows, cargas sem linha rejeitada) |
+| Inventário efetivo no job de dependências | FR-032, FR-033, SC-010 | Job `dependencies` e o registro da causa em `docs/ai/decisoes.md` |
+| Testador adversário na ingestão por Kafka | FR-035 | `KafkaAdversarialEventsIT` e os ITs `KafkaCase*` (job `build`), `KafkaCase29RestartReappliesCsvPostgresIT` (job `postgres`) |
 
 ### Marco 5: publicação no Cloud Run (opcional)
+
+A spec está em [`specs/005-deploy-cloud-run/spec.md`](specs/005-deploy-cloud-run/spec.md).
 
 A API está publicada em <https://awards-2564509384.southamerica-east1.run.app>. Nada muda no modo padrão
 local nem no `./mvnw verify` (spec 005, FR-022).
@@ -481,7 +916,40 @@ tem papéis só no serviço, no registro e na conta de execução, e não pode m
 de execução não tem papel nenhum. A decisão completa está no
 [ADR 0027](docs/adr/0027-publicacao-no-cloud-run.md).
 
+#### Demonstração publicada da API
+
+**Ou sem instalar nada: a demonstração publicada.** A mesma API, no modo padrão e com o arquivo
+fornecido, roda no Google Cloud Run. Ela é publicada pelo pipeline a cada merge na `main`, como descrito acima.
+
+```bash
+curl -s https://awards-2564509384.southamerica-east1.run.app/api/producers/intervals
+```
+
+- Swagger UI: <https://awards-2564509384.southamerica-east1.run.app/swagger-ui.html>.
+- **A primeira chamada pode levar alguns segundos.** O serviço fica com zero instâncias quando ninguém o
+  usa, e a primeira chamada espera a aplicação subir e carregar o CSV. As seguintes respondem na hora.
+- É uma demonstração: uma instância só, sem autenticação e sem garantia de disponibilidade.
+
+#### Requisitos do Marco 5 (publicação no Cloud Run)
+
+Também fora do enunciado. O marco não muda o comportamento da aplicação, então não tem IT novo. Cada requisito
+é comprovado pela execução do pipeline, pelas execuções do script ou pela revisão (Princípio VI). A spec está
+em [`specs/005-deploy-cloud-run/spec.md`](specs/005-deploy-cloud-run/spec.md).
+
+| Extra | Requisitos | Como é comprovado |
+| --- | --- | --- |
+| Serviço no modo padrão, com 0 a 1 instância por revisão, probes e métricas fechadas | FR-001 a FR-007, FR-004a, SC-001, SC-006 | Job `deploy` na `main` (as duas conferências do `verify-deployment.sh`, com o 404 de `/actuator/prometheus` e os tempos de cada chamada) e a leitura do serviço depois do merge |
+| A mesma imagem testada, pelo digest, sem rebuild | FR-002, FR-010 | Jobs `image` (digest e identidade da imagem) e `deploy` (digest do artefato e do registro) |
+| Publicação só em push na `main`, depois dos checks, serializada e sem chaves | FR-008, FR-009, FR-011 a FR-013, SC-002, SC-003 | Job `workflow-policy` (regras 3, 4, 5, 9 e 10), com os casos negativos conferidos antes do push ([evidência](specs/005-deploy-cloud-run/evidencias/politica-workflow.txt)), o job `deploy` pulado nos PRs e a condição do provedor de identidade conferida no GCP ([evidência](specs/005-deploy-cloud-run/evidencias/setup-conferencias.txt)) |
+| Revisão sem tráfego até ser conferida | FR-014 a FR-016, FR-015a | Job `deploy`: a conferência pela URL da revisão antes da troca de tráfego e o resumo da execução |
+| Configuração do GCP idempotente, com permissões mínimas | FR-017 a FR-021, SC-004 | As duas execuções do `deploy/gcp/setup.sh` (a segunda com zero mudanças) em [`evidencias/`](specs/005-deploy-cloud-run/evidencias/) e a revisão do script no PR |
+| Modo padrão sem mudança | FR-022, SC-007 | Jobs `build` e `workflow-policy` (`check-unchanged-tests.sh`) |
+| README, ADR 0027, runbook e decisões | FR-023 a FR-025 | Revisão do PR, por [`specs/005-deploy-cloud-run/checklists/revisao.md`](specs/005-deploy-cloud-run/checklists/revisao.md) |
+| Contrato 1.2.1: descrição em duas frases, autenticação opcional e nenhum `<` ou `>` nos textos | FR-027 | `ContractTextIT`, `ApiDocsSecurityIT` (versão) e `ApiDocsIT` (publicado idêntico ao da spec 005) |
+
 ### Marco 6: front-end em Angular (opcional)
+
+A spec está em [`specs/006-frontend-angular/spec.md`](specs/006-frontend-angular/spec.md).
 
 O front fica em [`frontend/`](frontend/), com build, testes e imagem próprios. Ele está publicado em
 <https://awards-web-2564509384.southamerica-east1.run.app>. O `./mvnw` não lê o `frontend/` nem precisa de Node
@@ -502,7 +970,7 @@ O front fica em [`frontend/`](frontend/), com build, testes e imagem próprios. 
   funciona só pelo teclado, com o foco visível.
 
 **Agregações novas na API.** Os dois painéis de totais usam endpoints novos, descritos no contrato 1.3.0 e
-comprovados por ITs, sem mudar os existentes ([seção 4](#agregações-do-painel)).
+comprovados por ITs, sem mudar os existentes ([agregações do painel](#agregações-do-painel), abaixo).
 
 **Rodar o front localmente**, com Node 26 ([`frontend/.nvmrc`](frontend/.nvmrc)), contra a API do
 `./mvnw spring-boot:run`:
@@ -518,7 +986,7 @@ cd frontend && npm ci && npm start   # noutro: o front em http://localhost:4200,
 - **ponta a ponta**, com o Playwright, contra a API real e a imagem do front com o repasse de `/api`, sem
   nenhuma resposta simulada (o lint proíbe `page.route`), numa largura de desktop e numa de celular.
 
-Os dois rodam no pipeline, nos jobs `frontend` e `web` ([seção 5](#pipeline)), como pede a emenda 2.1.0 da
+Os dois rodam no pipeline, nos jobs `frontend` e `web` ([pipeline](#pipeline), no Marco 2), como pede a emenda 2.1.0 da
 constituição (Princípio VI).
 
 **Imagem e publicação.**
@@ -538,76 +1006,25 @@ constituição (Princípio VI).
 **O que fica de fora.** O front não entra no `compose.yaml`, não tem login (com a autenticação ligada na API, os
 painéis mostram o erro) e não usa SSR.
 
-## 4. Endpoints
+#### Front publicado
 
-O contrato completo (versão 1.3.0, com ETag e a autenticação opcional) está em
-[`specs/006-frontend-angular/contracts/openapi.yaml`](specs/006-frontend-angular/contracts/openapi.yaml), publicado
-em <http://localhost:8080/openapi.yaml> e navegável no Swagger UI, em
-<http://localhost:8080/swagger-ui.html>. Os dos Marcos 1 a 5 ficam em
-[`specs/001-producer-intervals-api/contracts/openapi.yaml`](specs/001-producer-intervals-api/contracts/openapi.yaml),
-[`specs/002-operacao/contracts/openapi.yaml`](specs/002-operacao/contracts/openapi.yaml),
-[`specs/003-modo-docker/contracts/openapi.yaml`](specs/003-modo-docker/contracts/openapi.yaml) (1.2.0) e
-[`specs/005-deploy-cloud-run/contracts/openapi.yaml`](specs/005-deploy-cloud-run/contracts/openapi.yaml) (1.2.1),
-como registro. A 1.3.0 só acrescenta as duas agregações do painel (spec 006, FR-004): os endpoints existentes não
-mudam.
+**E o front, também publicado.** O painel e a lista de filmes, em Angular, rodam num segundo serviço do Cloud
+Run, que repassa as chamadas de `/api` a essa mesma API, como descrito acima:
+
+- Painel: <https://awards-web-2564509384.southamerica-east1.run.app>, com os anos com mais de um vencedor, os
+  três estúdios com mais vitórias, os produtores com o maior e o menor intervalo e a busca dos vencedores de um
+  ano.
+- Lista de filmes, já filtrada pelos vencedores de 1990:
+  <https://awards-web-2564509384.southamerica-east1.run.app/filmes?ano=1990&vencedor=sim>.
+- **A primeira abertura pode levar alguns segundos**: os dois serviços ficam com zero instâncias quando ninguém
+  os usa, e o painel mostra "Carregando…" enquanto eles sobem.
+
+#### Agregações do painel
 
 | Método e caminho | O que faz |
 | --- | --- |
-| `GET /api/producers/intervals` | Produtores com o menor e o maior intervalo entre vitórias consecutivas |
-| `GET /api/movies` | Lista paginada de filmes, com filtros |
 | `GET /api/aggregations/years-with-multiple-winners` | Anos com mais de um vencedor ([agregações](#agregações-do-painel)) |
 | `GET /api/aggregations/studios-with-win-count` | Estúdios com a quantidade de filmes vencedores |
-| `GET /swagger-ui.html` | Documentação interativa |
-| `GET /openapi.yaml` | Contrato OpenAPI 3.1 |
-| `GET /actuator/health/liveness`, `GET /actuator/health/readiness`, `GET /actuator/health` | Saúde da aplicação ([endpoints operacionais](#endpoints-operacionais)) |
-| `GET /actuator/prometheus` | Métricas no formato do Prometheus |
-
-### `GET /api/producers/intervals`
-
-Sem parâmetros. Sempre responde **200** com as listas `min` e `max`, no formato exato da página 2 do
-enunciado. Cada item tem só `producer`, `interval`, `previousWin` e `followingWin`.
-
-- Os empatados entram todos, ordenados por `previousWin` e depois pelo nome.
-- Sem nenhum produtor com duas vitórias, a resposta é `{"min":[],"max":[]}`, também com 200.
-
-O exemplo com o arquivo do enunciado está na [seção 2](#2-avalie-em-2-minutos).
-
-### `GET /api/movies`
-
-| Parâmetro | Valores aceitos | Padrão |
-| --- | --- | --- |
-| `year` | Ano exato, só dígitos (até 9) | sem filtro |
-| `winner` | `true` ou `false`, sem diferenciar maiúsculas | sem filtro |
-| `page` | Inteiro de 0 a 2147483647 | `0` |
-| `size` | Inteiro de 1 a 100 | `20` |
-
-- A ordem é sempre por ano e depois por título. Parâmetros desconhecidos são ignorados.
-- `studios` vem `null` quando a coluna está vazia no arquivo. `producers` e `studios` trazem o texto
-  como está no arquivo.
-- Uma página além da última, ou um filtro sem resultado, responde 200 com `content` vazio e os totais
-  reais.
-
-```bash
-curl -s "http://localhost:8080/api/movies?size=2"
-```
-
-```json
-{"content":[{"year":1980,"title":"Can't Stop the Music","studios":"Associated Film Distribution","producers":"Allan Carr","winner":true},{"year":1980,"title":"Cruising","studios":"Lorimar Productions, United Artists","producers":"Jerry Weintraub","winner":false}],"page":0,"size":2,"totalElements":206,"totalPages":103}
-```
-
-Um parâmetro inválido responde **400** em Problem Details (RFC 9457), com `Content-Type:
-application/problem+json`. A propriedade `invalidParams` lista todos os parâmetros inválidos da
-consulta:
-
-```bash
-curl -s "http://localhost:8080/api/movies?page=-1&size=500"
-```
-
-```json
-{"detail":"Parâmetro inválido na consulta","instance":"/api/movies","status":400,"title":"Bad Request","invalidParams":[{"name":"page","reason":"deve ser um inteiro maior ou igual a 0"},{"name":"size","reason":"deve ser um inteiro de 1 a 100"}]}
-```
-
-### Agregações do painel
 
 Duas agregações de leitura, criadas para o front do Marco 6 (spec 006, FR-001 a FR-003). Não têm parâmetros e
 seguem o padrão dos endpoints de negócio: ETag e 304, 401 com a autenticação ligada, e listas vazias com 200
@@ -630,292 +1047,17 @@ curl -s http://localhost:8080/api/aggregations/studios-with-win-count
   - O arquivo fornecido não usa ` and ` entre estúdios, então ele não separa estúdios, ao contrário dos
     produtores.
 
-### ETag e 304
+#### Testes do Marco 6
 
-As respostas 200 dos endpoints de negócio trazem um `ETag` forte, derivado do conteúdo: o mesmo corpo tem
-sempre o mesmo ETag, inclusive entre execuções com o mesmo arquivo. O corpo da resposta 200 não muda.
-
-```bash
-curl -si http://localhost:8080/api/producers/intervals | grep -i etag
-# ETag: "010f231232ae1af42532e0827a126190d"
-
-curl -si -H 'If-None-Match: "010f231232ae1af42532e0827a126190d"' http://localhost:8080/api/producers/intervals
-# HTTP/1.1 304, sem corpo
-```
-
-- O `If-None-Match` bate com o ETag atual sozinho, numa lista, na forma fraca (`W/"..."`) ou com `*`.
-- Na listagem, cada combinação de página, tamanho e filtros tem o seu próprio ETag.
-- Respostas de erro (400 e 405) não têm ETag e nunca viram 304.
-
-### Endpoints operacionais
-
-Na mesma porta da API e sem detalhes internos. As probes e a saúde geral são sempre públicas. O endpoint
-de métricas exige o token quando a [autenticação](#autenticação-opcional) está ligada. Os contratos estão
-em [`specs/002-operacao/contracts/operational-endpoints.md`](specs/002-operacao/contracts/operational-endpoints.md)
-e, com o que o Marco 3 acrescenta, em
-[`specs/003-modo-docker/contracts/operational-endpoints.md`](specs/003-modo-docker/contracts/operational-endpoints.md).
-
-| Caminho | Resposta |
-| --- | --- |
-| `/actuator/health/liveness` | 200 `{"status":"UP"}`; 503 `{"status":"DOWN"}` se a aplicação estiver quebrada |
-| `/actuator/health/readiness` | 200 `{"status":"UP"}` só depois da carga do CSV; 503 `{"status":"OUT_OF_SERVICE"}` antes |
-| `/actuator/health` | 200 `{"status":"UP","groups":["liveness","readiness"]}`, sem componentes nem detalhes |
-| `/actuator/prometheus` | Texto do Prometheus: `http_server_requests_seconds` (contagem e histograma de latência por rota, método, status e `outcome`), métricas da JVM e do processo, todas com `application="awards"`. No modo Docker, também `awards_ingestion_events_total` (eventos gravados e rejeitados) e `kafka_consumer_fetch_manager_records_lag_max` (atraso do consumidor) |
-
-Os demais endpoints do Actuator (`/actuator`, `/actuator/env`, `/actuator/beans` e outros) respondem
-404. Com as métricas, a taxa de erro e o percentil 95 de cada endpoint saem direto no Prometheus:
-
-```promql
-sum(rate(http_server_requests_seconds_count{uri="/api/producers/intervals",outcome=~"CLIENT_ERROR|SERVER_ERROR"}[5m]))
-  / sum(rate(http_server_requests_seconds_count{uri="/api/producers/intervals"}[5m]))
-
-histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri="/api/producers/intervals"}[5m])))
-```
-
-### Códigos HTTP
-
-| Código | Quando |
-| --- | --- |
-| 200 | Consulta atendida, inclusive com listas vazias |
-| 304 | `If-None-Match` igual ao ETag atual, sem corpo |
-| 400 | Parâmetro inválido em `/api/movies`, em Problem Details |
-| 401 | Autenticação ligada e token ausente ou errado, em Problem Details |
-| 404 | Caminho inexistente, em Problem Details |
-| 405 | Verbo diferente de GET nos dois endpoints, em Problem Details e com o cabeçalho `Allow: GET` |
-| 503 | Liveness ou readiness negativa (no modo Docker, a readiness fica 503 até a carga por Kafka terminar) |
-
----
-
-## 5. Testes
-
-```bash
-./mvnw verify                          # testes do enunciado (Linux, macOS ou Git Bash)
-./mvnw -Pextras verify                 # todos os testes, com os dos extras e a cobertura mínima
-./mvnw -Pextras verify -Dit.test=ReferenceFileIT   # uma classe só
-```
-
-```powershell
-.\mvnw.cmd verify
-.\mvnw.cmd -Pextras verify
-.\mvnw.cmd -Pextras verify "-Dit.test=ReferenceFileIT"   # no PowerShell, o -D vai entre aspas
-```
-
-Todos são **testes de integração**, executados pelo Maven Failsafe na fase `verify`, **sem Docker**
-(constituição 2.0.0, Princípios II e VI):
-
-- **`./mvnw verify`:** uma execução, com os **243 testes do modo padrão**, listados em
-  [`src/test/default-mode-its.txt`](src/test/default-mode-its.txt): os do enunciado (Marco 1) e os dos Marcos 2,
-  3 e 6 que valem sem nenhuma configuração. Leva cerca de 1 minuto num clone limpo (63 s medidos, com a compilação);
-- **`./mvnw -Pextras verify`:** a mesma execução e mais duas:
-  - **`extras`:** os testes do que vem desligado por padrão (Kafka, inclusive os do testador adversário,
-    e a autenticação ligada), com o log em texto. Os 5 do `JsonLogFormatIT` ficam
-    pulados, porque só valem com o JSON ligado;
-  - **`json-logs`:** os 85 testes das classes marcadas com `@Tag("log")` rodam de novo, numa JVM
-    própria, com `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`. Assim, as mesmas verificações de log valem nos
-    dois formatos.
-
-Os testes do Kafka rodam no `./mvnw -Pextras verify` com o **broker embutido** do Spring Kafka (KRaft,
-dentro do próprio teste), sem Docker.
-
-A **cobertura** de linhas é medida pelo JaCoCo sobre a soma das execuções do `./mvnw -Pextras verify`, que
-falha abaixo de **90%**. O relatório fica em `target/site/jacoco-it/index.html`. O job `build` do pipeline
-roda esse perfil em todo push. Os testes do Kafka usam um perfil só de teste (`kafkatest`, em
-`src/test/resources`), com prazos curtos dos clientes, e reaproveitam o contexto do Spring entre as
-classes que só leem.
-
-**Testes com PostgreSQL** (perfil Maven `postgres-it`): o que só existe no PostgreSQL fica fora do
-`./mvnw verify` padrão (Princípio II) e roda obrigatoriamente no job `postgres` do pipeline (Princípio VI,
-constituição 1.7.0). São a migração, a ordem com a collation, os reinícios sobre o mesmo banco e a nova
-tentativa quando a gravação falha. Para rodar localmente, é preciso um PostgreSQL com collation `C`:
-
-```bash
-docker run -d --name awards-pg -p 5432:5432 -e POSTGRES_DB=awards -e POSTGRES_USER=awards \
-  -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_INITDB_ARGS='--locale=C --encoding=UTF8' postgres:18-alpine
-DB_URL=jdbc:postgresql://localhost:5432/awards DB_USER=awards DB_PASSWORD= ./mvnw -Ppostgres-it verify
-docker rm -f awards-pg
-```
+No `./mvnw verify`, menos o `AggregationsAuthIT`, que roda no `./mvnw -Pextras verify`. Os testes do front
+rodam no pipeline, nos jobs `frontend` e `web`.
 
 | Grupo (`src/test/java/com/outsera/awards/`) | O que cobre |
 | --- | --- |
-| `SmokeIT` | A aplicação sobe com o arquivo padrão |
-| `ingestion/` | Carga do CSV: falhas de inicialização, variações inofensivas, BOM, linhas inválidas, duplicatas, estúdios vazios, resumo da carga e arquivos sem filmes válidos |
-| `intervals/` | Cálculo e formato dos intervalos: resultado de referência, empates em `min` e `max`, três ou mais vitórias, linhas fora de ordem, vitórias no mesmo ano, separação de produtores, arquivo com anos diferentes dos do enunciado e um oráculo independente com arquivos gerados |
-| `adversario/` | Os 13 casos do testador adversário ([seção 11](#11-metodologia-e-uso-de-ia)), um IT por caso, com o CSV e o resultado esperado em `src/test/resources/scenarios/adversario/` |
-| `movies/` | Listagem: paginação, filtros, ordem, parâmetros inválidos e tempo de resposta abaixo de 1 s |
-| `docs/` | As respostas reais dos dois endpoints validadas contra o `openapi.yaml`, inclusive o `ETag` e o 304, mais o Swagger UI e o contrato publicado |
-| `web/` | Verbos não suportados nos dois endpoints respondem 405 |
-| `etag/` | ETag e 304: valor único, lista, forma fraca, `*`, malformado, erros sem ETag e o mesmo ETag entre execuções |
-| `health/` | Liveness e readiness, corpo sem detalhes, 503 nos estados negativos e a readiness só depois da carga |
-| `metrics/` | Métricas no formato do Prometheus: contagem, status, rota sem parâmetros, rotas inexistentes, 304, histograma e rótulo `application` |
-| `logging/` | Log em texto sem a variável, JSON ECS com ela, banner desligado e nenhum cabeçalho `Authorization` no log |
-| `isolation/` | Sem perfil, o Kafka não é configurado: nenhuma métrica nem cliente Kafka (Marco 3) |
-| `kafka/` | Ingestão por Kafka com o broker embutido: resultado de referência, equivalência byte a byte com a carga direta, readiness só com o evento de carga concluída, linhas inválidas, falhas estruturais, vencedor novo em até 5 s, atualização, idempotência, cada tipo de evento inválido no tópico de erros (inclusive o caractere nulo, que o PostgreSQL não aceita), tópico de erros fora do ar, broker fora do ar e métricas (Marco 3), mais os 30 casos do testador adversário em `kafka/adversario/` (Marco 4) |
-| `security/` | Autenticação desligada (guarda do `API_TOKEN`) e ligada: 401 em Problem Details, endpoints públicos, token fora do log, sem senha gerada, cabeçalhos de cache e de proteção e o contrato publicado (1.2.0 no Marco 3, 1.2.1 desde o Marco 5) |
+
 | `aggregations/` | As duas agregações do painel: resultado de referência, ordem, listas vazias, ETag, contrato e autenticação ligada (só no perfil `extras`), mais os casos do testador adversário do front em `aggregations/adversario/` (Marco 6) |
-| `postgres/` | Só no perfil `postgres-it`: esquema, equivalência e ordem entre o H2 e o PostgreSQL, reinícios, nova tentativa quando a gravação falha e recusa permanente do banco por dado inválido, que vai ao tópico de erros (Marco 3) |
-| `support/` | Base comum (`ScenarioIT`, `KafkaScenarioIT`, `TokenScenarioIT`) e apoios (aplicação real por `SpringApplication`, HTTP, Kafka e PostgreSQL reais, leitura do log, do Prometheus e do contrato), sem testes próprios |
 
-**Como os testes funcionam:**
-- Cada classe sobe a aplicação inteira com `@SpringBootTest` em porta aleatória e faz chamadas HTTP
-  reais.
-- Cada cenário tem o seu CSV em `src/test/resources/scenarios/`, escolhido pela propriedade
-  `movies.csv.path`.
-- Quando o teste precisa controlar o ciclo de vida da aplicação real, ele a executa com
-  `SpringApplication`, ainda sem mocks (Princípio I, constituição 1.5.0). São quatro casos:
-  - **falha de inicialização**, como o `StartupFailureIT`: o contexto não chega a subir, e o teste
-    verifica a exceção e o log;
-  - **múltiplas execuções**, como o `EtagAcrossRunsIT`, o `KafkaEquivalenceIT` e o `RestartPostgresIT`:
-    comparam duas ou mais subidas;
-  - **ordem da subida**, como o `ReadinessAfterLoadIT`: observa os eventos reais do ciclo de vida;
-  - **saída completa da subida**, como o `JsonLogFormatIT` e o `TokenNotLoggedIT`: capturam o log desde a
-    primeira linha.
-
-  O resultado é verificado por HTTP real sempre que o HTTP observa o comportamento.
-
-**Por que só testes de integração:** o item 4.2 do enunciado pede testes de integração, e o Princípio I
-da [constituição](.specify/memory/constitution.md) proíbe testes unitários e mocks na API.
-- Não há classe `*Test`, e o Mockito foi excluído do classpath de teste.
-- Os testes verificam o comportamento pelo HTTP, como o avaliador o vê, e não detalhes internos.
-- Log e banco só podem ser usados enquanto um comportamento não tem endpoint. O único teste que consulta
-  o banco é o `SchemaPostgresIT`, que confere o histórico do Flyway, porque a migração não tem endpoint. O
-  log só é verificado no que não tem endpoint: os avisos e o resumo da carga, a ordem entre a carga e o
-  início do servidor, as falhas de inicialização, o próprio formato do log e a ausência do token.
-- Os testes do Kafka usam um produtor e um consumidor reais contra o broker embutido. Os testes do
-  PostgreSQL usam um banco real, com um esquema próprio por classe.
-- A autenticação é testada com tokens gerados na hora: nenhum token fica no código dos testes.
-
-### Pipeline
-
-O [GitHub Actions](.github/workflows/ci.yml) roda em todo push e pull request, sem segredos. Toda action é
-fixada por hash de commit. As únicas publicações são as dos jobs `deploy` (API, Marco 5) e `deploy-web` (front,
-Marco 6), só em push na `main`. O contrato completo está em
-[`specs/002-operacao/contracts/ci-pipeline.md`](specs/002-operacao/contracts/ci-pipeline.md), e o das
-publicações, em [`specs/005-deploy-cloud-run/contracts/ci-deploy.md`](specs/005-deploy-cloud-run/contracts/ci-deploy.md)
-e [`specs/006-frontend-angular/contracts/ci-frontend.md`](specs/006-frontend-angular/contracts/ci-frontend.md).
-Os checks obrigatórios da `main` são 12: os 10 do Marco 4, mais `frontend` e `web`.
-
-| Job | O que faz | Reprova quando |
-| --- | --- | --- |
-| `workflow-policy` | Confere a política do workflow, do Dependabot e do compose, e que os ITs dos marcos anteriores não mudaram desde a `v0.2.0`, a `v0.3.0` e a `v0.5.0` | Action sem hash de commit, permissão além de `contents: read` (exceto `security-events: write` no `codeql` e `id-token: write` no `deploy` e no `deploy-web`), uso de `secrets.`, publicação de imagem fora do `deploy` e do `deploy-web`, job de publicação sem os 12 checks em `needs` (o `deploy-web` também sem o `deploy`), com outra condição, com cancelamento ou com build, Dependabot incompleto (inclusive o npm e o docker do `frontend/`), imagem do compose ou de service container sem digest, senha de banco no workflow, ou um IT de uma dessas tags alterado sem exceção registrada |
-| `build` | `./mvnw -Pextras verify` (enunciado, extras e log em JSON), cobertura no resumo e relatórios como artefato | Qualquer teste falha, ou a cobertura de linhas fica abaixo de 90% |
-| `postgres` | `./mvnw -Ppostgres-it verify` contra um PostgreSQL 18 (service container, collation `C`, sem credencial) | Qualquer `*PostgresIT` falha |
-| `compose` | [`compose-test.sh`](.github/scripts/compose-test.sh): sobe o compose e confere a referência, o Prometheus, o dashboard, as regras do SLO carregadas sem alerta disparando, um vencedor novo pelo Kafka em até 5 s, o tópico de erros, a persistência depois de `down`, a queda real do banco e o token | Qualquer passo falha, ou a subida até o dashboard passa de 3 min |
-| `codeql` | Análise do código Java (`security-extended`) | Achado de severidade alta ou crítica (`security-severity` ≥ 7,0) |
-| `dependencies` | Trivy nas dependências de runtime que o Maven copia (inventário efetivo, com as transitivas), com relatório completo e as versões de `lz4-java` e `snappy-java` no resumo | Vulnerabilidade `HIGH` ou `CRITICAL` **com versão corrigida**, ou `lz4-java` e `snappy-java` fora do inventário |
-| `alert-rules` | `promtool check rules`, `check config` e `test rules` das regras do SLO, com a imagem do Prometheus do compose | Regra inválida ou teste de regra falhando |
-| `load` | [`load-test.sh`](.github/scripts/load-test.sh): gera o CSV de 100 mil filmes duas vezes e compara os SHA-256, mede a carga direta e a carga por Kafka e roda o k6 | Hashes diferentes, linha rejeitada, readiness fora do prazo, ou p99 e taxa de erro acima dos limites |
-| `frontend` | No `frontend/`, com Node 26: `npm ci`, lint (angular-eslint), testes unitários com cobertura no resumo, build de produção e `npm audit` ([Marco 6](#marco-6-front-end-em-angular-opcional)) | Erro de lint, teste falhando, cobertura de linhas abaixo de 80%, orçamento de tamanho estourado, ou vulnerabilidade alta ou crítica numa dependência de execução |
-| `web` | Imagem do front (no Docker e em tar OCI, do mesmo build), digest, a API pelo JAR, [`web-smoke-test.sh`](.github/scripts/web-smoke-test.sh) (10 passos, inclusive o log em JSON), Playwright nos projetos `desktop` e `celular` contra a API real, e Trivy. Em push na `main`, guarda o tar para o `deploy-web` | Imagem que não sobe, repasse ou rota interna quebrados, cabeçalho ou log fora do contrato, cenário de ponta a ponta falhando, ou vulnerabilidade `HIGH` ou `CRITICAL` com correção |
-| `dockerfile-lint` | hadolint no `Dockerfile` e no `frontend/Dockerfile` | Aviso ou erro |
-| `image` | Contexto de build, imagem (no Docker e em tar OCI, do mesmo build), digest, teste de fumaça (13 passos) e Trivy na imagem. Em push na `main`, guarda o tar para o `deploy` | Contexto fora do `.dockerignore`, tar com mais de um manifesto ou fora de `linux/amd64`, imagem do Docker diferente da do tar, imagem que não sobe ou não responde o resultado de referência, ou vulnerabilidade `HIGH` ou `CRITICAL` com correção na imagem |
-| `deploy` | Só em push na `main`, depois dos 12 checks: envia a imagem testada ao Artifact Registry pelo digest, implanta sem tráfego, confere pela URL da revisão, passa o tráfego e confere a URL pública ([Marco 5](#marco-5-publicação-no-cloud-run-opcional)). Não é check obrigatório, porque só roda depois do merge | Digest diferente do testado, falha de identidade ou de permissão, revisão que não sobe, ou conferência reprovada (readiness, resultado de referência, Swagger ou métricas abertas) |
-| `deploy-web` | Só em push na `main`, depois dos 12 checks e do `deploy`: envia a imagem do front testada pelo digest, implanta no `awards-web` sem tráfego, confere pela URL da revisão com o [`verify-web.sh`](.github/scripts/verify-web.sh), passa o tráfego e confere a URL pública ([Marco 6](#marco-6-front-end-em-angular-opcional)). Não é check obrigatório | Digest diferente do testado, falha de identidade ou de permissão, ou conferência reprovada (página, rota interna, repasse de `/api` com o resultado de referência e as agregações) |
-
-Achados médios e baixos, e vulnerabilidades sem correção, aparecem no relatório sem reprovar. O
-[Dependabot](.github/dependabot.yml) abre PRs semanais para Maven, GitHub Actions, as imagens base, as
-imagens do compose e as dependências do npm do front.
-
----
-
-## 6. Requisitos do enunciado
-
-Cada item exigido pelo enunciado e como ele é comprovado: pelo teste de integração ou, nos itens de
-entrega (4.4, 4.5, 5.1 e 5.2), pelo artefato correspondente. A matriz completa, requisito por
-requisito da spec, está em
-[`specs/001-producer-intervals-api/plan.md`](specs/001-producer-intervals-api/plan.md#rastreabilidade-requisito--teste).
-
-| Item do enunciado | Requisitos da spec | Como é comprovado |
-| --- | --- | --- |
-| API RESTful no nível 2 de Richardson: recursos nomeados (`/api/producers/intervals`, `/api/movies`), verbo GET e códigos HTTP adequados (item 4.1) | FR-017, FR-018, FR-019, FR-023, FR-023a | **200:** `ReferenceFileIT`, `IntervalsShapeIT`, `MoviesListingIT`. **400** em Problem Details: `MoviesInvalidParamsIT`, `MoviesContractIT`. **404** em Problem Details para rota inexistente: `SmokeIT`. **405** para POST, PUT e DELETE nos dois endpoints, com `Allow: GET`: `HttpMethodsIT` |
-| Carga do CSV na inicialização, antes de o servidor aceitar conexões | FR-001, FR-002 | `DefaultFileIT` |
-| Formato de `min` e `max` (`producer`, `interval`, `previousWin`, `followingWin`), página 2 | FR-017, FR-025 | `IntervalsShapeIT`, `IntervalsContractIT` |
-| Intervalo só entre vitórias consecutivas do mesmo produtor | FR-011, FR-012, FR-013, FR-016 | `ThreeOrMoreWinsIT`, `UnorderedLinesIT`, `SameYearWinsIT`, `WinnerVariantsIT` |
-| Empates: todos os empatados em `min` e em `max` | FR-014, FR-015 | `TiesMinIT`, `TiesMaxIT`, `IntervalEdgeCasesIT` |
-| Listas vazias quando nenhum produtor venceu duas vezes | FR-018 | `NoRepeatWinnersIT`, `IntervalsShapeIT`, `EmptyLoadIT` |
-| Resultado de referência com o arquivo fornecido (Joel Silver em `min`, Matthew Vaughn em `max`) | SC-001 | `ReferenceFileIT` |
-| Correto com outros arquivos, sem dados fixos no código | FR-016a, FR-016b, SC-004a | `DisjointProducersIT`, `RandomizedOracleIT` |
-| Leitura da lista de indicados e vencedores (seção 1) | FR-019 a FR-023 | `MoviesListingIT`, `MoviesInvalidParamsIT`, `MoviesContractIT` |
-| Somente testes de integração (item 4.2) | FR-027, Princípio I | Todos os testes são `*IT`, sem mocks, executados pelo Failsafe, com `@SpringBootTest` ou com a aplicação real por `SpringApplication` nos quatro casos de controle do ciclo de vida da [seção 5](#5-testes) |
-| Execução só com o wrapper, sem Docker e sem instalar banco: SGBD **H2 em memória**, embarcado na aplicação (item 4.3) | FR-026 | O H2 é dependência do `pom.xml`, e nenhuma URL de banco é configurada, então o Spring Boot cria um H2 em memória a cada execução. Todos os testes sobem a aplicação assim, e o `SmokeIT` confirma que ela sobe com o arquivo padrão. Além disso, `./mvnw verify` e `./mvnw spring-boot:run` foram executados em clone limpo, no Linux e no Windows |
-| Documentação de como executar e testar (item 4.4) | — | Este README: [seção 2](#2-avalie-em-2-minutos) (avaliação rápida), [seção 3](#3-como-executar) (execução) e [seção 5](#5-testes) (testes) |
-| Código em repositório git (item 4.5) | — | Este repositório, com um ou mais commits por bolt e a estrutura descrita na [seção 12](#12-estrutura-do-repositório) |
-| Uso de IA no desenvolvimento (item 5.1) | — | Spec Kit, Claude Code e Codex, com o fluxo por bolts e os papéis descritos na [seção 11](#11-metodologia-e-uso-de-ia) |
-| Registro das interações com a IA (item 5.2) | — | [`docs/ai/README.md`](docs/ai/README.md): prompts com data e hora, sessões exportadas e decisões aceitas ou rejeitadas |
-
-Cada método de teste tem um `@DisplayName` que começa pelos IDs dos requisitos que comprova (por
-exemplo, `"FR-014 FR-015 empate no mínimo"`, no `TiesMinIT`).
-
-### Requisitos do Marco 2 (extras de operação)
-
-Fora do enunciado, mas com a mesma rastreabilidade. Cada requisito é comprovado na forma do seu tipo
-(Princípio VI, constituição 1.4.0): comportamento da aplicação por teste de integração; imagem e
-pipeline pela execução do pipeline; documentação por revisão, com item no checklist da spec. A matriz
-completa está em [`specs/002-operacao/plan.md`](specs/002-operacao/plan.md#rastreabilidade-requisito--comprovação).
-
-| Extra | Requisitos | Como é comprovado |
-| --- | --- | --- |
-| ETag e 304 nos dois endpoints, com o corpo do Marco 1 inalterado | FR-001 a FR-007 | `IntervalsEtagIT`, `MoviesEtagIT`, `EtagEmptyIT`, `EtagAcrossRunsIT`, `IntervalsContractIT`, `MoviesContractIT`, `ApiDocsIT` e toda a suíte do Marco 1 |
-| Liveness e readiness, com a readiness só depois da carga | FR-008 a FR-011 | `HealthProbesIT`, `ReadinessInvalidLinesIT`, `ProbeStatesIT`, `ReadinessAfterLoadIT` |
-| Métricas de latência e de erro no formato do Prometheus | FR-012 a FR-016 | `MetricsIT` |
-| Log em texto no `./mvnw` e JSON por variável | FR-017 a FR-020 | `TextLogFormatIT`, `JsonLogFormatIT` e as classes com `@Tag("log")` nas duas execuções |
-| Imagem multi-stage, não root, com healthcheck e `.dockerignore` | FR-021 a FR-027 | Jobs `dockerfile-lint` e `image` (contexto de build e teste de fumaça) |
-| Pipeline, portas de segurança e cobertura, actions por hash e Dependabot | FR-028 a FR-029 | Jobs `workflow-policy`, `build`, `codeql`, `dependencies` e `image` |
-| ADRs e este README | FR-030, FR-031, FR-034 | Revisão do PR, pelas seções "Revisão dos ADRs" e "Revisão do README" de [`checklists/requirements.md`](specs/002-operacao/checklists/requirements.md) |
-
-### Requisitos do Marco 3 (modo Docker e autenticação)
-
-Também fora do enunciado. O comportamento comum aos dois bancos é comprovado no `./mvnw -Pextras verify`,
-e o que só existe no PostgreSQL, no perfil `postgres-it` (Princípio VI, constituição 2.0.0). A matriz completa está
-em [`specs/003-modo-docker/plan.md`](specs/003-modo-docker/plan.md#rastreabilidade-princípio-vi). Os
-`@DisplayName` dos testes novos começam por `S003`, porque os IDs das três specs se repetem.
-
-| Extra | Requisitos | Como é comprovado |
-| --- | --- | --- |
-| Modo padrão idêntico, sem Kafka configurado | FR-001 | `DefaultModeIsolationIT`, a suíte dos Marcos 1 e 2 e o `check-unchanged-tests.sh` |
-| PostgreSQL com o mesmo esquema e a mesma ordem da listagem | FR-004 a FR-008 | `SchemaPostgresIT`, `EquivalencePostgresIT`, `ListingOrderPostgresIT` (job `postgres`) |
-| Kafka como caminho único, com a readiness depois do evento de carga concluída | FR-009 a FR-013 | `KafkaReferenceFileIT`, `KafkaReadinessIT`, `KafkaInvalidLinesIT`, `KafkaStructuralFailureIT`, `PublisherSummaryIT`, `KafkaBrokerUnavailableIT` |
-| Gravação idempotente com atualização e reinícios | FR-014 | `KafkaIdempotencyIT`, `KafkaUpdateIT`, `RestartDirectPostgresIT`, `RestartPostgresIT` |
-| Tópico de erros e nova tentativa quando a gravação falha | FR-015, FR-015a | `KafkaInvalidEventsIT`, `KafkaErrorTopicUnavailableIT`, `RetryPostgresIT` e o passo 7b do job `compose` |
-| Vencedor novo depois da carga e métricas da ingestão | FR-016, FR-017 | `KafkaNewWinnerIT`, `KafkaMetricsIT` |
-| Carga direta e Kafka equivalentes, sem exceção | FR-018 | `KafkaEquivalenceIT`, `FieldTooLongIT` |
-| Autenticação por token, desligada por padrão | FR-019 a FR-023, FR-025 a FR-027 | `AuthDisabledByDefaultIT`, `AuthEnabledIT`, `AuthProblemDetailsIT`, `TokenNotLoggedIT`, `NoGeneratedPasswordIT`, `AuthContractIT`, `ApiDocsSecurityIT` |
-| Cabeçalhos de cache e de proteção | FR-022a | `CacheHeadersIT`, `CacheHeadersWithTokenIT` |
-| Compose com observabilidade, imagens por digest e credenciais de demonstração | FR-028 a FR-035 | Jobs `compose` e `workflow-policy` |
-| README e ADRs | FR-036, FR-037 | Revisão do PR, pelas seções de [`specs/003-modo-docker/checklists/requirements.md`](specs/003-modo-docker/checklists/requirements.md) |
-
-### Requisitos do Marco 4 (SLO, alertas, carga e dados gerados)
-
-Também fora do enunciado, com o escopo reduzido descrito no [roteiro](#13-roteiro). A matriz completa está em
-[`specs/004-acabamento-operacional/plan.md`](specs/004-acabamento-operacional/plan.md#rastreabilidade-princípio-vi).
-Os `@DisplayName` dos testes novos começam por `S004`.
-
-| Extra | Requisitos | Como é comprovado |
-| --- | --- | --- |
-| Modo padrão sem mudança | FR-001, FR-002, SC-001 | Job `build` e `check-unchanged-tests.sh` contra a `v0.2.0` e a `v0.3.0` |
-| SLO, alertas e runbook | FR-003 a FR-009, SC-002, SC-003 | Job `alert-rules`, passo 4b do job `compose` e revisão de [`docs/slo.md`](docs/slo.md) e [`docs/runbook.md`](docs/runbook.md) |
-| Teste de carga com limites | FR-010 a FR-013, FR-011a, SC-004 | Job `load` e o registro da medição em `docs/ai/decisoes.md` |
-| Gerador de CSV e carga inicial medida | FR-014 a FR-019, SC-005, SC-006 | Job `load` (dois SHA-256 iguais ao do Windows, cargas sem linha rejeitada) |
-| Inventário efetivo no job de dependências | FR-032, FR-033, SC-010 | Job `dependencies` e o registro da causa em `docs/ai/decisoes.md` |
-| Testador adversário na ingestão por Kafka | FR-035 | `KafkaAdversarialEventsIT` e os ITs `KafkaCase*` (job `build`), `KafkaCase29RestartReappliesCsvPostgresIT` (job `postgres`) |
-
-### Requisitos do Marco 5 (publicação no Cloud Run)
-
-Também fora do enunciado. O marco não muda o comportamento da aplicação, então não tem IT novo. Cada requisito
-é comprovado pela execução do pipeline, pelas execuções do script ou pela revisão (Princípio VI). A spec está
-em [`specs/005-deploy-cloud-run/spec.md`](specs/005-deploy-cloud-run/spec.md).
-
-| Extra | Requisitos | Como é comprovado |
-| --- | --- | --- |
-| Serviço no modo padrão, com 0 a 1 instância por revisão, probes e métricas fechadas | FR-001 a FR-007, FR-004a, SC-001, SC-006 | Job `deploy` na `main` (as duas conferências do `verify-deployment.sh`, com o 404 de `/actuator/prometheus` e os tempos de cada chamada) e a leitura do serviço depois do merge |
-| A mesma imagem testada, pelo digest, sem rebuild | FR-002, FR-010 | Jobs `image` (digest e identidade da imagem) e `deploy` (digest do artefato e do registro) |
-| Publicação só em push na `main`, depois dos checks, serializada e sem chaves | FR-008, FR-009, FR-011 a FR-013, SC-002, SC-003 | Job `workflow-policy` (regras 3, 4, 5, 9 e 10), com os casos negativos conferidos antes do push ([evidência](specs/005-deploy-cloud-run/evidencias/politica-workflow.txt)), o job `deploy` pulado nos PRs e a condição do provedor de identidade conferida no GCP ([evidência](specs/005-deploy-cloud-run/evidencias/setup-conferencias.txt)) |
-| Revisão sem tráfego até ser conferida | FR-014 a FR-016, FR-015a | Job `deploy`: a conferência pela URL da revisão antes da troca de tráfego e o resumo da execução |
-| Configuração do GCP idempotente, com permissões mínimas | FR-017 a FR-021, SC-004 | As duas execuções do `deploy/gcp/setup.sh` (a segunda com zero mudanças) em [`evidencias/`](specs/005-deploy-cloud-run/evidencias/) e a revisão do script no PR |
-| Modo padrão sem mudança | FR-022, SC-007 | Jobs `build` e `workflow-policy` (`check-unchanged-tests.sh`) |
-| README, ADR 0027, runbook e decisões | FR-023 a FR-025 | Revisão do PR, por [`specs/005-deploy-cloud-run/checklists/revisao.md`](specs/005-deploy-cloud-run/checklists/revisao.md) |
-| Contrato 1.2.1: descrição em duas frases, autenticação opcional e nenhum `<` ou `>` nos textos | FR-027 | `ContractTextIT`, `ApiDocsSecurityIT` (versão) e `ApiDocsIT` (publicado idêntico ao da spec 005) |
-
-### Requisitos do Marco 6 (front-end em Angular)
+#### Requisitos do Marco 6 (front-end em Angular)
 
 Também fora do enunciado. As agregações da API são comprovadas por IT. O front é comprovado pelos testes
 unitários e pelo teste de ponta a ponta no pipeline, como a emenda 2.1.0 da constituição define (Princípio VI). A
@@ -936,76 +1078,11 @@ spec está em [`specs/006-frontend-angular/spec.md`](specs/006-frontend-angular/
 
 ---
 
-## 7. Regras de negócio
+## Parte 3. Sobre o projeto
 
-As regras completas estão na [spec](specs/001-producer-intervals-api/spec.md).
+### Arquitetura
 
-### Arquivo e cabeçalho
-
-- O separador é `;` e o cabeçalho é `year;title;studios;producers;winner`, **nessa ordem**. Os nomes das
-  colunas não diferenciam maiúsculas (`Year;Title;...` é aceito). Ordem diferente, coluna faltando ou
-  coluna a mais impedem a aplicação de subir.
-- O arquivo é lido em UTF-8. O **BOM** no início é removido antes da leitura, então não atrapalha um
-  cabeçalho entre aspas nem uma linha em branco logo depois dele.
-- Linhas em branco, inclusive só com espaços, e espaços em volta dos campos são ignorados sem aviso.
-- `winner` igual a `yes`, sem diferenciar maiúsculas e ignorando espaços, marca o vencedor. Vazio
-  significa só indicado.
-
-### Linhas inválidas e duplicadas
-
-Uma linha inválida é ignorada, com um aviso que cita o número da linha física no arquivo (o cabeçalho
-é a linha 1) e o motivo. A carga continua. Os motivos, verificados nesta ordem:
-
-1. número de colunas diferente de 5;
-2. ano vazio;
-3. ano não numérico (aceita só dígitos, sem sinal);
-4. ano fora da faixa de 1 a 9999, como `0` ou `10000`;
-5. título vazio;
-6. produtores vazios, inclusive quando a separação não gera nenhum nome;
-7. `winner` diferente de `yes` ou vazio;
-8. **duplicata:** o filme é identificado por ano + título. A primeira ocorrência vale, e as repetições
-   são ignoradas com aviso que cita a linha original.
-
-A coluna de estúdios é opcional. Ao final, o log traz o resumo de linhas lidas, aceitas e rejeitadas.
-
-### Separação dos nomes de produtores
-
-- Os separadores são a vírgula, a palavra `and` e a combinação `, and`.
-- O `and` só separa como palavra inteira, sem diferenciar maiúsculas: `AND` e `aNd` também separam.
-  `Robbinsand`, `Anderson` e `andrew` não são cortados.
-- Vários `and` seguidos contam todos como separadores. Partes vazias são descartadas, e um nome
-  repetido no mesmo filme conta uma vez.
-- Os nomes são comparados **exatamente como escritos**, depois de tirar os espaços em volta. Não há
-  correção de grafia, abreviação ou maiúsculas, e os espaços internos são preservados.
-
-| Coluna `producers` | Nomes |
-| --- | --- |
-| `Eric Fellner, and Tom Hooper` | `Eric Fellner`, `Tom Hooper` |
-| `Sid and Marty Krofft` | `Sid`, `Marty Krofft` |
-| `Iris AND Nilo aNd Eva` | `Iris`, `Nilo`, `Eva` |
-| `Brian Robbinsand Sharla Sumpter Bridgett` | um nome só |
-| `A, , B` | `A`, `B` |
-| `Producer A and and Producer B` | `Producer A`, `Producer B` |
-| `, and` | nenhum (linha rejeitada) |
-
-### Intervalos e empates
-
-- Só os filmes **vencedores** contam.
-- Para cada produtor, os anos de vitória são ordenados, e cada par de vitórias **vizinhas** gera um
-  intervalo (`followingWin - previousWin`). A primeira vitória nunca é comparada com a última quando há
-  outras entre elas.
-- Duas vitórias no mesmo ano, em filmes diferentes, dão intervalo 0.
-- `min` traz **todos** os intervalos iguais ao menor valor, e `max` **todos** os iguais ao maior. Dentro
-  de cada lista, a ordem é por `previousWin` e depois pelo nome (por código Unicode, sem depender do
-  idioma da máquina).
-- O resultado não depende da ordem das linhas no arquivo. Nada do resultado está fixo no código: ele
-  vem só do arquivo carregado.
-
----
-
-## 8. Arquitetura
-
-### Pacotes (`src/main/java/com/outsera/awards/`)
+#### Pacotes (`src/main/java/com/outsera/awards/`)
 
 | Pacote | Responsabilidade |
 | --- | --- |
@@ -1020,7 +1097,7 @@ A coluna de estúdios é opcional. Ao final, o log traz o resumo de linhas lidas
 Saúde, métricas e o formato do log são só configuração, no `application.yml` e na variável
 `LOGGING_STRUCTURED_FORMAT_CONSOLE`, sem código próprio.
 
-### Fluxo da carga até a resposta
+#### Fluxo da carga até a resposta
 
 ```mermaid
 flowchart LR
@@ -1058,7 +1135,7 @@ flowchart LR
     Import --> PG[("PostgreSQL<br/>mesmo esquema Flyway")]
 ```
 
-### Stack
+#### Stack
 
 | Item | Versão |
 | --- | --- |
@@ -1077,7 +1154,7 @@ flowchart LR
 
 ---
 
-## 9. Segurança
+### Segurança
 
 **Por que a demonstração pública não tem login.** Os dados são públicos (o CSV do enunciado) e a API é **somente
 leitura**: nenhum endpoint grava, apaga ou expõe algo que não esteja no arquivo. Um login só atrapalharia quem
@@ -1097,7 +1174,7 @@ fica fechado.
 | Trivy | Nas dependências de execução da API (inventário efetivo, com as transitivas), na imagem da API e na do front. Reprova `HIGH` ou `CRITICAL` com versão corrigida. No front, também o `npm audit` | Jobs `dependencies`, `image`, `web` e `frontend` |
 | CodeQL | Análise do Java com `security-extended`; reprova achado com `security-severity` ≥ 7,0 | Job `codeql` |
 | Política do workflow | Dez regras conferidas em todo push pelo [`check-workflows.sh`](.github/scripts/check-workflows.sh): actions por hash de commit, permissões, nenhum `secrets.`, publicação só nos jobs `deploy` e `deploy-web` e só depois dos checks, imagens do compose por digest, nenhuma senha de banco no workflow e Dependabot completo. Os casos negativos foram conferidos antes do push ([Marco 5](specs/005-deploy-cloud-run/evidencias/politica-workflow.txt), [Marco 6](specs/006-frontend-angular/evidencias/politica-workflow.txt)) | Job `workflow-policy` |
-| Testadores adversários | Três rodadas do Codex, sem ler o código de produção: Marco 1, ingestão por Kafka e front. Cada ataque virou teste permanente ([seção 11](#rodadas-do-testador-adversário)) | ITs em `adversario/`, `kafka/adversario/` e `aggregations/adversario/`; `adversario.spec.ts` do front |
+| Testadores adversários | Três rodadas do Codex, sem ler o código de produção: Marco 1, ingestão por Kafka e front. Cada ataque virou teste permanente ([rodadas do testador adversário](#rodadas-do-testador-adversário)) | ITs em `adversario/`, `kafka/adversario/` e `aggregations/adversario/`; `adversario.spec.ts` do front |
 
 **Segredos no repositório:** nenhum. As únicas exceções são o token de demonstração
 (`awards-token-de-demonstracao`) e as senhas de demonstração do compose local, identificadas como tais e nunca
@@ -1106,7 +1183,7 @@ dependências, as actions e as imagens atualizadas.
 
 ---
 
-## 10. Decisões
+### Decisões
 
 As decisões de arquitetura têm um ADR curto cada, com contexto, alternativas e consequências, no
 [índice de `docs/adr/`](docs/adr/README.md). Abaixo, as principais, em uma linha cada. O motivo e as
@@ -1174,7 +1251,7 @@ Do Marco 4:
 - **Intervalos guardados entre as leituras e invalidados a cada gravação**, com consistência imediata numa
   única instância, depois de o k6 medir p99 de 927 ms com 100 mil filmes (ADR 0026).
 - **Limites do teste de carga iguais ao objetivo do SLO**, para pegar regressões reais e não o ruído do runner.
-- **Escopo reduzido:** cache AOT, SBOM com assinatura e dev container adiados ([roteiro](#13-roteiro)).
+- **Escopo reduzido:** cache AOT, SBOM com assinatura e dev container adiados ([roteiro](#roteiro)).
 
 Do Marco 5 (ADR 0027):
 
@@ -1198,9 +1275,9 @@ Do Marco 6 ([ADR 0028](docs/adr/0028-front-end-angular-com-nginx.md)):
 
 ---
 
-## 11. Metodologia e uso de IA
+### Metodologia e uso de IA
 
-### Spec-Driven Development com o Spec Kit
+#### Spec-Driven Development com o Spec Kit
 
 O projeto foi feito com **Spec-Driven Development** pelo [GitHub Spec Kit](https://github.com/github/spec-kit),
 no modo *spec-anchored*: a spec é a fonte da verdade e muda antes do código. O trabalho anda em ciclos curtos, os
@@ -1214,13 +1291,13 @@ Cada marco tem uma spec, com o plano, a research, os contratos, as tarefas e o c
 | [001: intervalos de produtores e listagem](specs/001-producer-intervals-api/spec.md) | 1 (o enunciado) | entregue |
 | [002: operação](specs/002-operacao/spec.md) | 2 | entregue |
 | [003: modo Docker](specs/003-modo-docker/spec.md) | 3 | entregue |
-| [004: acabamento operacional](specs/004-acabamento-operacional/spec.md) | 4 | entregue com escopo reduzido ([roteiro](#13-roteiro)) |
+| [004: acabamento operacional](specs/004-acabamento-operacional/spec.md) | 4 | entregue com escopo reduzido ([roteiro](#roteiro)) |
 | [005: publicação no Cloud Run](specs/005-deploy-cloud-run/spec.md) | 5 | entregue |
 | [006: front-end em Angular](specs/006-frontend-angular/spec.md) | 6 | entregue |
 
 As regras comuns a todos os agentes estão no [`AGENTS.md`](AGENTS.md).
 
-### Constituição
+#### Constituição
 
 A [constituição](.specify/memory/constitution.md), hoje na **versão 2.1.0**, tem sete princípios inegociáveis:
 somente testes de integração no back-end, execução só com o `./mvnw`, contrato de intervalos idêntico ao
@@ -1242,7 +1319,7 @@ comprovação e nenhum segredo. Toda emenda passa por PR, é aprovada pelo respo
 | 2.0.0 | 2026-11-25 | Princípio II: `./mvnw verify` só com os ITs do modo padrão; os demais no perfil `extras` | Spec 004 |
 | 2.1.0 | 2026-11-26 | Princípios II e VI: front fora do `./mvnw`, comprovado por testes unitários (80%) e de ponta a ponta | Spec 006 |
 
-### Fluxo por bolts
+#### Fluxo por bolts
 
 Cada bolt é feito num branch próprio:
 
@@ -1269,7 +1346,7 @@ PR, merge e tags são feitos só pelo responsável, nunca por um agente.
 | Marco 5 | Um bolt, quatro etapas: configuração do GCP pelo script, política do workflow e imagem como artefato, job `deploy` e documentação | #14 e #15 | [14](docs/ai/sessoes/14-marco-5-deploy.md) |
 | Marco 6 | Um bolt, sete etapas: emenda 2.1.0, agregações na API, projeto Angular e painel, lista de filmes, imagem com ponta a ponta e pipeline, publicação do `awards-web` e documentação; depois, o testador adversário do front | #16 e #20 | [15](docs/ai/sessoes/15-marco-6-frontend.md) |
 
-### Papéis
+#### Papéis
 
 | Papel | Ferramenta | O que faz |
 | --- | --- | --- |
@@ -1280,7 +1357,7 @@ PR, merge e tags são feitos só pelo responsável, nunca por um agente.
 | Documentação | Claude Code, em sessão separada | README, ADRs, SLO, runbook e guia da evidência de IA |
 | Front-end | Claude Code, em sessão separada | `frontend/` (Marco 6) |
 
-### Rodadas do testador adversário
+#### Rodadas do testador adversário
 
 Em cada rodada, o Codex trabalhou só com o enunciado, as specs e os contratos, sem ler o código de produção. Cada
 caso virou teste permanente, e cada ambiguidade encontrada foi decidida pelo responsável e escrita na spec antes
@@ -1292,7 +1369,7 @@ do código. O detalhe de cada caso está em [`docs/ai/decisoes.md`](docs/ai/deci
 | Marco 4: ingestão por Kafka | 30 (o 26 em três variantes) | **6**, em 5 casos: tipos errados nos campos (05), propriedade `winner` repetida (11), U+0000 nas pontas (13), emojis acima do limite do banco (17) e o marcador de carga concluída sem `count` ou com `count` `"0"` (26-B e 26-C). O caso 25 foi documentado no contrato | `kafka/adversario/`, com o `KafkaAdversarialEventsIT` (24 casos) e classes próprias para o marcador e a subida |
 | Marco 6: front e agregações | 27 | **1**: o caso 03, uma página enorme na URL, que virava a página 1 em vez da lista vazia. Oito lacunas da spec foram decididas antes dos testes | `aggregations/adversario/` (ITs), `frontend/src/app/adversario.spec.ts` (unitários) e `frontend/e2e/adversario.spec.ts` (ponta a ponta) |
 
-### Evidência
+#### Evidência
 
 Cada mensagem enviada aos agentes é gravada com data e hora por um hook, em
 [`docs/ai/prompts.md`](docs/ai/prompts.md). As sessões são exportadas por bolt em
@@ -1301,7 +1378,7 @@ Cada mensagem enviada aos agentes é gravada com data e hora por um hook, em
 
 ---
 
-## 12. Estrutura do repositório
+### Estrutura do repositório
 
 ```text
 .
@@ -1380,7 +1457,7 @@ Cada mensagem enviada aos agentes é gravada com data e hora por um hook, em
 
 ---
 
-## 13. Roteiro
+### Roteiro
 
 O que ficou para depois, com o motivo e o que já está pronto para retomar.
 
@@ -1400,7 +1477,7 @@ tarefas destes itens continuam guardadas:
 | --- | --- | --- |
 | Cache dos intervalos para várias instâncias | O cache vale para uma instância só, e por isso o Cloud Run fica limitado a 1 instância por revisão. Para escalar, a invalidação precisa ser compartilhada: um contador de versão no banco, na mesma transação de cada gravação (migração V2 do Flyway e atualização do `SchemaPostgresIT`), ou um evento de invalidação, aceitando na spec uma consistência que deixa de ser imediata | [ADR 0026](docs/adr/0026-intervalos-guardados-entre-leituras.md), seção "Limite: uma única instância" |
 | Modo Docker publicado | A publicação usa só o modo padrão (H2, sem Kafka). Publicar o PostgreSQL e o Kafka depende do passo acima e de credenciais gerenciadas fora do repositório | [ADR 0027](docs/adr/0027-publicacao-no-cloud-run.md) |
-| Login com um provedor de identidade, caso a aplicação passe a ter dados privados | Hoje os dados são públicos e somente leitura, e por isso a demonstração não tem login ([seção 9](#9-segurança)). Se surgirem dados privados, o front passaria a autenticar o usuário num provedor de identidade, em vez do token fixo do `API_TOKEN`, que não pode ficar no código do front | Spec 006, premissas e fora do escopo; [ADR 0017](docs/adr/0017-autenticacao-por-token.md) |
+| Login com um provedor de identidade, caso a aplicação passe a ter dados privados | Hoje os dados são públicos e somente leitura, e por isso a demonstração não tem login ([segurança](#segurança)). Se surgirem dados privados, o front passaria a autenticar o usuário num provedor de identidade, em vez do token fixo do `API_TOKEN`, que não pode ficar no código do front | Spec 006, premissas e fora do escopo; [ADR 0017](docs/adr/0017-autenticacao-por-token.md) |
 | Front no compose | O front roda só pela publicação e pelo `npm start`; um serviço no `compose.yaml` mostraria o ciclo completo localmente | Decisão de 2026-11-26 em [`docs/ai/decisoes.md`](docs/ai/decisoes.md) |
 
 Ficam fora do escopo, por decisão do planejamento: imagem nativa, tracing distribuído e Kubernetes.
