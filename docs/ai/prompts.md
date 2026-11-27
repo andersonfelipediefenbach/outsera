@@ -3144,3 +3144,20 @@ Confira se todos os números e links do README batem com o repositório. Commit,
 ```text
 No roteiro, mantenha o modo Docker publicado e o front no compose, e reescreva o login como condicional: "login com um provedor de identidade, caso a aplicação passe a ter dados privados", coerente com a seção de Segurança. Passe a spec 006 para Implemented neste mesmo PR, como foi feito com a 005. Commit e push.
 ```
+
+## 2026-11-27 14:32:23 -03:00
+
+- Sessao: `f20c8568-741a-44a5-9051-b15bd136b0e6`
+
+```text
+
+
+<pasted_content id="cfca">
+Reorganize o README num branch docs/readme-partes a partir da main, sem mudar código nem perder conteúdo. Três partes, com títulos visíveis no sumário:
+Parte 1, "O teste (o que o enunciado pede)": visão geral, avalie em 2 minutos, como executar só do modo padrão (porta, outro CSV, arquivo inválido, formato do log), os endpoints do enunciado, códigos HTTP, os testes do ./mvnw verify, a tabela de requisitos do enunciado e as regras de negócio.
+Parte 2, "Extras (além do enunciado)": abre com a tabela dos marcos e os dois links publicados (front e Swagger); depois uma subseção por marco, do 2 ao 6, cada uma autocontida: o que entrega, como rodar, endpoints e testes próprios (ETag e operacionais no Marco 2, autenticação no 3, agregações no 6, -Pextras), requisitos do marco e onde está a spec.
+Parte 3, "Sobre o projeto": arquitetura, segurança, decisões, metodologia e uso de IA, estrutura do repositório e roteiro.
+No topo, logo depois do título, um aviso de duas linhas com os links publicados, marcado como extra. Atualize o sumário e as âncoras, rode o script que confere os links, faça o commit e o push.
+</pasted_content id="cfca">
+
+```
