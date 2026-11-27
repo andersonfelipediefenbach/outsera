@@ -1,0 +1,90 @@
+# Publicação na main conferida depois do merge (spec 006, T071), 2026-11-27T14:29Z
+
+## Execução da main
+Merge do PR #16, commit 87b2c52: https://github.com/andersonfelipediefenbach/outsera/actions/runs/45917723129 (conclusão: failure)
+  Os 12 checks e o job deploy passaram; o deploy-web reprovou. O PR #20 passou o endpoint de saúde do nginx a /health.
+Merge do PR #20, commit 81ea91f: https://github.com/andersonfelipediefenbach/outsera/actions/runs/46004797618 (conclusão: success)
+Jobs (conclusão e duração, pela API pública do GitHub):
+  Análise de segurança do código (CodeQL)                        success 234s
+  Lint do Dockerfile (hadolint)                                  success 10s
+  Regras de alerta do SLO (promtool)                             success 14s
+  Política do workflow, do Dependabot e do compose               success 7s
+  Front-end (lint, unitários, build e auditoria)                 success 35s
+  Testes com PostgreSQL                                          success 88s
+  Build, testes e cobertura                                      success 261s
+  Vulnerabilidades das dependências (Trivy)                      success 87s
+  Teste de carga (k6) e carga inicial com o CSV gerado           success 365s
+  Compose com PostgreSQL, Kafka, Prometheus e Grafana            success 210s
+  Imagem do front, fumaça e ponta a ponta                        success 179s
+  Imagem, vulnerabilidades da imagem e teste de fumaça           success 131s
+  Publicação no Cloud Run e conferência da URL                   success 65s
+       1 Set up job: success
+       2 Início da publicação: success
+       3 Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1: success
+       4 Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333: success
+       5 O artefato é a imagem testada no job image: success
+       6 Run google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093: success
+       7 Run google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db: success
+       8 Envio da imagem testada ao Artifact Registry, com o digest preservado: success
+       9 Implantação sem tráfego, com tag própria: success
+      10 Conferência pela URL da revisão, antes do tráfego: success
+      11 Tráfego para a revisão conferida: success
+      12 Conferência pela URL pública: success
+      13 Resumo da publicação: success
+  Publicação do front no Cloud Run e conferência                 success 57s
+       1 Set up job: success
+       2 Início da publicação: success
+       3 Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1: success
+       4 Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333: success
+       5 O artefato é a imagem testada no job web: success
+       6 Run google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093: success
+       7 Run google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db: success
+       8 Envio da imagem testada ao Artifact Registry, com o digest preservado: success
+       9 Implantação sem tráfego, com tag própria: success
+      10 Conferência pela URL da revisão, antes do tráfego: success
+      11 Tráfego para a revisão conferida: success
+      12 Conferência pela URL pública: success
+      13 Resumo da publicação: success
+
+## Conferência local da URL pública (verify-web.sh, Git Bash no Windows, com curl e node)
+SC-001, partida a frio: primeira execução às 2026-11-27T14:29:04Z, cerca de 79 min depois da publicação (13:10Z),
+sem chamadas conhecidas no intervalo. tempo_primeira_resposta=18.846878 s (meta: ≤ 30 s).
+
+--- passo 1: /health responde 200
+==> passo 1: OK - /health responde 200 (HTTP 200 em 2.542638s)
+--- passo 2: / devolve o index.html do Angular
+==> passo 2: OK - / devolve o index.html do Angular (HTTP 200 em 0.160941s)
+--- passo 2b: /filmes devolve o mesmo index.html (rota interna)
+==> passo 2b: OK - /filmes devolve o mesmo index.html (rota interna) (HTTP 200 em 0.148975s)
+--- passo 3: /api/producers/intervals pelo repasse, com o resultado de referência
+tempo_primeira_resposta=18.846878
+==> passo 3: OK - /api/producers/intervals pelo repasse, com o resultado de referência (HTTP 200 em 18.846878s)
+--- passo 4: /api/aggregations/years-with-multiple-winners: 1986, 1990 e 2015
+==> passo 4: OK - /api/aggregations/years-with-multiple-winners: 1986, 1990 e 2015 (HTTP 200 em 0.256373s)
+--- passo 5: /api/aggregations/studios-with-win-count: Columbia 7, Paramount 6, Warner 5
+==> passo 5: OK - /api/aggregations/studios-with-win-count: Columbia 7, Paramount 6, Warner 5 (HTTP 200 em 0.229653s)
+
+verify-web.sh: 6 OK, 0 FALHA em https://awards-web-2564509384.southamerica-east1.run.app
+
+SC-001, instâncias ativas: segunda execução logo depois, às 2026-11-27T14:29:28Z. tempo_primeira_resposta=0.224795 s (meta: ≤ 3 s).
+
+--- passo 1: /health responde 200
+==> passo 1: OK - /health responde 200 (HTTP 200 em 0.139862s)
+--- passo 2: / devolve o index.html do Angular
+==> passo 2: OK - / devolve o index.html do Angular (HTTP 200 em 0.152711s)
+--- passo 2b: /filmes devolve o mesmo index.html (rota interna)
+==> passo 2b: OK - /filmes devolve o mesmo index.html (rota interna) (HTTP 200 em 0.143919s)
+--- passo 3: /api/producers/intervals pelo repasse, com o resultado de referência
+tempo_primeira_resposta=0.224795
+==> passo 3: OK - /api/producers/intervals pelo repasse, com o resultado de referência (HTTP 200 em 0.224795s)
+--- passo 4: /api/aggregations/years-with-multiple-winners: 1986, 1990 e 2015
+==> passo 4: OK - /api/aggregations/years-with-multiple-winners: 1986, 1990 e 2015 (HTTP 200 em 0.263184s)
+--- passo 5: /api/aggregations/studios-with-win-count: Columbia 7, Paramount 6, Warner 5
+==> passo 5: OK - /api/aggregations/studios-with-win-count: Columbia 7, Paramount 6, Warner 5 (HTTP 200 em 0.221076s)
+
+verify-web.sh: 6 OK, 0 FALHA em https://awards-web-2564509384.southamerica-east1.run.app
+
+## Pendente: SC-007 (gcloud run services describe awards-web)
+Não registrado nesta conferência: o gcloud da máquina local não roda sem o Python. Falta a saída de
+gcloud run services describe awards-web --region=southamerica-east1 --format='value(spec.template.metadata.annotations)'
+com autoscaling.knative.dev/maxScale: 1 e sem minScale maior que 0.
